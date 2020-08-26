@@ -152,7 +152,7 @@
         ipatch_id,uvs_targ)
       ipv=0
       fker => l3d_slp
-      call zgetnearquad_ggq_guru(npatches,norders,ixyzs,&
+      call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
         iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
         ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,&
         ndi,ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear)
@@ -167,7 +167,7 @@
       
       fker => l3d_sgradx
       ipv = 1
-      call zgetnearquad_ggq_guru(npatches,norders,ixyzs,&
+      call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
        iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(2*nquad+1))
@@ -205,7 +205,7 @@
       
       fker => y3d_sgradx
       ipv = 1
-      call zgetnearquad_ggq_guru(npatches,norders,ixyzs,&
+      call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
        iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(7*nquad+1))
@@ -465,10 +465,9 @@
          wtmp2(1:3,i) = ffforminv(2,1,i)*srcvals(4:6,i) + &
            ffforminv(2,2,i)*srcvals(7:9,i)
          call cross_prod3d(srcvals(10,i),wtmp1(1,i),wtmp3(1,i))
-         call cross_prod3d(srcvals(11,i),wtmp2(1,i),wtmp4(1,i))
+         call cross_prod3d(srcvals(10,i),wtmp2(1,i),wtmp4(1,i))
       enddo
 !$OMP END PARALLEL DO      
-
 
 
 
@@ -490,11 +489,12 @@
 ! 
 !       oversample densities
 !
-      do i=1,3
+      do i=1,npts
         abc0(1,i) = sigma(i)
         abc0(2,i) = sigma(npts+i)
         abc0(3,i) = sigma(2*npts+i)
       enddo
+
       call oversample_fun_surf(3,npatches,norders,ixyzs,iptype,& 
          npts,abc0,novers,ixyzso,ns,sigmaover)
 
@@ -540,6 +540,7 @@
       allocate(dipvec0(nd,3,ns),charges0(nd,ns))
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts), &
         hess_aux(nd,6,npts))
+
 
       do i=1,ns
         charges0(1:3,i) = sigmaover(1:3,i)*whtsover(i)
@@ -677,7 +678,7 @@
       allocate(ctmp0(3,nmax),dtmp0(3,3,nmax))
       allocate(dpottmp(3),dgradtmp(3,3),srctmp2(3,nmax))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
-!$OMP PRIVATE(ctmp0,dtmp0,l,jstart,nss,dpottmp,dgradtmp,u1,u2,u3,u4)
+!$OMP PRIVATE(ctmp0,dtmp0,l,jstart,nss,dpottmp,dgradtmp,u1,u2,u3,u4,rr)
       do i=1,npts
         nss = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -692,11 +693,16 @@
 
             dtmp0(1:3,1:3,nss)=dipvec0(1:3,1:3,l)
             
+            rr = sqrt((srcover(1,l)-srcvals(1,i))**2 + &
+              (srcover(2,l)-srcvals(2,i))**2 + &
+              (srcover(3,l)-srcvals(3,i))**2)
+            if(rr.lt.thresh) goto 1311
             call l3d_spp_sum_dp(srcover(1,l),12,srcvals(1,i),0,dpars,&
               0,zpars,0,ipars,u1)
             abc2(1,i) = abc2(1,i) - u1*sigmaover(1,l)*whtsover(l)
             abc2(2,i) = abc2(2,i) - u1*sigmaover(2,l)*whtsover(l)
             abc2(3,i) = abc2(3,i) - u1*sigmaover(3,l)*whtsover(l)
+ 1311       continue            
           enddo
         enddo
 
@@ -817,12 +823,13 @@
 !  End of computing abc0 = D0 (abc1) = D0^2[rhom,rhop,rmum]
 !
       deallocate(dipvec0,charges0,pot_aux,grad_aux,hess_aux)
-      deallocate(sigmaover,dpottmp,dgradtmp)
+      deallocate(sigmaover,dpottmp,dgradtmp,ctmp0,dtmp0)
 
       nd = 6
       allocate(charges0(nd,ns),sigmaover(nd,ns))
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
       allocate(dpottmp(nd),dgradtmp(nd,3))
+      allocate(ctmp0(nd,nmax))
 
 !
 !
@@ -838,12 +845,20 @@
 !  We first organize these densities and oversample them
 !
 !
+      call prin2('abc3=*',abc3,24)
+      call prin2('abc2=*',abc2,24)
+      call prin2('sigma4=*',sigma(3*npts+i),24)
+      call prin2('sigma5=*',sigma(4*npts+i),24)
+      call prin2('sigma6=*',sigma(5*npts+i),24)
       do i=1,npts
         abc4(1:3,i) = abc2(1:3,i) + 2*curv(i)*abc3(1:3,i)
         abc4(4,i) = sigma(3*npts+i)
         abc4(5,i) = sigma(4*npts+i)
         abc4(6,i) = sigma(5*npts+i)
       enddo
+
+      call prin2('curv=*',curv,24)
+      call prin2('abc4=*',abc4(1:3,1:10),30)
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
           npts,abc4,novers,ixyzso,ns,sigmaover)
@@ -921,7 +936,8 @@
           pot(i+(j-1)*npts) = -4*(abc0(j,i)-pot_aux(j,i)-pot_aux(j+3,i))
         enddo
       enddo
-      call prin2('pot=*',pot,24)
+
+!      call prin2('pot=*',pot,24)
       call prin2('pot_aux=*',pot_aux,24)
       call prin2('abc0=*',abc0,24)
 

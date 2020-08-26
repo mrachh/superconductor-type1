@@ -70,7 +70,7 @@
       xyz_out(3) = 20.1d0
 
       igeomtype = 1
-      ipars(1) = 2
+      ipars(1) = 1
       npatches=12*(4**ipars(1))
 
       norder = 3 
@@ -225,12 +225,13 @@ C$OMP END PARALLEL DO
       iquadtype = 1
       dzk = 0.19d0
 
+
       call getnearquad_statj_gendeb(npatches,norders,
      1      ixyzs,iptype,npts,srccoefs,srcvals,
      1      eps,dpars,iquadtype,nnz,row_ptr,col_ind,
      1      iquad,rfac0,nquad,wnear)
       call prinf('finished generating near quadrature correction*',i,0)
-
+ 1111 continue
 
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
