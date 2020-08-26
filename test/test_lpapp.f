@@ -14,19 +14,13 @@
 
       complex *16, allocatable :: rhs(:)
       real *8, allocatable :: sigma(:), pot(:),pot1(:),rrhs(:)
+      real *8, allocatable :: sigma0(:),pot0(:)
       real *8, allocatable :: errs(:)
 
       real *8, allocatable :: wnear(:)
       real *8, allocatable :: targs(:,:)
       real *8, allocatable :: cms(:,:),rads(:),rad_near(:)
       real *8, allocatable :: srcover(:,:),wover(:)
-      real *8, allocatable :: xmat(:,:),xtmp(:,:)
-      real *8, allocatable :: slapmat(:,:), s0mat(:,:)
-
-      real *8, allocatable :: rfds(:)
-      integer, allocatable :: ifds(:)
-      complex *16, allocatable :: zfds(:)
-
 
       integer, allocatable :: col_ptr(:),row_ind(:)
       integer, allocatable :: ixyzso(:),novers(:)
@@ -70,7 +64,7 @@
       xyz_out(3) = 20.1d0
 
       igeomtype = 1
-      ipars(1) = 1
+      ipars(1) = 4 
       npatches=12*(4**ipars(1))
 
       norder = 3 
@@ -110,12 +104,22 @@ c
       allocate(w(0:nmax,0:nmax))
       call l3getsph(nmax,mm,nn,12,srcvals,rhs,npts,w)
      
-      rcrhom = 1.2d0
-      rcrhop = 0.1d0
-      rcrmum = 2.1d0
+      rcrhom = 1.0d0
+      rcrhop = 1.0d0
+      rcrmum = 1.0d0
+
+cc      rcrhom = 0
+cc      rcrhop = 0
+cc      rcrmum = 0
+
+
       rcqm = 3.11d0
       rcqp = -2.30d0
       rcrm = -1.76d0
+
+cc      rcqm = 0
+cc      rcqp = 0
+cc      rcrm = 0
       do i=1,npts
         rrhs(i) = real(rhs(i))
 
@@ -127,8 +131,40 @@ c
         sigma(5*npts+i) = rcrm*rrhs(i)
       enddo
 
-      eps = 0.51d-3
 
+      eps = 0.51d-7
+
+
+      allocate(sigma0(npts),pot0(npts))
+
+      do i=1,npts
+        pot0(i) = 0
+        sigma0(i) = rrhs(i) 
+      enddo
+      call prin2('sigma0=*',sigma0,24)
+
+      dpars(1) = 1.0d0
+      dpars(2) = 0.0d0
+
+      allocate(ipatch_id(npts),uvs_targ(2,npts))
+      call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
+     1  ipatch_id,uvs_targ)
+      
+      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+     1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_targ,eps,
+     2  dpars,sigma0,pot0)
+      call prin2('pot0=*',pot0,24)
+
+      erra1 = 0
+      erra2 = 0
+      ra1 = 0
+      rr = dpars(1)/(2*nn+1.0d0)
+      do i=1,npts
+         ra1 = ra1+pot0(i)**2*wts(i)
+         erra2 = erra2 + (pot0(i)-rr*sigma0(i))**2*wts(i)
+      enddo
+      erra2 = sqrt(erra2/ra1)
+      call prin2('error 2=*',erra2,1)
 
 c
 c       precompute near quadrature correction
@@ -175,17 +211,13 @@ c
       call get_iquad_rsc(npatches,ixyzs,ntarg,nnz,row_ptr,col_ind,
      1         iquad)
 
-      allocate(ipatch_id(npts),uvs_targ(2,npts))
-      call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
-     1  ipatch_id,uvs_targ)
-      
 
 
 c
 c    estimate oversampling for far-field, and oversample geometry
 c
 
-      ikerorder = 0
+      ikerorder = -1
       allocate(novers(npatches),ixyzso(npatches+1))
 
       zpars = 0
@@ -228,7 +260,7 @@ C$OMP END PARALLEL DO
 
       call getnearquad_statj_gendeb(npatches,norders,
      1      ixyzs,iptype,npts,srccoefs,srcvals,
-     1      eps,dpars,iquadtype,nnz,row_ptr,col_ind,
+     1      eps,dzk,iquadtype,nnz,row_ptr,col_ind,
      1      iquad,rfac0,nquad,wnear)
       call prinf('finished generating near quadrature correction*',i,0)
  1111 continue
@@ -240,16 +272,21 @@ C$OMP END PARALLEL DO
       call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,iptype,
      1  npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind,iquad,nquad,
      2  wnear,sigma,novers,npts_over,ixyzso,srcover,wover,pot)
+
+      call prin2('pot=*',pot,24)
       do i=1,3*npts
         pot(i) = pot(i) + sigma(i)
       enddo
+      call prin2('pot=*',pot,24)
 
       rslaps = -(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)**2
       rs = 1.0d0/(2*nn+1.0d0)
 
+
       rfac1 = -4*(rcrhom*rslaps - rcqm*rs)
       rfac2 = -4*(rcrhop*rslaps - rcqp*rs)
       rfac3 = -4*(rcrmum*rslaps - rcrm*rs)
+
 
       erra = 0
       ra = 0

@@ -423,7 +423,7 @@
       real *8, allocatable :: srctmp2(:,:)
       real *8, allocatable :: ctmp0(:,:),dtmp0(:,:,:)
       complex *16, allocatable :: zctmp0(:,:),zdtmp0(:,:,:)
-      real *8 thresh,ra
+      real *8 thresh,ra,erra
       real *8 rr,rmin
       real *8 over4pi
       integer nss,ii,l,npover
@@ -541,13 +541,17 @@
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts), &
         hess_aux(nd,6,npts))
 
-
+!$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,ns
-        charges0(1:3,i) = sigmaover(1:3,i)*whtsover(i)
-        dipvec0(1:3,1,i) = srcover(10,i)*sigmaover(1:3,i)*whtsover(i)
-        dipvec0(1:3,2,i) = srcover(11,i)*sigmaover(1:3,i)*whtsover(i)
-        dipvec0(1:3,3,i) = srcover(12,i)*sigmaover(1:3,i)*whtsover(i)
+        charges0(1:3,i) = sigmaover(1:3,i)*whtsover(i)*over4pi
+        dipvec0(1:3,1,i) = srcover(10,i)*sigmaover(1:3,i)*whtsover(i)* &
+          over4pi
+        dipvec0(1:3,2,i) = srcover(11,i)*sigmaover(1:3,i)*whtsover(i)* &
+          over4pi
+        dipvec0(1:3,3,i) = srcover(12,i)*sigmaover(1:3,i)*whtsover(i)* &
+          over4pi
       enddo
+!$OMP END PARALLEL DO      
 
 
       pot_aux = 0
@@ -749,6 +753,24 @@
 !     - dzk* (n \times \nabla_{\Gamma} S_{0}[\rhop]
 !
 !
+
+!
+!  Test accuracy of abc1 and abc3
+!
+      erra = 0
+      ra = 0
+      rr = -1.0d0/(10.0d0)
+      do i=1,npts
+        do j=1,3
+          erra = erra + (abc3(j,i)-abc0(j,i)*rr)**2
+          ra = ra + (abc0(j,i)*rr)**2
+        enddo
+      enddo
+
+      erra = sqrt(erra/ra)
+      call prin2('error in abc3=*',erra,1)
+
+
       print *, "finished all computation for abc1,abc2,abc3,blm,bmm"
 !
 !  Now compute D0 of abc1 and store in abc0 since it is no
@@ -759,13 +781,17 @@
 
 !$OMP PARALLEL DO DEFAULT(SHARED) 
       do i=1,ns
-        dipvec0(1:3,1,i) = srcover(10,i)*sigmaover(1:3,i)*whtsover(i)
-        dipvec0(1:3,2,i) = srcover(11,i)*sigmaover(1:3,i)*whtsover(i)
-        dipvec0(1:3,3,i) = srcover(12,i)*sigmaover(1:3,i)*whtsover(i)
+        dipvec0(1:3,1,i) = srcover(10,i)*sigmaover(1:3,i)*whtsover(i)* &
+          over4pi
+        dipvec0(1:3,2,i) = srcover(11,i)*sigmaover(1:3,i)*whtsover(i)* &
+          over4pi
+        dipvec0(1:3,3,i) = srcover(12,i)*sigmaover(1:3,i)*whtsover(i)* &
+          over4pi
       enddo
 !$OMP END PARALLEL DO      
 
       pot_aux = 0
+      abc0 = 0
 
       call lfmm3d_t_d_p_vec(nd,eps,ns,sources,dipvec0,npts,srctmp, &
         abc0)
@@ -784,7 +810,7 @@
           do l=1,npols
 
             w1 = wnear(nquad+jquadstart+l-1)
-            abc0(1:3,i) = abc0(1:3,i) + w1*abc1(1:3,i)
+            abc0(1:3,i) = abc0(1:3,i) + w1*abc1(1:3,jstart+l-1)
           enddo
         enddo
       enddo
@@ -847,9 +873,9 @@
 !
       call prin2('abc3=*',abc3,24)
       call prin2('abc2=*',abc2,24)
-      call prin2('sigma4=*',sigma(3*npts+i),24)
-      call prin2('sigma5=*',sigma(4*npts+i),24)
-      call prin2('sigma6=*',sigma(5*npts+i),24)
+      call prin2('sigma4=*',sigma(3*npts+1),24)
+      call prin2('sigma5=*',sigma(4*npts+1),24)
+      call prin2('sigma6=*',sigma(5*npts+1),24)
       do i=1,npts
         abc4(1:3,i) = abc2(1:3,i) + 2*curv(i)*abc3(1:3,i)
         abc4(4,i) = sigma(3*npts+i)
@@ -859,6 +885,9 @@
 
       call prin2('curv=*',curv,24)
       call prin2('abc4=*',abc4(1:3,1:10),30)
+      call prinf('nd=*',nd,1)
+
+      sigmaover=  0
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
           npts,abc4,novers,ixyzso,ns,sigmaover)
@@ -869,12 +898,14 @@
 !
 !$OMP PARALLEL DO DEFAULT(SHARED) 
       do i=1,ns
-        charges0(1:6,i) = sigmaover(1:6,i)*whtsover(i)
+        charges0(1:6,i) = sigmaover(1:6,i)*whtsover(i)*over4pi
       enddo
 !$OMP END PARALLEL DO      
 
       pot_aux = 0
       grad_aux = 0
+
+      call prinf('nd=*',nd,1)
 
       call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
         pot_aux,grad_aux)
@@ -893,7 +924,7 @@
           jstart = ixyzs(jpatch) 
           do l=1,npols
             w1 = wnear(jquadstart+l-1)
-            pot_aux(1:6,i) = pot_aux(1:6,i) + w1*abc4(1:6,i)
+            pot_aux(1:6,i) = pot_aux(1:6,i) + w1*abc4(1:6,jstart+l-1)
           enddo
         enddo
       enddo
@@ -927,10 +958,12 @@
       enddo
 !$OMP END PARALLEL DO      
 
+
 !
 ! At this stage we are ready to compile the first three components
 ! of the output potential
 !
+      rr = 1.0d0/5.0d0
       do j=1,3
         do i=1,npts
           pot(i+(j-1)*npts) = -4*(abc0(j,i)-pot_aux(j,i)-pot_aux(j+3,i))
