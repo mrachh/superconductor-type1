@@ -965,7 +965,7 @@
         dpottmp = 0
         dgradtmp = 0
 
-        call l3ddirectcp(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
+        call l3ddirectcg(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
           ntarg0,dpottmp,dgradtmp,thresh)
 
         pot_aux(1:6,i) = pot_aux(1:6,i) - dpottmp(1:6)
@@ -1033,11 +1033,12 @@
 
       call prinf('nd=*',nd,1)
 
-      zk0 = dzk
+      zk0 = dzk*ima
+      call prin2('zk0=*',zk0,2)
 
       print *, "before fmm"
 
-      call hfmm3d_t_c_g_vec(nd,zk0,eps,ns,sources,zcharges0,npts,srctmp, &
+      call hfmm3d_t_c_g_vec(nd,eps,zk0,ns,sources,zcharges0,npts,srctmp, &
         zpot_aux,zgrad_aux)
 
       print *, "after fmm"
@@ -1110,17 +1111,20 @@
       enddo
 !$OMP END PARALLEL DO      
 
+      print *, "finished pot eval"
       deallocate(zpottmp,zgradtmp,zpot_aux,zgrad_aux)
+
+      allocate(bjm(3,npts),bbm(3,npts))
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
-        bjm(1,i) = -dzk*pot_aux(1,i) 
-!            - grad_aux(8,1,i) &
+        bjm(1,i) = -dzk*pot_aux(1,i) & 
+            - grad_aux(8,1,i) 
 !            - (grad_aux(6,2,i)-grad_aux(5,3,i))
-        bjm(2,i) = -dzk*pot_aux(2,i) 
-!            - grad_aux(8,2,i) &
+        bjm(2,i) = -dzk*pot_aux(2,i) & 
+            - grad_aux(8,2,i) 
 !            - (grad_aux(4,3,i)-grad_aux(6,1,i))
-        bjm(3,i) = -dzk*pot_aux(3,i) 
-!           - grad_aux(8,3,i) &
+        bjm(3,i) = -dzk*pot_aux(3,i) & 
+           - grad_aux(8,3,i) 
 !           - (grad_aux(5,1,i)-grad_aux(4,2,i))
 
         bbm(1,i) = -dzk*pot_aux(4,i) + grad_aux(7,1,i) + &
@@ -1133,7 +1137,6 @@
 !$OMP END PARALLEL DO
 
        print *, "done computing bjm,bbm"
-       stop
 
 !
 ! End of computing bj-, bb- and bb^+
@@ -1141,43 +1144,14 @@
 ! Only thing left to compute now is \nabla \cdot S_{0} [n \times n \times bb^-]
 !
 
-!
-! Test accuracy of blm and bmm
-!
-      rbl(1:3) = 0
-      rbm(1:3) = 0
       rr = 0
 
       allocate(wts(npts))
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
       do i=1,npts
-        rbl(1:3) = rbl(1:3) + blm(1:3,i)**2*wts(i)
         rr = rr + sigma(i)**2*wts(i)
-        rbm(1:3) = rbm(1:3) + bmm(1:3,i)**2*wts(i)
       enddo
-
-      rbl(1:3) = sqrt(rbl(1:3)/rr)
-      rbm(1:3) = sqrt(rbm(1:3)/rr)
-
-      errbl = 0
-      errbm = 0
-
-      do i=1,npts
-        errbl = errbl + (blm(1,i) -rbl(1)*sigma(i))**2*wts(i)
-        errbl = errbl + (blm(2,i) -rbl(2)*sigma(i))**2*wts(i)
-        errbl = errbl + (blm(3,i) -rbl(3)*sigma(i))**2*wts(i)
-
-        errbm = errbm + (bmm(1,i) -rbm(1)*sigma(i))**2*wts(i)
-        errbm = errbm + (bmm(2,i) -rbm(2)*sigma(i))**2*wts(i)
-        errbm = errbm + (bmm(3,i) -rbm(3)*sigma(i))**2*wts(i)
-      enddo
-
-
-      errbl = sqrt(errbl/rr)
-      errbm = sqrt(errbm/rr)
-      call prin2('error bl=*',errbl,1)
-      call prin2('error bm=*',errbm,1)
 
 !
 !  Now test accuracy of bj- \cdot n
@@ -1185,16 +1159,24 @@
       njh = 5
       ifder = 1
       rscale = 1.0d0
+      call prin2('zk0=*',zk0,2)
       call besseljs3d(njh,zk0,rscale,jvals,ifder,fjder)
+      call prin2('jvals=*',jvals,2*njh+2)
 
       call h3dall(njh,zk0,rscale,hvals,ifder,fhder)
+      call prin2('hvals=*',hvals,2*njh+2)
 
       n = 2
 
-      ztmp = -ima*(jvals(3)*hvals(2) - jvals(4)*hvals(3))
+      ztmp = ima*(jvals(3)*hvals(2) - jvals(4)*hvals(3))
       call prin2('ztmp=*',ztmp,2)
       rtmp = real(ztmp)
       rfac = rtmp*dzk**2*n*(n+1.0d0)/(2*n+1.0d0)
+
+      ztmp = -ima*dzk**2*(jvals(3)*fhder(3)+fjder(3)*hvals(3))/2
+      call prin2('ztmp=*',ztmp,2)
+      rtmp = real(ztmp)
+      rfac = rfac +1.76d0*rtmp 
       
       errjn = 0
       rrjn = 0
@@ -1207,6 +1189,8 @@
 
       errjn = sqrt(errjn/rrjn)
       call prin2('error in normal component of j=*',errjn,1)
+
+      stop
 
       
 
