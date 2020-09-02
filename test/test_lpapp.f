@@ -21,6 +21,8 @@
       real *8, allocatable :: targs(:,:)
       real *8, allocatable :: cms(:,:),rads(:),rad_near(:)
       real *8, allocatable :: srcover(:,:),wover(:)
+      real *8, allocatable :: f(:,:),df(:,:,:)
+      real *8, allocatable :: w1(:,:),w2(:,:)
 
       integer, allocatable :: col_ptr(:),row_ind(:)
       integer, allocatable :: ixyzso(:),novers(:)
@@ -64,10 +66,10 @@
       xyz_out(3) = 20.1d0
 
       igeomtype = 1
-      ipars(1) = 4 
+      ipars(1) = 1 
       npatches=12*(4**ipars(1))
 
-      norder = 3 
+      norder = 5 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -103,23 +105,18 @@ c
       nmax = nn
       allocate(w(0:nmax,0:nmax))
       call l3getsph(nmax,mm,nn,12,srcvals,rhs,npts,w)
-     
+
+c
+c  set rcrhom to 1 for now for testing purposes
+c
       rcrhom = 1.0d0
       rcrhop = 1.0d0
       rcrmum = 1.0d0
-
-cc      rcrhom = 0
-cc      rcrhop = 0
-cc      rcrmum = 0
-
 
       rcqm = 3.11d0
       rcqp = -2.30d0
       rcrm = -1.76d0
 
-cc      rcqm = 0
-cc      rcqp = 0
-cc      rcrm = 0
       do i=1,npts
         rrhs(i) = real(rhs(i))
 
@@ -200,11 +197,11 @@ C$OMP END PARALLEL DO
 c
 c    find near quadrature correction interactions
 c
-      call findnearmem(cms,npatches,rad_near,targs,npts,nnz)
+      call findnearmem(cms,npatches,rad_near,3,targs,npts,nnz)
 
       allocate(row_ptr(npts+1),col_ind(nnz))
       
-      call findnear(cms,npatches,rad_near,targs,npts,row_ptr, 
+      call findnear(cms,npatches,rad_near,3,targs,npts,row_ptr, 
      1        col_ind)
 
       allocate(iquad(nnz+1)) 
@@ -263,7 +260,6 @@ C$OMP END PARALLEL DO
      1      eps,dzk,iquadtype,nnz,row_ptr,col_ind,
      1      iquad,rfac0,nquad,wnear)
       call prinf('finished generating near quadrature correction*',i,0)
- 1111 continue
 
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
@@ -314,6 +310,60 @@ C$OMP END PARALLEL DO
       enddo
       erra = sqrt(erra/ra)
       call prin2('error in third component=*',erra,1) 
+      
+
+      allocate(f(3,npts),df(3,2,npts))
+
+      do i=1,npts
+        f(1,i) = rcrhom*rrhs(i)/(2*nn+1.0d0)
+        f(2,i) = rcrhop*rrhs(i)/(2*nn+1.0d0)
+        f(3,i) = rcrmum*rrhs(i)/(2*nn+1.0d0)
+      enddo
+
+      call get_surf_grad(3,npatches,norders,ixyzs,iptype,npts, 
+     1  srccoefs,srcvals,f,df)
+      
+      allocate(w1(3,npts),w2(3,npts))
+
+      err1 = 0.0d0
+      err2 = 0.0d0
+      err3 = 0.0d0
+      r1 = 0.0d0
+      r2 = 0.0d0
+      r3 = 0.0d0
+      do i=1,npts
+        call cross_prod3d(srcvals(10,i),srcvals(4,i),w1(1,i))
+        call cross_prod3d(srcvals(10,i),srcvals(7,i),w2(1,i))
+
+        wtmp = -dzk*(df(3,1,i)*srcvals(4,i) + df(3,2,i)*srcvals(7,i)) +
+     1     2*dzk*(df(1,1,i)*srcvals(4,i) + df(1,2,i)*srcvals(7,i)) - 
+     2     2*dzk*(df(2,1,i)*w1(1,i) + df(2,2,i)*w2(1,i))
+        err1 = err1 + abs(wtmp-pot(3*npts+i))**2*wts(i)
+        r1 = r1 + abs(wtmp)**2*wts(i)
+
+        wtmp = -dzk*(df(3,1,i)*srcvals(5,i) + df(3,2,i)*srcvals(8,i)) +
+     1     2*dzk*(df(1,1,i)*srcvals(5,i) + df(1,2,i)*srcvals(8,i)) - 
+     2     2*dzk*(df(2,1,i)*w1(2,i) + df(2,2,i)*w2(2,i))
+        err2 = err2 + abs(wtmp-pot(4*npts+i))**2*wts(i)
+        r2 = r2 + abs(wtmp)**2*wts(i)
+
+        wtmp = -dzk*(df(3,1,i)*srcvals(6,i) + df(3,2,i)*srcvals(9,i)) +
+     1     2*dzk*(df(1,1,i)*srcvals(6,i) + df(1,2,i)*srcvals(9,i)) - 
+     2     2*dzk*(df(2,1,i)*w1(3,i) + df(2,2,i)*w2(3,i))
+        err3 = err3 + abs(wtmp-pot(5*npts+i))**2*wts(i)
+        r3 = r3 + abs(wtmp)**2*wts(i)
+      enddo
+
+      err1 = sqrt(err1/r1)
+      err2 = sqrt(err2/r2)
+      err3 = sqrt(err3/r3)
+
+      call prin2('error in fourth component=*',err1,1)
+      call prin2('error in fifth component=*',err2,1)
+      call prin2('error in sixth component=*',err3,1)
+
+      
+
 
 
       stop

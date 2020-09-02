@@ -156,6 +156,7 @@
         iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
         ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,&
         ndi,ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear)
+      print *, "done with kernel 1"
 
       fker => l3d_dlp
       ipv = 0
@@ -164,6 +165,7 @@
         ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars, &
         ndi,ipars,nnz,row_ptr,col_ind,iquad, &
         rfac0,nquad,wnear(nquad+1))
+      print *, "done with kernel 2"
       
       fker => l3d_sgradx
       ipv = 1
@@ -172,6 +174,7 @@
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(2*nquad+1))
 
+      print *, "done with kernel 3"
       fker => l3d_sgrady
       ipv = 1
       call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
@@ -179,6 +182,7 @@
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(3*nquad+1))
 
+      print *, "done with kernel 4"
       fker => l3d_sgradz
       ipv = 1
       call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
@@ -186,6 +190,7 @@
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(4*nquad+1))
 
+      print *, "done with kernel 5"
 
       fker => l3d_spp_sum_dp
       ipv = 0
@@ -194,14 +199,14 @@
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(5*nquad+1))
 
-      goto 1111
-
+      print *, "done with kernel 6"
       fker => y3d_slp
       ipv = 0
       call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
        iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(6*nquad+1))
+      print *, "done with kernel 7"
       
       fker => y3d_sgradx
       ipv = 1
@@ -209,6 +214,7 @@
        iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(7*nquad+1))
+      print *, "done with kernel 8"
 
       fker => y3d_sgrady
       ipv = 1
@@ -216,6 +222,7 @@
        iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(8*nquad+1))
+      print *, "done with kernel 9"
 
       fker => y3d_sgradz
       ipv = 1
@@ -223,6 +230,7 @@
        iptype,npts,srccoefs,srcvals,ndtarg,ntarg,srcvals,&
        ipatch_id,uvs_targ,eps,ipv,fker,ndd,dpars,ndz,zpars,ndi,&
        ipars,nnz,row_ptr,col_ind,iquad,rfac0,nquad,wnear(9*nquad+1))
+      print *, "done with kernel 10"
 
  1111 continue       
 
@@ -379,6 +387,7 @@
       integer nover,npolso,nptso
       real *8 srcover(12,nptso),whtsover(nptso)
       real *8 pot(6*npts)
+      real *8, allocatable :: wts(:)
 
       real *8 rhom,rhop,rmum,uf,vf,wtmp
       real *8 u1,u2,u3,u4,w1,w2,w3,w4,w5
@@ -389,8 +398,7 @@
       real *8, allocatable :: sigmause(:,:)
       real *8, allocatable :: abc1(:,:),abc2(:,:),abc3(:,:)
       real *8, allocatable :: abc4(:,:),abc0(:,:)
-      complex *16, allocatable :: zcharges0(:,:),zdipvec0(:,:,:)
-      complex *16, allocatable :: zsigmaover(:,:)
+      complex *16, allocatable :: zcharges0(:,:)
       real *8, allocatable :: pot_aux(:,:),grad_aux(:,:,:)
       real *8, allocatable :: hess_aux(:,:,:)
       complex *16, allocatable :: zpot_aux(:,:),zgrad_aux(:,:,:)
@@ -400,6 +408,7 @@
       real *8, allocatable :: wtmp1(:,:),wtmp2(:,:),wtmp3(:,:), &
         wtmp4(:,:)
       real *8, allocatable :: dpottmp(:),dgradtmp(:,:)
+      complex *16, allocatable :: zpottmp(:),zgradtmp(:,:)
 
 
 
@@ -426,8 +435,12 @@
       real *8 thresh,ra,erra
       real *8 rr,rmin
       real *8 over4pi
+      real *8 rbl(3),rbm(3)
       integer nss,ii,l,npover
       complex *16 ima,ztmp
+      complex *16 jvals(100),hvals(100),fjder(100),fhder(100)
+      real *8 errbl,errbm,errjn,rfac,rjn,rscale,rrjn,rtmp
+      integer ifder,njh,n
 
       integer nd,ntarg0,nmax
       integer ndd,ndz,ndi
@@ -533,7 +546,7 @@
 !  abc2 = D0'(rhom,rhop,mum) + S0''(rhom,rhop,mum)
 !  abc3 = S0'(rhom,rhop,mum)
 !  blm = -dzk*\nabla_{\Gamma} S_{0}[\mum] 
-!  bjm = dzk*\nabla_{\Gamma}S_{0}[\rhom] &
+!  bmm = dzk*\nabla_{\Gamma}S_{0}[\rhom] &
 !     - dzk* (n \times \nabla_{\Gamma} S_{0}[\rhop]
 !
       nd = 3
@@ -754,23 +767,6 @@
 !
 !
 
-!
-!  Test accuracy of abc1 and abc3
-!
-      erra = 0
-      ra = 0
-      rr = -1.0d0/(10.0d0)
-      do i=1,npts
-        do j=1,3
-          erra = erra + (abc3(j,i)-abc0(j,i)*rr)**2
-          ra = ra + (abc0(j,i)*rr)**2
-        enddo
-      enddo
-
-      erra = sqrt(erra/ra)
-      call prin2('error in abc3=*',erra,1)
-
-
       print *, "finished all computation for abc1,abc2,abc3,blm,bmm"
 !
 !  Now compute D0 of abc1 and store in abc0 since it is no
@@ -887,6 +883,9 @@
       call prin2('abc4=*',abc4(1:3,1:10),30)
       call prinf('nd=*',nd,1)
 
+      allocate(bbp(3,npts))
+      bbp = 0
+
       sigmaover=  0
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
@@ -911,11 +910,19 @@
         pot_aux,grad_aux)
 
 !
+!
+!$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,npts
+        bbp(1:3,i) = grad_aux(5,1:3,i) 
+      enddo
+!$OMP END PARALLEL DO
+
+!
 !  Add near quadrature correction
 !
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,jquadstart) &
-!$OMP PRIVATE(jstart,npols,l,w1)
+!$OMP PRIVATE(jstart,npols,l,w1,w2,w3,w4)
       do i=1,npts
         do j=row_ptr(i),row_ptr(i+1)-1
           jpatch = col_ind(j)
@@ -924,7 +931,13 @@
           jstart = ixyzs(jpatch) 
           do l=1,npols
             w1 = wnear(jquadstart+l-1)
+            w2 = wnear(jquadstart+l-1+2*nquad)
+            w3 = wnear(jquadstart+l-1+3*nquad)
+            w4 = wnear(jquadstart+l-1+4*nquad)
             pot_aux(1:6,i) = pot_aux(1:6,i) + w1*abc4(1:6,jstart+l-1)
+            bbp(1,i) = bbp(1,i) + w2*abc4(5,jstart+l-1)
+            bbp(2,i) = bbp(2,i) + w3*abc4(5,jstart+l-1)
+            bbp(3,i) = bbp(3,i) + w4*abc4(5,jstart+l-1)
           enddo
         enddo
       enddo
@@ -934,7 +947,7 @@
 ! Subtract near contributions computed via fmm
 !
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
-!$OMP PRIVATE(ctmp0,l,jstart,nss,dpottmp)
+!$OMP PRIVATE(ctmp0,l,jstart,nss,dpottmp,dgradtmp)
       do i=1,npts
         nss = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -950,11 +963,13 @@
         enddo
 
         dpottmp = 0
+        dgradtmp = 0
 
         call l3ddirectcp(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
-          ntarg0,dpottmp,thresh)
+          ntarg0,dpottmp,dgradtmp,thresh)
 
         pot_aux(1:6,i) = pot_aux(1:6,i) - dpottmp(1:6)
+        bbp(1:3,i) = bbp(1:3,i) - dgradtmp(5,1:3)
       enddo
 !$OMP END PARALLEL DO      
 
@@ -963,28 +978,236 @@
 ! At this stage we are ready to compile the first three components
 ! of the output potential
 !
-      rr = 1.0d0/5.0d0
       do j=1,3
         do i=1,npts
           pot(i+(j-1)*npts) = -4*(abc0(j,i)-pot_aux(j,i)-pot_aux(j+3,i))
         enddo
       enddo
 
-!      call prin2('pot=*',pot,24)
-      call prin2('pot_aux=*',pot_aux,24)
-      call prin2('abc0=*',abc0,24)
+!
+!  At this stage the following quantities have already been
+!  computed
+!  bpp 
+!  blm
+!  bmm
+!
+!  Now we proceed to compute bjm and bbm
+!  given by the formulae
+!
+!  bjm = -dzk*S_{ik} [blm] - \nabla S_{ik} [r^{-}] - \nabla \times S_{ik} [bmm]
+!  bbm = -dzk*S_{ik} [bmm] + \nabla S_{ik} [q^{-}] + \nabla \times S_{ik} [bll^{-}]
+!
+      
+      nd = 6
+      deallocate(charges0,sigmaover)
+      deallocate(pot_aux,grad_aux)
+      deallocate(dpottmp,dgradtmp)
+      deallocate(ctmp0,abc0)
+
+      nd = 8
+      allocate(zcharges0(nd,ns),sigmaover(nd,ns),abc0(nd,npts))
+
+!$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,npts
+        abc0(1:3,i) = blm(1:3,i)
+        abc0(4:6,i) = bmm(1:3,i)
+        abc0(7,i) = sigma(3*npts+i)
+        abc0(8,i) = sigma(5*npts+i)
+      enddo
+!$OMP END PARALLEL DO
+
+      call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
+          npts,abc0,novers,ixyzso,ns,sigmaover)
+        
+!
+!$OMP PARALLEL DO DEFAULT(SHARED) 
+      do i=1,ns
+        zcharges0(1:8,i) = sigmaover(1:8,i)*whtsover(i)*over4pi
+      enddo
+!$OMP END PARALLEL DO      
+
+      allocate(zpot_aux(nd,npts),zgrad_aux(nd,3,npts))
+      allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
+      zpot_aux = 0
+      zgrad_aux = 0
+
+      call prinf('nd=*',nd,1)
+
+      zk0 = dzk
+
+      print *, "before fmm"
+
+      call hfmm3d_t_c_g_vec(nd,zk0,eps,ns,sources,zcharges0,npts,srctmp, &
+        zpot_aux,zgrad_aux)
+
+      print *, "after fmm"
+
+
+      pot_aux = real(zpot_aux)
+      grad_aux = real(zgrad_aux)
+
 
 !
+!  Add near quadrature correction
 !
-!  In the last three components we temporarily return
-!  l^{-} + 2*m^{-} to check if they have been correctly 
-!  computed as well
-!  
-      do j=1,3
-        do i=1,npts
-          pot(i+(j+2)*npts) = blm(j,i)+2*bmm(j,i)
+
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,jquadstart) &
+!$OMP PRIVATE(jstart,npols,l,w1,w2,w3,w4)
+      do i=1,npts
+        do j=row_ptr(i),row_ptr(i+1)-1
+          jpatch = col_ind(j)
+          npols = ixyzs(jpatch+1)-ixyzs(jpatch)
+          jquadstart = iquad(j)
+          jstart = ixyzs(jpatch) 
+          do l=1,npols
+            w1 = wnear(jquadstart+l-1+6*nquad)
+            w2 = wnear(jquadstart+l-1+7*nquad)
+            w3 = wnear(jquadstart+l-1+8*nquad)
+            w4 = wnear(jquadstart+l-1+9*nquad)
+            pot_aux(1:8,i) = pot_aux(1:8,i) + w1*abc0(1:8,jstart+l-1)
+            grad_aux(1:8,1,i) = grad_aux(1:8,1,i) + w2*abc0(1:8,jstart+l-1)
+            grad_aux(1:8,2,i) = grad_aux(1:8,2,i) + w3*abc0(1:8,jstart+l-1)
+            grad_aux(1:8,3,i) = grad_aux(1:8,3,i) + w4*abc0(1:8,jstart+l-1)
+          enddo
         enddo
       enddo
+!$OMP END PARALLEL DO     
+      
+      print *, "after helmholtz near correction"
+      print *, "nmax=",nmax
+      print *, "nd=",nd
+
+
+!
+! Subtract near contributions computed via fmm
+!
+      allocate(zpottmp(nd),zgradtmp(nd,3))
+      allocate(zctmp0(nd,nmax))
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
+!$OMP PRIVATE(zctmp0,l,jstart,nss,zpottmp,zgradtmp)
+      do i=1,npts
+        nss = 0
+        do j=row_ptr(i),row_ptr(i+1)-1
+          jpatch = col_ind(j)
+          do l=ixyzso(jpatch),ixyzso(jpatch+1)-1
+            nss = nss+1
+            srctmp2(1,nss) = srcover(1,l)
+            srctmp2(2,nss) = srcover(2,l)
+            srctmp2(3,nss) = srcover(3,l)
+
+            zctmp0(1:8,nss)=zcharges0(1:8,l)
+          enddo
+        enddo
+
+        zpottmp = 0
+        zgradtmp = 0
+
+        call h3ddirectcg(nd,zk0,srctmp2,zctmp0,nss,srctmp(1,i), &
+          ntarg0,zpottmp,zgradtmp,thresh)
+
+        pot_aux(1:8,i) = pot_aux(1:8,i) - real(zpottmp(1:8))
+        grad_aux(1:8,1:3,i) = grad_aux(1:8,1:3,i) - real(zgradtmp(1:8,1:3))
+      enddo
+!$OMP END PARALLEL DO      
+
+      deallocate(zpottmp,zgradtmp,zpot_aux,zgrad_aux)
+!$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,npts
+        bjm(1,i) = -dzk*pot_aux(1,i) 
+!            - grad_aux(8,1,i) &
+!            - (grad_aux(6,2,i)-grad_aux(5,3,i))
+        bjm(2,i) = -dzk*pot_aux(2,i) 
+!            - grad_aux(8,2,i) &
+!            - (grad_aux(4,3,i)-grad_aux(6,1,i))
+        bjm(3,i) = -dzk*pot_aux(3,i) 
+!           - grad_aux(8,3,i) &
+!           - (grad_aux(5,1,i)-grad_aux(4,2,i))
+
+        bbm(1,i) = -dzk*pot_aux(4,i) + grad_aux(7,1,i) + &
+           (grad_aux(3,2,i)-grad_aux(2,3,i))
+        bbm(2,i) = -dzk*pot_aux(5,i) + grad_aux(7,2,i) + &
+           (grad_aux(1,3,i)-grad_aux(3,1,i))
+        bbm(3,i) = -dzk*pot_aux(6,i) + grad_aux(7,3,i) + &
+           (grad_aux(2,1,i)-grad_aux(1,2,i))
+      enddo
+!$OMP END PARALLEL DO
+
+       print *, "done computing bjm,bbm"
+       stop
+
+!
+! End of computing bj-, bb- and bb^+
+!
+! Only thing left to compute now is \nabla \cdot S_{0} [n \times n \times bb^-]
+!
+
+!
+! Test accuracy of blm and bmm
+!
+      rbl(1:3) = 0
+      rbm(1:3) = 0
+      rr = 0
+
+      allocate(wts(npts))
+      call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
+
+      do i=1,npts
+        rbl(1:3) = rbl(1:3) + blm(1:3,i)**2*wts(i)
+        rr = rr + sigma(i)**2*wts(i)
+        rbm(1:3) = rbm(1:3) + bmm(1:3,i)**2*wts(i)
+      enddo
+
+      rbl(1:3) = sqrt(rbl(1:3)/rr)
+      rbm(1:3) = sqrt(rbm(1:3)/rr)
+
+      errbl = 0
+      errbm = 0
+
+      do i=1,npts
+        errbl = errbl + (blm(1,i) -rbl(1)*sigma(i))**2*wts(i)
+        errbl = errbl + (blm(2,i) -rbl(2)*sigma(i))**2*wts(i)
+        errbl = errbl + (blm(3,i) -rbl(3)*sigma(i))**2*wts(i)
+
+        errbm = errbm + (bmm(1,i) -rbm(1)*sigma(i))**2*wts(i)
+        errbm = errbm + (bmm(2,i) -rbm(2)*sigma(i))**2*wts(i)
+        errbm = errbm + (bmm(3,i) -rbm(3)*sigma(i))**2*wts(i)
+      enddo
+
+
+      errbl = sqrt(errbl/rr)
+      errbm = sqrt(errbm/rr)
+      call prin2('error bl=*',errbl,1)
+      call prin2('error bm=*',errbm,1)
+
+!
+!  Now test accuracy of bj- \cdot n
+!
+      njh = 5
+      ifder = 1
+      rscale = 1.0d0
+      call besseljs3d(njh,zk0,rscale,jvals,ifder,fjder)
+
+      call h3dall(njh,zk0,rscale,hvals,ifder,fhder)
+
+      n = 2
+
+      ztmp = -ima*(jvals(3)*hvals(2) - jvals(4)*hvals(3))
+      call prin2('ztmp=*',ztmp,2)
+      rtmp = real(ztmp)
+      rfac = rtmp*dzk**2*n*(n+1.0d0)/(2*n+1.0d0)
+      
+      errjn = 0
+      rrjn = 0
+      do i=1,npts
+        rjn = bjm(1,i)*srcvals(10,i) + bjm(2,i)*srcvals(11,i)+&
+           bjm(3,i)*srcvals(12,i)
+        errjn = errjn + abs(rjn-rfac*sigma(i))**2*wts(i)
+        rrjn = rrjn + abs(rjn)**2*wts(i)
+      enddo
+
+      errjn = sqrt(errjn/rrjn)
+      call prin2('error in normal component of j=*',errjn,1)
+
       
 
       return
