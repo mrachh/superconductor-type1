@@ -409,6 +409,7 @@
         wtmp4(:,:)
       real *8, allocatable :: dpottmp(:),dgradtmp(:,:)
       complex *16, allocatable :: zpottmp(:),zgradtmp(:,:)
+      real *8 vtmp1(3),vtmp2(3),vtmp3(3),rncj,errncj
 
 
 
@@ -1117,15 +1118,15 @@
       allocate(bjm(3,npts),bbm(3,npts))
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
-        bjm(1,i) = -dzk*pot_aux(1,i) & 
-            - grad_aux(8,1,i) 
-!            - (grad_aux(6,2,i)-grad_aux(5,3,i))
-        bjm(2,i) = -dzk*pot_aux(2,i) & 
-            - grad_aux(8,2,i) 
-!            - (grad_aux(4,3,i)-grad_aux(6,1,i))
-        bjm(3,i) = -dzk*pot_aux(3,i) & 
-           - grad_aux(8,3,i) 
-!           - (grad_aux(5,1,i)-grad_aux(4,2,i))
+        bjm(1,i) = -0*dzk*pot_aux(1,i) & 
+            - 0*grad_aux(8,1,i) &
+            - (grad_aux(6,2,i)-grad_aux(5,3,i))
+        bjm(2,i) = -0*dzk*pot_aux(2,i) & 
+            - 0*grad_aux(8,2,i) &
+            - (grad_aux(4,3,i)-grad_aux(6,1,i))
+        bjm(3,i) = -0*dzk*pot_aux(3,i) & 
+           - 0*grad_aux(8,3,i) &
+           - (grad_aux(5,1,i)-grad_aux(4,2,i))
 
         bbm(1,i) = -dzk*pot_aux(4,i) + grad_aux(7,1,i) + &
            (grad_aux(3,2,i)-grad_aux(2,3,i))
@@ -1168,27 +1169,22 @@
 
       n = 2
 
-      ztmp = ima*(jvals(3)*hvals(2) - jvals(4)*hvals(3))
-      call prin2('ztmp=*',ztmp,2)
+      ztmp = ima*((jvals(3)+zk0*fjder(3))*zk0*hvals(3)+ &
+        (hvals(3)+zk0*fhder(3))*zk0*jvals(3))/2
       rtmp = real(ztmp)
-      rfac = rtmp*dzk**2*n*(n+1.0d0)/(2*n+1.0d0)
+      rfac = rtmp
 
-      ztmp = -ima*dzk**2*(jvals(3)*fhder(3)+fjder(3)*hvals(3))/2
-      call prin2('ztmp=*',ztmp,2)
-      rtmp = real(ztmp)
-      rfac = rfac +1.76d0*rtmp 
-      
-      errjn = 0
-      rrjn = 0
+      errncj = 0
+      rncj = 0
       do i=1,npts
-        rjn = bjm(1,i)*srcvals(10,i) + bjm(2,i)*srcvals(11,i)+&
-           bjm(3,i)*srcvals(12,i)
-        errjn = errjn + abs(rjn-rfac*sigma(i))**2*wts(i)
-        rrjn = rrjn + abs(rjn)**2*wts(i)
-      enddo
+        call cross_prod3d(srcvals(10,i),bjm(1,i),vtmp1)
+        errncj = errncj + (vtmp1(1)-rfac*(2*blm(1,i)-bmm(1,i)))**2*wts(i)
+        errncj = errncj + (vtmp1(2)-rfac*(2*blm(2,i)-bmm(2,i)))**2*wts(i)
+        errncj = errncj + (vtmp1(3)-rfac*(2*blm(3,i)-bmm(3,i)))**2*wts(i)
 
-      errjn = sqrt(errjn/rrjn)
-      call prin2('error in normal component of j=*',errjn,1)
+        rncj = rncj + (vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)*wts(i)
+      enddo
+      errncj = sqrt(errncj/rncj)
 
       stop
 
