@@ -66,7 +66,7 @@
       xyz_out(3) = 20.1d0
 
       igeomtype = 1
-      ipars(1) = 1 
+      ipars(1) = 0 
       npatches=12*(4**ipars(1))
 
       norder = 5 
@@ -129,7 +129,7 @@ c
       enddo
 
 
-      eps = 0.51d-7
+      eps = 0.51d-2
 
 
       allocate(sigma0(npts),pot0(npts))

@@ -1108,7 +1108,8 @@
           ntarg0,zpottmp,zgradtmp,thresh)
 
         pot_aux(1:8,i) = pot_aux(1:8,i) - real(zpottmp(1:8))
-        grad_aux(1:8,1:3,i) = grad_aux(1:8,1:3,i) - real(zgradtmp(1:8,1:3))
+        grad_aux(1:8,1:3,i) = grad_aux(1:8,1:3,i) - &
+          real(zgradtmp(1:8,1:3))
       enddo
 !$OMP END PARALLEL DO      
 
@@ -1118,13 +1119,13 @@
       allocate(bjm(3,npts),bbm(3,npts))
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
-        bjm(1,i) = -0*dzk*pot_aux(1,i) & 
-            - 0*grad_aux(8,1,i) &
+        bjm(1,i) = -dzk*pot_aux(1,i) & 
+            - grad_aux(8,1,i) &
             - (grad_aux(6,2,i)-grad_aux(5,3,i))
-        bjm(2,i) = -0*dzk*pot_aux(2,i) & 
-            - 0*grad_aux(8,2,i) &
+        bjm(2,i) = -dzk*pot_aux(2,i) & 
+            - grad_aux(8,2,i) &
             - (grad_aux(4,3,i)-grad_aux(6,1,i))
-        bjm(3,i) = -0*dzk*pot_aux(3,i) & 
+        bjm(3,i) = -dzk*pot_aux(3,i) & 
            - 0*grad_aux(8,3,i) &
            - (grad_aux(5,1,i)-grad_aux(4,2,i))
 
@@ -1145,50 +1146,6 @@
 ! Only thing left to compute now is \nabla \cdot S_{0} [n \times n \times bb^-]
 !
 
-      rr = 0
-
-      allocate(wts(npts))
-      call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
-
-      do i=1,npts
-        rr = rr + sigma(i)**2*wts(i)
-      enddo
-
-!
-!  Now test accuracy of bj- \cdot n
-!
-      njh = 5
-      ifder = 1
-      rscale = 1.0d0
-      call prin2('zk0=*',zk0,2)
-      call besseljs3d(njh,zk0,rscale,jvals,ifder,fjder)
-      call prin2('jvals=*',jvals,2*njh+2)
-
-      call h3dall(njh,zk0,rscale,hvals,ifder,fhder)
-      call prin2('hvals=*',hvals,2*njh+2)
-
-      n = 2
-
-      ztmp = ima*((jvals(3)+zk0*fjder(3))*zk0*hvals(3)+ &
-        (hvals(3)+zk0*fhder(3))*zk0*jvals(3))/2
-      rtmp = real(ztmp)
-      rfac = rtmp
-
-      errncj = 0
-      rncj = 0
-      do i=1,npts
-        call cross_prod3d(srcvals(10,i),bjm(1,i),vtmp1)
-        errncj = errncj + (vtmp1(1)-rfac*(2*blm(1,i)-bmm(1,i)))**2*wts(i)
-        errncj = errncj + (vtmp1(2)-rfac*(2*blm(2,i)-bmm(2,i)))**2*wts(i)
-        errncj = errncj + (vtmp1(3)-rfac*(2*blm(3,i)-bmm(3,i)))**2*wts(i)
-
-        rncj = rncj + (vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)*wts(i)
-      enddo
-      errncj = sqrt(errncj/rncj)
-
-      stop
-
-      
 
       return
       end subroutine lpcomp_statj_gendeb_addsub
