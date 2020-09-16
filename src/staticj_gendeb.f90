@@ -999,7 +999,6 @@
 !  bbm = -dzk*S_{ik} [bmm] + \nabla S_{ik} [q^{-}] + \nabla \times S_{ik} [bll^{-}]
 !
       
-      nd = 6
       deallocate(charges0,sigmaover)
       deallocate(pot_aux,grad_aux)
       deallocate(dpottmp,dgradtmp)
@@ -1143,9 +1142,118 @@
 !
 ! End of computing bj-, bb- and bb^+
 !
-! Only thing left to compute now is \nabla \cdot S_{0} [n \times n \times bb^-]
+! Compute n \times n \times bb^{-} and store it in abc0
+! Store the result of \nabla \cdot S_{0} [\bn \times \bn \times \bb^{-}] in 
+! abc1 for now
+!
+      
+      deallocate(charges0,sigmaover)
+      deallocate(pot_aux,grad_aux)
+      deallocate(dpottmp,dgradtmp)
+      deallocate(ctmp0,abc0)
+
+      nd = 3
+      allocate(charges0(nd,ns),sigmaover(nd,ns),abc0(nd,npts))
+
+!$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,npts
+        call cross_cross_prod3d(srcvals(12,i),srcvals(12,i),bbm(1,i), &
+          abc0(1,i))
+      enddo
+!$OMP END PARALLEL DO
+
+      call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
+          npts,abc0,novers,ixyzso,ns,sigmaover)
+        
+!
+!$OMP PARALLEL DO DEFAULT(SHARED) 
+      do i=1,ns
+        charges0(1:3,i) = sigmaover(1:3,i)*whtsover(i)*over4pi
+      enddo
+!$OMP END PARALLEL DO      
+
+      allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
+
+      print *, "before fmm"
+
+      call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
+        pot_aux,grad_aux)
+      deallocate(abc1)
+
+      allocate(abc1(npts))
+
+!$OMP PARALLEL DO DEFAULT(SHARED)         
+      do i=1,npts
+        abc1(i) = grad_aux(1,1,i) + grad_aux(2,2,i) + grad_aux(3,3,i)
+      enddo
+!$OMP END PARALLEL DO      
+
+      print *, "after fmm"
+
+!
+!  Add near quadrature correction
 !
 
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,jquadstart) &
+!$OMP PRIVATE(jstart,npols,l,w1,w2,w3)
+      do i=1,npts
+        do j=row_ptr(i),row_ptr(i+1)-1
+          jpatch = col_ind(j)
+          npols = ixyzs(jpatch+1)-ixyzs(jpatch)
+          jquadstart = iquad(j)
+          jstart = ixyzs(jpatch) 
+          do l=1,npols
+            w1 = wnear(jquadstart+l-1+2*nquad)
+            w2 = wnear(jquadstart+l-1+3*nquad)
+            w3 = wnear(jquadstart+l-1+4*nquad)
+            abc1(i) = abc1(i) + w1*abc0(1,jstart+l-1) + &
+              w2*abc0(2,jstart+l-1) + w3*abc0(3,jstart+l-1)
+          enddo
+        enddo
+      enddo
+!$OMP END PARALLEL DO     
+      
+      print *, "after Laplace near correction"
+      print *, "nmax=",nmax
+      print *, "nd=",nd
+
+
+!
+! Subtract near contributions computed via fmm
+!
+      allocate(dpottmp(nd),dgradtmp(nd,3))
+      allocate(ctmp0(nd,nmax))
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
+!$OMP PRIVATE(ctmp0,l,jstart,nss,pottmp,gradtmp)
+      do i=1,npts
+        nss = 0
+        do j=row_ptr(i),row_ptr(i+1)-1
+          jpatch = col_ind(j)
+          do l=ixyzso(jpatch),ixyzso(jpatch+1)-1
+            nss = nss+1
+            srctmp2(1,nss) = srcover(1,l)
+            srctmp2(2,nss) = srcover(2,l)
+            srctmp2(3,nss) = srcover(3,l)
+
+            ctmp0(1:3,nss)=charges0(1:3,l)
+          enddo
+        enddo
+
+        dpottmp = 0
+        dgradtmp = 0
+
+        call l3ddirectcg(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
+          ntarg0,dpottmp,dgradtmp,thresh)
+        abc1(i) = abc1(i) - dgradtmp(1,1)-dgradtmp(2,2)-dgradtmp(3,3)
+
+      enddo
+!$OMP END PARALLEL DO      
+
+      print *, "finished pot eval"
+!   
+!  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
+!
+      
 
       return
       end subroutine lpcomp_statj_gendeb_addsub
