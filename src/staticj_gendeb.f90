@@ -1147,18 +1147,20 @@
 ! abc1 for now
 !
       
-      deallocate(charges0,sigmaover)
+      deallocate(sigmaover)
       deallocate(pot_aux,grad_aux)
-      deallocate(dpottmp,dgradtmp)
-      deallocate(ctmp0,abc0)
+      deallocate(abc0)
 
       nd = 3
       allocate(charges0(nd,ns),sigmaover(nd,ns),abc0(nd,npts))
 
-!$OMP PARALLEL DO DEFAULT(SHARED)
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(vtmp1)
       do i=1,npts
-        call cross_cross_prod3d(srcvals(12,i),srcvals(12,i),bbm(1,i), &
+        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),bbm(1,i), &
           abc0(1,i))
+        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),bbp(1,i),&
+          vtmp1)
+        abc0(1:3,i) = -abc0(1:3,i)/dzk + vtmp1(1:3)
       enddo
 !$OMP END PARALLEL DO
 
@@ -1180,11 +1182,11 @@
         pot_aux,grad_aux)
       deallocate(abc1)
 
-      allocate(abc1(npts))
+      allocate(abc1(1,npts))
 
 !$OMP PARALLEL DO DEFAULT(SHARED)         
       do i=1,npts
-        abc1(i) = grad_aux(1,1,i) + grad_aux(2,2,i) + grad_aux(3,3,i)
+        abc1(1,i) = grad_aux(1,1,i) + grad_aux(2,2,i) + grad_aux(3,3,i)
       enddo
 !$OMP END PARALLEL DO      
 
@@ -1206,7 +1208,7 @@
             w1 = wnear(jquadstart+l-1+2*nquad)
             w2 = wnear(jquadstart+l-1+3*nquad)
             w3 = wnear(jquadstart+l-1+4*nquad)
-            abc1(i) = abc1(i) + w1*abc0(1,jstart+l-1) + &
+            abc1(1,i) = abc1(1,i) + w1*abc0(1,jstart+l-1) + &
               w2*abc0(2,jstart+l-1) + w3*abc0(3,jstart+l-1)
           enddo
         enddo
@@ -1224,7 +1226,7 @@
       allocate(dpottmp(nd),dgradtmp(nd,3))
       allocate(ctmp0(nd,nmax))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
-!$OMP PRIVATE(ctmp0,l,jstart,nss,pottmp,gradtmp)
+!$OMP PRIVATE(ctmp0,l,jstart,nss,dpottmp,dgradtmp)
       do i=1,npts
         nss = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -1244,7 +1246,8 @@
 
         call l3ddirectcg(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
           ntarg0,dpottmp,dgradtmp,thresh)
-        abc1(i) = abc1(i) - dgradtmp(1,1)-dgradtmp(2,2)-dgradtmp(3,3)
+        abc1(1,i) = abc1(1,i) - dgradtmp(1,1)-dgradtmp(2,2)- &
+          dgradtmp(3,3)
 
       enddo
 !$OMP END PARALLEL DO      
@@ -1253,7 +1256,19 @@
 !   
 !  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
 !
-      
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,w3)
+      do i=1,npts
+        call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
+        call dot_prod3d(bbp(1,i),srcvals(10,i),w2)
+
+        w3 = w1/dzk - w2
+        
+        pot(3*npts+i) = 2*dzk*(abc1(1,i)+w3)
+        pot(4*npts+i) = w3-abc1(1,i)
+        call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
+        pot(5*npts+i) = w1*2
+      enddo
+!$OMP END PARALLEL DO
 
       return
       end subroutine lpcomp_statj_gendeb_addsub
