@@ -150,6 +150,7 @@
 
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,&
         ipatch_id,uvs_targ)
+
       ipv=0
       fker => l3d_slp
       call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
@@ -166,7 +167,7 @@
         ndi,ipars,nnz,row_ptr,col_ind,iquad, &
         rfac0,nquad,wnear(nquad+1))
       print *, "done with kernel 2"
-      
+ 1000 continue      
       fker => l3d_sgradx
       ipv = 1
       call dgetnearquad_ggq_guru(npatches,norders,ixyzs,&
@@ -1150,109 +1151,21 @@
       deallocate(sigmaover)
       deallocate(pot_aux,grad_aux)
       deallocate(abc0)
+      deallocate(abc1)
 
       nd = 3
-      allocate(charges0(nd,ns),sigmaover(nd,ns),abc0(nd,npts))
-
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(vtmp1)
+      allocate(charges0(nd,ns),sigmaover(nd,ns),abc0(npts,nd))
+      allocate(abc1(1,npts))
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
       do i=1,npts
-        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),bbm(1,i), &
-          abc0(1,i))
-        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),bbp(1,i),&
-          vtmp1)
-        abc0(1:3,i) = -abc0(1:3,i)/dzk + vtmp1(1:3)
+        abc0(i,1:3) = -bbm(1:3,i)/dzk + bbp(1:3,i)
       enddo
 !$OMP END PARALLEL DO
 
-      call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
-          npts,abc0,novers,ixyzso,ns,sigmaover)
-        
-!
-!$OMP PARALLEL DO DEFAULT(SHARED) 
-      do i=1,ns
-        charges0(1:3,i) = sigmaover(1:3,i)*whtsover(i)*over4pi
-      enddo
-!$OMP END PARALLEL DO      
-
-      allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
-
-      print *, "before fmm"
-
-      call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
-        pot_aux,grad_aux)
-      deallocate(abc1)
-
-      allocate(abc1(1,npts))
-
-!$OMP PARALLEL DO DEFAULT(SHARED)         
-      do i=1,npts
-        abc1(1,i) = grad_aux(1,1,i) + grad_aux(2,2,i) + grad_aux(3,3,i)
-      enddo
-!$OMP END PARALLEL DO      
-
-      print *, "after fmm"
-
-!
-!  Add near quadrature correction
-!
-
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,jquadstart) &
-!$OMP PRIVATE(jstart,npols,l,w1,w2,w3)
-      do i=1,npts
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          npols = ixyzs(jpatch+1)-ixyzs(jpatch)
-          jquadstart = iquad(j)
-          jstart = ixyzs(jpatch) 
-          do l=1,npols
-            w1 = wnear(jquadstart+l-1+2*nquad)
-            w2 = wnear(jquadstart+l-1+3*nquad)
-            w3 = wnear(jquadstart+l-1+4*nquad)
-            abc1(1,i) = abc1(1,i) + w1*abc0(1,jstart+l-1) + &
-              w2*abc0(2,jstart+l-1) + w3*abc0(3,jstart+l-1)
-          enddo
-        enddo
-      enddo
-!$OMP END PARALLEL DO     
-      
-      print *, "after Laplace near correction"
-      print *, "nmax=",nmax
-      print *, "nd=",nd
-
-
-!
-! Subtract near contributions computed via fmm
-!
-      allocate(dpottmp(nd),dgradtmp(nd,3))
-      allocate(ctmp0(nd,nmax))
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
-!$OMP PRIVATE(ctmp0,l,jstart,nss,dpottmp,dgradtmp)
-      do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          do l=ixyzso(jpatch),ixyzso(jpatch+1)-1
-            nss = nss+1
-            srctmp2(1,nss) = srcover(1,l)
-            srctmp2(2,nss) = srcover(2,l)
-            srctmp2(3,nss) = srcover(3,l)
-
-            ctmp0(1:3,nss)=charges0(1:3,l)
-          enddo
-        enddo
-
-        dpottmp = 0
-        dgradtmp = 0
-
-        call l3ddirectcg(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
-          ntarg0,dpottmp,dgradtmp,thresh)
-        abc1(1,i) = abc1(1,i) - dgradtmp(1,1)-dgradtmp(2,2)- &
-          dgradtmp(3,3)
-
-      enddo
-!$OMP END PARALLEL DO      
-
-      print *, "finished pot eval"
+      call lpcomp_divs0tan_addsub(npatches,norders,ixyzs, &
+        iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
+        iquad,nquad,wnear(2*nquad+1),abc0,novers,nptso,ixyzso,srcover, &
+        whtsover, abc1)
 !   
 !  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
 !
@@ -1539,6 +1452,10 @@
       print *, "nmax=",nmax
       print *, "nd=",nd
 
+      call get_fmm_thresh(12,ns,srcover,12,npts,srcvals,thresh)
+
+      print *, "Thresh=",thresh
+
 
 !
 ! Subtract near contributions computed via fmm
@@ -1689,7 +1606,7 @@
       integer, allocatable :: ixyzso(:),novers(:)
 
       real *8, allocatable :: cms(:,:),rads(:),rad_near(:)
-      real *8, allocatable :: abc0(:,:),rhsuse(:,:)
+      real *8, allocatable :: abc0(:),rhsuse(:)
 
       integer i,j,jpatch,jquadstart,jstart
 
@@ -1700,6 +1617,7 @@
 
       real *8 ttot,done,pi
       real *8 rfac,rfac0
+      real *8 w1,w2,vtmp1(3)
       integer iptype_avg,norder_avg
       integer ikerorder, iquadtype,npts_over
       integer n_var
@@ -1837,6 +1755,7 @@
       iquadtype = 1
 
       print *, "starting to generate near quadrature"
+      goto 1111
       call cpu_time(t1)
 !C$      t1 = omp_get_wtime()      
       call getnearquad_statj_gendeb(npatches,norders,&
@@ -1844,10 +1763,39 @@
        row_ptr,col_ind,iquad,rfac0,nquad,wnear)
       call cpu_time(t2)
 !C$      t2 = omp_get_wtime()     
-
+ 1111 continue      
       call prin2('quadrature generation time=*',t2-t1,1)
       
-      print *, "done generating near quadrature, now starting gmres"
+      print *, "done generating near quadrature, now computing rhs"
+
+      allocate(abc0(npts))
+      
+      call lpcomp_divs0tan_addsub(npatches,norders,ixyzs,&
+          iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
+          iquad,nquad,wnear(2*nquad+1),rhs,novers,npts_over,ixyzso, &
+          srcover,wover,abc0)
+      
+      allocate(rhsuse(6*npts))
+      rhsuse = 0
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,vtmp1)      
+      do i=1,npts
+        vtmp1(1) = rhs(i)
+        vtmp1(2) = rhs(i+npts)
+        vtmp1(3) = rhs(i+2*npts)
+        call dot_prod3d(vtmp1,srcvals(10,i),w1)
+        rhsuse(3*npts+i) = (w1 + abc0(i))*2*dpars(1)
+        rhsuse(4*npts+i) = (w1 - abc0(i))*2
+
+        vtmp1(1) = rhs(i+3*npts)
+        vtmp1(2) = rhs(i+4*npts)
+        vtmp1(3) = rhs(i+5*npts)
+        call dot_prod3d(vtmp1,srcvals(10,i),w1)
+        rhsuse(5*npts+i) = w1
+      enddo
+!$OMP END PARALLEL DO     
+      
+      print *, "done initializing rhs"
+      print *, "starting solver now"
 
 
 !
@@ -1874,12 +1822,12 @@
       enddo
 !
       do i=1,n_var
-        rb = rb + abs(rhs(i))**2
+        rb = rb + abs(rhsuse(i))**2
       enddo
       rb = sqrt(rb)
 
       do i=1,n_var
-        vmat(i,1) = rhs(i)/rb
+        vmat(i,1) = rhsuse(i)/rb
       enddo
 
       svec(1) = rb
@@ -1975,14 +1923,13 @@
 !        replace this routine by appropriate layer potential
 !        evaluation routine  
 !
- 
           call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,&
            iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
             iquad,nquad,wnear,soln,novers,npts_over,ixyzso,srcover, &
             wover,wtmp)
             
-          do i=1,npts
-            rres = rres + abs(did*soln(i) + wtmp(i)-rhs(i))**2
+          do i=1,n_var
+            rres = rres + abs(did*soln(i) + wtmp(i)-rhsuse(i))**2
           enddo
           rres = sqrt(rres)/rb
           niter = it

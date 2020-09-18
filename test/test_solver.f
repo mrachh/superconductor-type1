@@ -269,7 +269,13 @@ C$OMP END PARALLEL DO
 
       iquadtype = 1
       dzk = 0.19d0
+      numit = 2
+      allocate(errs(numit+1))
 
+      call statj_gendeb_solver(npatches,norders,ixyzs,iptype,
+     1  npts,srccoefs,srcvals,eps,dpars,numit,sigma,eps,
+     2  niter,errs,rres,pot)
+      call prin2('rres=*',rres,1)
 
       call getnearquad_statj_gendeb(npatches,norders,
      1      ixyzs,iptype,npts,srccoefs,srcvals,
