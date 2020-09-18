@@ -14,6 +14,8 @@
 
       complex *16, allocatable :: rhs(:)
       real *8, allocatable :: sigma(:), pot(:),pot1(:),rrhs(:)
+      real *8, allocatable :: drhs(:,:)
+      real *8, allocatable :: sigma2(:)
       real *8, allocatable :: sigma0(:),pot0(:)
       real *8, allocatable :: errs(:)
 
@@ -126,6 +128,20 @@ c
         sigma(3*npts+i) = rcqm*rrhs(i)
         sigma(4*npts+i) = rcqp*rrhs(i)
         sigma(5*npts+i) = rcrm*rrhs(i)
+      enddo
+
+      allocate(drhs(2,npts))
+      drhs = 0
+      call get_surf_grad(1,npatches,norders,ixyzs,iptype,npts,
+     1  srccoefs,srcvals,rrhs,drhs)
+      allocate(sigma2(3*npts))
+
+      do i=1,npts
+        sigma2(i) = srcvals(4,i)*drhs(1,i) + srcvals(7,i)*drhs(2,i)
+        sigma2(i+npts) = srcvals(5,i)*drhs(1,i) + 
+     1     srcvals(8,i)*drhs(2,i)
+        sigma2(i+2*npts) = srcvals(6,i)*drhs(1,i) + 
+     1     srcvals(9,i)*drhs(2,i)
       enddo
 
 
@@ -264,6 +280,30 @@ C$OMP END PARALLEL DO
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
 
+
+      allocate(pot1(npts))
+
+      call prin2('sigma2=*',sigma2,24)
+
+      call lpcomp_divs0tan_addsub(npatches,norders,ixyzs,iptype,
+     1  npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
+     2  wnear(2*nquad+1),sigma2,novers,npts_over,ixyzso,srcover,
+     3  wover,pot1)
+      
+
+      erra = 0
+      ra = 0
+      rr = 1.0d0/(2*nn+1.0d0)
+      do i=1,npts
+        erra = erra + (pot1(i) - rrhs(i)*rr)**2*wts(i)
+        ra = ra + (rr*rrhs(i))**2*wts(i)
+        if(i.le.10) print *, pot1(i),pot1(i)/rrhs(i)
+      enddo
+
+
+      erra = sqrt(erra/ra)
+      call prin2('error in divs0tan=*',erra,1)
+      stop
 
       call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,iptype,
      1  npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind,iquad,nquad,
