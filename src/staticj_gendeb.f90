@@ -264,7 +264,7 @@
 !  c. m^{-} = k \nabla_{\Gamma} S_{0} [\rho^{-}] 
 !     -k n \times \nabla_{\Gamma}S_{0} [\rho^{+}]
 !  d. \ell^{-} = -k \nabla_{\Gamma} S_{0}[\mu^{-}]
-!  4. (a+b)*2*k
+!  4. (a+b)*k
 !  5. (a-b)
 !  6. 2*(n \cdot (-\nabla S_{ik}[r^{-}] - \nabla \times S_{ik} [m^{-}] -k 
 !        S_{ik} [\ell^{-}]) = 0 
@@ -577,7 +577,7 @@
       call lfmm3d_t_d_g_vec(nd,eps,ns,sources,dipvec0,npts,srctmp, &
         abc1,grad_aux)
 
-      print *, "done with first fmm"
+!      print *, "done with first fmm"
 
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
@@ -587,7 +587,7 @@
       enddo
 !$OMP END PARALLEL DO
 
-      print *, "finished computing abc2"
+!      print *, "finished computing abc2"
 
       pot_aux = 0
       grad_aux = 0
@@ -595,7 +595,7 @@
       call lfmm3d_t_c_h_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
         pot_aux,grad_aux,hess_aux)
 
-      print *, "done with second fmm"
+!      print *, "done with second fmm"
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(u1,u2,u3,u4)
       do i=1,npts
@@ -626,13 +626,12 @@
       enddo
 !$OMP END PARALLEL DO
 
-      print *, "finished computing bll,blm,abc2,abc3"
+!      print *, "finished computing bll,blm,abc2,abc3"
 !
 !  Add in precorrected quadratures for relevant quantities
 !
 
       call get_fmm_thresh(12,ns,srcover,12,npts,srcvals,thresh)
-      print *, "thresh=",thresh
 !
 !       Add near field precomputed contribution
 !
@@ -689,7 +688,7 @@
       enddo
 !$OMP END PARALLEL DO
 
-      print *, "finished near computation for abc2,abc3,bmm,blm"
+!      print *, "finished near computation for abc2,abc3,bmm,blm"
 
 !     Remove near contribution of the FMM
 !
@@ -769,7 +768,7 @@
 !
 !
 
-      print *, "finished all computation for abc1,abc2,abc3,blm,bmm"
+!      print *, "finished all computation for abc1,abc2,abc3,blm,bmm"
 !
 !  Now compute D0 of abc1 and store in abc0 since it is no
 !  longer used
@@ -869,21 +868,12 @@
 !  We first organize these densities and oversample them
 !
 !
-      call prin2('abc3=*',abc3,24)
-      call prin2('abc2=*',abc2,24)
-      call prin2('sigma4=*',sigma(3*npts+1),24)
-      call prin2('sigma5=*',sigma(4*npts+1),24)
-      call prin2('sigma6=*',sigma(5*npts+1),24)
       do i=1,npts
         abc4(1:3,i) = abc2(1:3,i) + 2*curv(i)*abc3(1:3,i)
         abc4(4,i) = sigma(3*npts+i)
         abc4(5,i) = sigma(4*npts+i)
         abc4(6,i) = sigma(5*npts+i)
       enddo
-
-      call prin2('curv=*',curv,24)
-      call prin2('abc4=*',abc4(1:3,1:10),30)
-      call prinf('nd=*',nd,1)
 
       allocate(bbp(3,npts))
       bbp = 0
@@ -905,8 +895,6 @@
 
       pot_aux = 0
       grad_aux = 0
-
-      call prinf('nd=*',nd,1)
 
       call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
         pot_aux,grad_aux)
@@ -1032,17 +1020,15 @@
       zpot_aux = 0
       zgrad_aux = 0
 
-      call prinf('nd=*',nd,1)
-
       zk0 = dzk*ima
-      call prin2('zk0=*',zk0,2)
-
-      print *, "before fmm"
+!      call prin2('zk0=*',zk0,2)
+!
+!      print *, "before fmm"
 
       call hfmm3d_t_c_g_vec(nd,eps,zk0,ns,sources,zcharges0,npts,srctmp, &
         zpot_aux,zgrad_aux)
 
-      print *, "after fmm"
+!      print *, "after fmm"
 
 
       pot_aux = real(zpot_aux)
@@ -1075,9 +1061,9 @@
       enddo
 !$OMP END PARALLEL DO     
       
-      print *, "after helmholtz near correction"
-      print *, "nmax=",nmax
-      print *, "nd=",nd
+!      print *, "after helmholtz near correction"
+!      print *, "nmax=",nmax
+!      print *, "nd=",nd
 
 
 !
@@ -1113,7 +1099,7 @@
       enddo
 !$OMP END PARALLEL DO      
 
-      print *, "finished pot eval"
+!      print *, "finished pot eval"
       deallocate(zpottmp,zgradtmp,zpot_aux,zgrad_aux)
 
       allocate(bjm(3,npts),bbm(3,npts))
@@ -1126,7 +1112,7 @@
             - grad_aux(8,2,i) &
             - (grad_aux(4,3,i)-grad_aux(6,1,i))
         bjm(3,i) = -dzk*pot_aux(3,i) & 
-           - 0*grad_aux(8,3,i) &
+           - grad_aux(8,3,i) &
            - (grad_aux(5,1,i)-grad_aux(4,2,i))
 
         bbm(1,i) = -dzk*pot_aux(4,i) + grad_aux(7,1,i) + &
@@ -1138,7 +1124,7 @@
       enddo
 !$OMP END PARALLEL DO
 
-       print *, "done computing bjm,bbm"
+!       print *, "done computing bjm,bbm"
 
 !
 ! End of computing bj-, bb- and bb^+
@@ -1176,7 +1162,7 @@
 
         w3 = w1/dzk - w2
         
-        pot(3*npts+i) = 2*dzk*(abc1(1,i)+w3)
+        pot(3*npts+i) = dzk*(abc1(1,i)+w3)
         pot(4*npts+i) = w3-abc1(1,i)
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = w1*2
@@ -1412,7 +1398,7 @@
 
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
 
-      print *, "before fmm"
+!      print *, "before fmm"
 
       call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
         pot_aux,grad_aux)
@@ -1423,7 +1409,7 @@
       enddo
 !$OMP END PARALLEL DO      
 
-      print *, "after fmm"
+!      print *, "after fmm"
 
 !
 !  Add near quadrature correction
@@ -1448,13 +1434,13 @@
       enddo
 !$OMP END PARALLEL DO     
       
-      print *, "after Laplace near correction"
-      print *, "nmax=",nmax
-      print *, "nd=",nd
+!      print *, "after Laplace near correction"
+!      print *, "nmax=",nmax
+!      print *, "nd=",nd
 
       call get_fmm_thresh(12,ns,srcover,12,npts,srcvals,thresh)
 
-      print *, "Thresh=",thresh
+!      print *, "Thresh=",thresh
 
 
 !
@@ -1489,7 +1475,7 @@
       enddo
 !$OMP END PARALLEL DO      
 
-      print *, "finished pot eval"
+!      print *, "finished pot eval"
 
       return
       end subroutine lpcomp_divs0tan_addsub
@@ -1517,8 +1503,8 @@
 !       J^{-} \cdot n
 !
 !  In fact the boundary conditions imposed are 
-!     ((2) - \nabla S_{0} [(1)])*2  
-!     ((2) + \nabla S_{0}[(1)])*2*dzk
+!     ((2) - \nabla S_{0} [(1)])  
+!     ((2) + \nabla S_{0}[(1)])*dzk
 !     (3)*2
 !
 !  input:
@@ -1755,7 +1741,6 @@
       iquadtype = 1
 
       print *, "starting to generate near quadrature"
-      goto 1111
       call cpu_time(t1)
 !C$      t1 = omp_get_wtime()      
       call getnearquad_statj_gendeb(npatches,norders,&
@@ -1783,8 +1768,13 @@
         vtmp1(2) = rhs(i+npts)
         vtmp1(3) = rhs(i+2*npts)
         call dot_prod3d(vtmp1,srcvals(10,i),w1)
-        rhsuse(3*npts+i) = (w1 + abc0(i))*2*dpars(1)
-        rhsuse(4*npts+i) = (w1 - abc0(i))*2
+
+!   note there is extra minus sign in w1 to account for the
+!   fact that the input rhs is -bbm/dzk + bbp, while
+!   in imposing the normal component of the difference
+!   we actually impose (bbm/dzk - bbp) \cdot n
+        rhsuse(3*npts+i) = (w1 - abc0(i))*dpars(1)
+        rhsuse(4*npts+i) = (w1 + abc0(i))
 
         vtmp1(1) = rhs(i+3*npts)
         vtmp1(2) = rhs(i+4*npts)
@@ -1793,7 +1783,7 @@
         rhsuse(5*npts+i) = w1
       enddo
 !$OMP END PARALLEL DO     
-      
+      call prin2('rhsuse=*',rhsuse(3*npts+1),24) 
       print *, "done initializing rhs"
       print *, "starting solver now"
 
