@@ -90,7 +90,7 @@
       vf2(3) = -0.71d0
 
       ifinit = 0
-      dzk = 0.19d0
+      dzk = 1.0d0
       ztmp = dzk*ima
       ifinit = 0
       call fieldsED(ztmp,xyz_out,srcvals,npts,zbbm,zjm,vf1,ifinit)

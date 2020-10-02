@@ -1162,8 +1162,8 @@
 
         w3 = w1/dzk - w2
         
-        pot(3*npts+i) = dzk*(abc1(1,i)+w3)
-        pot(4*npts+i) = w3-abc1(1,i)
+        pot(3*npts+i) = dzk*(-2*abc1(1,i)+w3)
+        pot(4*npts+i) = w3+2*abc1(1,i)
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = w1*2
       enddo
@@ -1773,14 +1773,14 @@
 !   fact that the input rhs is -bbm/dzk + bbp, while
 !   in imposing the normal component of the difference
 !   we actually impose (bbm/dzk - bbp) \cdot n
-        rhsuse(3*npts+i) = (w1 - abc0(i))*dpars(1)
-        rhsuse(4*npts+i) = (w1 + abc0(i))
+        rhsuse(3*npts+i) = (w1 - 2*abc0(i))*dpars(1)
+        rhsuse(4*npts+i) = (w1 + 2*abc0(i))
 
         vtmp1(1) = rhs(i+3*npts)
         vtmp1(2) = rhs(i+4*npts)
         vtmp1(3) = rhs(i+5*npts)
         call dot_prod3d(vtmp1,srcvals(10,i),w1)
-        rhsuse(5*npts+i) = w1
+        rhsuse(5*npts+i) = w1*2
       enddo
 !$OMP END PARALLEL DO     
       call prin2('rhsuse=*',rhsuse(3*npts+1),24) 
