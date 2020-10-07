@@ -219,7 +219,7 @@ subroutine surf_grad(npatches,norders,ixyzs,iptype,npts, &
   integer, intent(in) :: npatches,norders(npatches)
   integer, intent(in) :: ixyzs(npatches+1),iptype(npatches)
   integer, intent(in) :: npts
-  real *8, intent(in) :: srccoefs(9,npts),srcvals(12,npts),fin(3,npts)
+  real *8, intent(in) :: srccoefs(9,npts),srcvals(12,npts),fin(npts)
   real *8, intent(out) :: gradf(3,npts)
   real *8, allocatable :: ffforminv(:,:,:)
   real *8, allocatable :: dfuv(:,:,:)

@@ -750,7 +750,7 @@
          call dot_prod3d(dgradtmp(1,1:3),srcvals(7,i),u2)
 
          call dot_prod3d(dgradtmp(2,1:3),srcvals(4,i),u3)
-         call dot_prod3d(dgradtmp(3,1:3),srcvals(7,i),u4)
+         call dot_prod3d(dgradtmp(2,1:3),srcvals(7,i),u4)
 
          bmm(1:3,i) = bmm(1:3,i) - dzk*(u1*wtmp1(1:3,i) + &
            u2*wtmp2(1:3,i) - u3*wtmp3(1:3,i) - u4*wtmp4(1:3,i))
@@ -996,6 +996,15 @@
       nd = 8
       allocate(zcharges0(nd,ns),sigmaover(nd,ns),abc0(nd,npts))
 
+      open(unit=37)
+      open(unit=38)
+      do i=1,npts
+        write(37,*) bmm(1,i),bmm(2,i),bmm(3,i)
+        write(38,*) blm(1,i),blm(2,i),blm(3,i)
+      enddo
+      close(37)
+      close(38)
+
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
         abc0(1:3,i) = blm(1:3,i)
@@ -1162,10 +1171,10 @@
 
         w3 = w1/dzk - w2
         
-        pot(3*npts+i) = dzk*(-2*abc1(1,i)+w3)
-        pot(4*npts+i) = w3+2*abc1(1,i)
+        pot(3*npts+i) = abc1(1,i)
+        pot(4*npts+i) = w3
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = w1*2
+        pot(5*npts+i) = w1
       enddo
 !$OMP END PARALLEL DO
 

@@ -40,8 +40,8 @@
 
       
       xyz_in(1) = 0.11d0
-      xyz_in(2) = 0.0d-5
-      xyz_in(3) = 0.37d0
+      xyz_in(2) = 0.01d-5
+      xyz_in(3) = 0.07d0
 
       xyz_out(1) = -3.5d0
       xyz_out(2) = 3.1d0
@@ -51,7 +51,7 @@
       ipars(1) = 2 
       npatches=12*(4**ipars(1))
 
-      norder = 5 
+      norder = 7 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -123,8 +123,9 @@
 
       numit = 100
       allocate(errs(numit+1))
+      eps_gmres = 1.0d-7
       call statj_gendeb_solver(npatches,norders,ixyzs,iptype,
-     1  npts,srccoefs,srcvals,eps,dzk,numit,rhs,eps,
+     1  npts,srccoefs,srcvals,eps,dzk,numit,rhs,eps_gmres,
      2  niter,errs,rres,soln)
       call prin2('rres=*',rres,1)
 

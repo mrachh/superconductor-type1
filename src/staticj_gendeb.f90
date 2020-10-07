@@ -132,6 +132,8 @@
       external y3d_slp,y3d_sgradx,y3d_sgrady,y3d_sgradz
       external l3d_spp_sum_dp
 
+!      goto 1111
+
 
       ndz=0
       ndd=1
@@ -750,7 +752,7 @@
          call dot_prod3d(dgradtmp(1,1:3),srcvals(7,i),u2)
 
          call dot_prod3d(dgradtmp(2,1:3),srcvals(4,i),u3)
-         call dot_prod3d(dgradtmp(3,1:3),srcvals(7,i),u4)
+         call dot_prod3d(dgradtmp(2,1:3),srcvals(7,i),u4)
 
          bmm(1:3,i) = bmm(1:3,i) - dzk*(u1*wtmp1(1:3,i) + &
            u2*wtmp2(1:3,i) - u3*wtmp3(1:3,i) - u4*wtmp4(1:3,i))
@@ -1159,11 +1161,11 @@
       do i=1,npts
         call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
         call dot_prod3d(bbp(1,i),srcvals(10,i),w2)
-
-        w3 = w1/dzk - w2
         
-        pot(3*npts+i) = dzk*(-2*abc1(1,i)+w3)
-        pot(4*npts+i) = w3+2*abc1(1,i)
+        w3 = -w1/dzk + w2
+        
+        pot(3*npts+i) = dzk*(w3+2*abc1(1,i))
+        pot(4*npts+i) = -(w3-2*abc1(1,i))
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = w1*2
       enddo
@@ -1503,8 +1505,8 @@
 !       J^{-} \cdot n
 !
 !  In fact the boundary conditions imposed are 
-!     ((2) - \nabla S_{0} [(1)])  
-!     ((2) + \nabla S_{0}[(1)])*dzk
+!     ((2) - 2*\nabla S_{0} [(1)])  
+!     ((2) + 2*\nabla S_{0}[(1)])*dzk
 !     (3)*2
 !
 !  input:
@@ -1773,8 +1775,8 @@
 !   fact that the input rhs is -bbm/dzk + bbp, while
 !   in imposing the normal component of the difference
 !   we actually impose (bbm/dzk - bbp) \cdot n
-        rhsuse(3*npts+i) = (w1 - 2*abc0(i))*dpars(1)
-        rhsuse(4*npts+i) = (w1 + 2*abc0(i))
+        rhsuse(3*npts+i) = (w1 + 2*abc0(i))*dpars(1)
+        rhsuse(4*npts+i) = -(w1 - 2*abc0(i))
 
         vtmp1(1) = rhs(i+3*npts)
         vtmp1(2) = rhs(i+4*npts)
