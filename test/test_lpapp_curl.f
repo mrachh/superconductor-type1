@@ -76,7 +76,7 @@
       xyz_out(3) = 20.1d0
 
       igeomtype = 1
-      ipars(1) = 1 
+      ipars(1) = 3 
       npatches=12*(4**ipars(1))
 
       norder = 5 
@@ -122,10 +122,13 @@ c
 cc      dzk = 1.0d0
 
 
-      rcu = 2.9d0
-      rcx = 0.0d0
+      rcu = 0.0d0
+      rcx = 1.1d0
 
       allocate(unm(3,npts),xnm(3,npts))
+      do i=1,npts
+        rrhs(i) = real(rhs(i))
+      enddo
       call surf_grad(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,rrhs,unm)
       do i=1,npts
@@ -135,7 +138,6 @@ cc      dzk = 1.0d0
 
 
       do i=1,npts
-        rrhs(i) = real(rhs(i))
 
         sigma(i) = rcu*unm(1,i) + rcx*xnm(1,i) 
         sigma(npts+i) = rcu*unm(2,i) + rcx*xnm(2,i) 
@@ -249,7 +251,7 @@ C$OMP END PARALLEL DO
       call prinf('npts=*',npts,1)
 
       call lpcomp_s0curl_addsub(npatches,norders,ixyzs,iptype,npts,
-     1  npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
+     1  srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
      2  wnear(2*nquad+1),sigma,novers,npts_over,ixyzso,srcover,
      3  wover,pot)
 
@@ -267,8 +269,13 @@ C$OMP END PARALLEL DO
 
       runc = (nn+1.0d0)/(2*nn+1.0d0)*rcu
       rxnc = (nn+0.0d0)/(2*nn+1.0d0)*rcx
+
+      call prin2('runc=*',runc,1)
+      call prin2('rxnc=*',rxnc,1)
+      call prin2('rcu=*',rcu,1)
+      call prin2('rcx=*',rcx,1)
       rund = 0
-      rxnd = -(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)*rcx
+      rxnd = -sqrt((nn+0.0d0)*(nn+1.0d0))/(2*nn+1.0d0)*rcx
       do i=1,npts
         call cross_prod3d(srcvals(10,i),pcurl(1,i),vtmp1)
         vtmp1(1) = vtmp1(1) + sigma(i)/2
@@ -280,7 +287,7 @@ C$OMP END PARALLEL DO
         vtmp2(3) = runc*unm(3,i) + rxnc*xnm(3,i) 
         
 
-        rnc = rnc + (vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)*wts(i)
+        rnc = rnc + (vtmp2(1)**2 + vtmp2(2)**2 + vtmp2(3)**2)*wts(i)
         errnc = errnc + (vtmp1(1)-vtmp2(1))**2*wts(i)
         errnc = errnc + (vtmp1(2)-vtmp2(2))**2*wts(i)
         errnc = errnc + (vtmp1(3)-vtmp2(3))**2*wts(i)
@@ -289,10 +296,16 @@ C$OMP END PARALLEL DO
 
         rnd = rnd + rrhs(i)**2*wts(i)
         errnd = errnd + (wtmp - rxnd*rrhs(i))**2*wts(i)
+        if(i.lt.3) print *, vtmp1(1),vtmp2(1),vtmp1(1)/vtmp2(1)
+        if(i.lt.3) print *, wtmp,rxnd*rrhs(i),rxnd*rrhs(i)/wtmp
       enddo
 
       errnd = sqrt(errnd/rnd)
       errnc = sqrt(errnc/rnc)
+
+
+      call prin2('rnc=*',rnc,1)
+      call prin2('rnd=*',rnd,1)
 
       call prin2('error in n times curl s0 = *',errnc,1)
       call prin2('error in n dot curl s0 =*',errnd,1)
