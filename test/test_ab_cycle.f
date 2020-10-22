@@ -237,7 +237,51 @@ c
       call prin2('error in interpolated density on bcycle=*',erra1,1)
       call prin2('error in interpolated density2 on bcycle=*',erra2,1)
 
+c
+c
+c   compute all 4 integrals
+c
 
+      ra1 = 0
+      ra2 = 0
+      do i=1,na
+        ra1 = ra1 + (hinterp1aex(1,i)*avals(4,i) +
+     1     hinterp1aex(2,i)*avals(5,i) + hinterp1aex(3,i)*avals(6,i))*
+     2     awts(i)
+        ra2 = ra2 + (hinterp2aex(1,i)*avals(4,i) +
+     1     hinterp2aex(2,i)*avals(5,i) + hinterp2aex(3,i)*avals(6,i))*
+     2     awts(i)
+      enddo
+
+      call prin2('ra1=*',ra1,1)
+      call prin2('ra2=*',ra2,1)
+
+      rb1 = 0
+      rb2 = 0
+      do i=1,nb
+        rb1 = rb1 + (hinterp1bex(1,i)*bvals(4,i) +
+     1     hinterp1bex(2,i)*bvals(5,i) + hinterp1bex(3,i)*bvals(6,i))*
+     2     bwts(i)
+        rb2 = rb2 + (hinterp2bex(1,i)*bvals(4,i) +
+     1     hinterp2bex(2,i)*bvals(5,i) + hinterp2bex(3,i)*bvals(6,i))*
+     2     bwts(i)      
+      enddo
+
+      call prin2('rb1=*',rb1,1)
+      call prin2('rb2=*',rb2,1)
+
+c
+c  compute integral of n\times first density on a cycle
+c
+c  
+      ra = 0
+      do i=1,na
+        call cross_prod3d(srcinterpa(10,i),hinterp1aex(1,i),wtmp1)
+        ra = ra + (wtmp1(1)*avals(4,i) +
+     1     wtmp1(2)*avals(5,i)+wtmp1(3)*avals(6,i))*awts(i)
+      enddo
+      call prin2('integral of n cross density in vplus=*',ra,1)
+      
 
       allocate(rrhs1(npts),rrhs2(npts))
 
