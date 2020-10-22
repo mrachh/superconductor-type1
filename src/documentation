@@ -1,0 +1,16 @@
+staticj_gendeb.f90 - Testing code, matvec was working but issue
+  with solver, also issue in handling s\Delta_{\Gamma} s in 
+  one of the terms
+
+staticj_gendeb2.f90 - Fixed issued in s \Delta_{\Gamma} s, but 
+  solver still not working due to one's matrix issue
+
+staticj_gendeb3.f90 = staticj_gendeb_sc.f90 - Final working code for simply connected
+  objects implemented such that linear system looks like
+  (I + K) \density. Tested in test_solver.f
+
+staticj_gendeb4.f90 - interemdiate testing code to get to static_gendeb3.f90
+  Implements the system of equations discussed in the paper  
+  
+   
+
