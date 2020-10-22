@@ -411,6 +411,7 @@
       real *8, allocatable :: dpottmp(:),dgradtmp(:,:)
       complex *16, allocatable :: zpottmp(:),zgradtmp(:,:)
       real *8 vtmp1(3),vtmp2(3),vtmp3(3),rncj,errncj
+      real *8 rinttmp(6),rsurf
 
 
 
@@ -465,12 +466,16 @@
       ifpghtarg = 2
       pot = 0
       allocate(sources(3,ns),srctmp(3,npts))
+      allocate(wts(npts))
+      call get_qwts(npatches,norders,ixyzs,iptype,npts,&
+       srcvals,wts)
 !
 !  Compute inverse of first fundamental form and mean curvature 
 !
       allocate(curv(npts),ffforminv(2,2,npts))
       call get_mean_curvature(npatches,norders,ixyzs,iptype,npts, &
         srccoefs,srcvals,curv)
+      call prin2('curv=*',curv,24)
       call get_inv_first_fundamental_form(npatches,norders,ixyzs, &
         iptype,npts,srccoefs,srcvals,ffforminv)
       
@@ -560,6 +565,7 @@
 !  abc1 = D0(rhom,rhop,mum,qm,qp,rm)
 !  abc2 = D0'(rhom,rhop,mum,qm,qp,rm) + S0''(rhom,rhop,mum,qm,qp,rm)
 !  abc3 = S0'(rhom,rhop,mum,qm,qp,rm)
+!  abc4 = S0 (rhom,rhop,mum,qm,qp,rm)
 !  blm = -dzk*\nabla_{\Gamma} S_{0}[\mum] 
 !  bmm = dzk*\nabla_{\Gamma}S_{0}[\rhom] &
 !     - dzk* (n \times \nabla_{\Gamma} S_{0}[\rhop]
@@ -611,6 +617,7 @@
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(u1,u2,u3,u4)
       do i=1,npts
+        abc4(1:6,i) = pot_aux(1:6,i)
         s0qm(i) = pot_aux(4,i)
         s0qp(i) = pot_aux(5,i)
         s0rm(i) = pot_aux(6,i)
@@ -673,6 +680,8 @@
             w3 = wnear(3*nquad+jquadstart+l-1)
             w4 = wnear(4*nquad+jquadstart+l-1)
             w5 = wnear(5*nquad+jquadstart+l-1)
+
+            abc4(1:6,i) = abc4(1:6,i) + w0*abc0(1:6,jstart+l-1)
 
             s0qm(i) = s0qm(i) + w0*abc0(4,jstart+l-1)
             s0qp(i) = s0qp(i) + w0*abc0(5,jstart+l-1)
@@ -753,6 +762,7 @@
         call l3ddirectcg(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
           ntarg0,dpottmp,dgradtmp,thresh)
         
+        abc4(1:6,i) = abc4(1:6,i) - dpottmp(1:6)
         s0qm(i) = s0qm(i) - dpottmp(4)
         s0qp(i) = s0qp(i) - dpottmp(5)
         s0rm(i) = s0rm(i) - dpottmp(6)
@@ -786,6 +796,7 @@
 !  abc1 = D0(rhom,rhop,mum,qm,qp,rm)
 !  abc2 = D0'(rhom,rhop,mum,qm,qp,rm) + S0''(rhom,rhop,mum,qm,qp,rm)
 !  abc3 = S0'(rhom,rhop,mum,qmqp,rm)
+!  abc4 = S0 (rhom,rhop,mum,qm,qp,rm)
 !  s0qp = S0[qp]
 !  s0qm = S0[qm]
 !  spqp = S0'[qp]
@@ -882,24 +893,41 @@
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
       allocate(dpottmp(nd),dgradtmp(nd,3))
       allocate(ctmp0(nd,nmax))
+!
+!  Compute integrals of S0[rhom,rhop,rmum,qm,qp,rm]
+!
+      rinttmp(1:6) = 0
+      rsurf = 0
+      do i=1,npts
+        rinttmp(1:6) = rinttmp(1:6) + abc4(1:6,i)*wts(i)
+        rsurf = rsurf + wts(i)
+      enddo
+      call prin2('rinttmp=*',rinttmp,6)
 
 !
 !
 !  The 6 densities now being considered are ordered as follows:
 !  
-!  abc4(1) = ((D0'+S0'') + 2HS0')[\rhom]
+!  abc4(1) = ((D0'+S0'') + 2HS0')[\rhom] 
+!     + 1/|\Gamma|\int_{\Gamma} S_{0} [\rhom]
 !  abc4(2) = ((D0'+S0'') + 2HS0')[\rhop]
+!     + 1/|\Gamma|\int_{\Gamma} S_{0} [\rhop]
 !  abc4(3) = ((D0'+S0'') + 2HS0')[\rmum]
-!  abc4(4) = ((D0'+S0'') + 2HS0')[qm]
-!  abc4(5) = ((D0'+S0'') + 2HS0')[qp]
-!  abc4(6) = ((D0'+S0'') + 2HS0')[rm]
+!     + 1/|\Gamma|\int_{\Gamma} S_{0} [\rmum]
+!  abc4(1) = ((D0'+S0'') + 2HS0')[qm]
+!     + 1/|\Gamma|\int_{\Gamma} S_{0} [\qm]
+!  abc4(2) = ((D0'+S0'') + 2HS0')[qp]
+!     + 1/|\Gamma|\int_{\Gamma} S_{0} [\qp]
+!  abc4(3) = ((D0'+S0'') + 2HS0')[rm]
+!     + 1/|\Gamma|\int_{\Gamma} S_{0} [\rm]
 !
 !  We first organize these densities and oversample them
 !
 !
       do i=1,npts
-        abc4(1:6,i) = abc2(1:6,i) + 2*curv(i)*abc3(1:6,i)
+        abc4(1:6,i) = abc2(1:6,i) + 2*curv(i)*abc3(1:6,i) 
       enddo
+      call prin2('rsurf=*',rsurf,1)
 
 
       sigmaover=  0
@@ -973,15 +1001,17 @@
 ! At this stage we are ready to compile the first three components
 ! of the output potential
 !
-      do j=1,3
-        do i=1,npts
-          pot(i+(j-1)*npts) = -4*(abc0(j,i)-pot_aux(j,i))
-        enddo
+      call prin2('rinttmp=*',rinttmp,6)
+      call prin2('rsurf=*',rsurf,1)
+      do i=1,npts
+        pot(i) = -4*(abc0(1,i)-pot_aux(1,i)+rinttmp(1)/rsurf)
+        pot(i+npts) = -4*(abc0(2,i)-pot_aux(2,i)+rinttmp(2)/rsurf)
+        pot(i+2*npts) = -4*(abc0(3,i)-pot_aux(3,i)+rinttmp(3)/rsurf)
       enddo
       do i=1,npts
-        pot(i) = pot(i) + 4*s0qm(i)
-        pot(i+npts) = pot(i+npts) + 4*s0qp(i)
-        pot(i+2*npts) = pot(i+2*npts) + 4*s0rm(i)
+        pot(i) = pot(i) + 4*s0qm(i) + sigma(i) 
+        pot(i+npts) = pot(i+npts) + 4*s0qp(i) + sigma(i+npts)
+        pot(i+2*npts) = pot(i+2*npts) + 4*s0rm(i) + sigma(i+2*npts)
         s0laps0qp(i) = abc0(5,i)-pot_aux(5,i)
         s0laps0qm(i) = abc0(4,i)-pot_aux(4,i)
       enddo
@@ -989,6 +1019,7 @@
 !
 !  At this stage the following quantities have already been
 !  computed
+!  bpp 
 !  blm
 !  bmm
 !
@@ -1164,7 +1195,7 @@
       allocate(abc1(1,npts))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
       do i=1,npts
-        abc0(i,1:3) = -bbm(1:3,i)/dzk + grads0qm(1:3,i)/dzk 
+        abc0(i,1:3) = bbm(1:3,i)/dzk - grads0qm(1:3,i)/dzk 
       enddo
 !$OMP END PARALLEL DO
 
@@ -1173,18 +1204,19 @@
         iquad,nquad,wnear(2*nquad+1),abc0,novers,nptso,ixyzso,srcover, &
         whtsover, abc1)
 !   
-!  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
+!  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla _{\Gamma}\cdot \bbm{-}
 !
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,w3)
       do i=1,npts
         call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
 
         w3 = w1/dzk - spqp(i)
+        w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
-        pot(3*npts+i) = abc1(1,i) + s0laps0qm(i)/dzk - s0laps0qp(i)
-        pot(4*npts+i) = w3
+        pot(3*npts+i) = w2 + sigma(3*npts+i)/4/dzk - sigma(4*npts+i)/4
+        pot(4*npts+i) = w3 + sigma(3*npts+i)/2 + sigma(4*npts+i)/2 
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = w1
+        pot(5*npts+i) = w1 - sigma(5*npts+i)/2
       enddo
 !$OMP END PARALLEL DO
 
@@ -1607,7 +1639,7 @@
       integer, allocatable :: row_ptr(:),col_ind(:),iquad(:)
 
       real *8, allocatable :: wnear(:)
-      real *8, allocatable :: srcover(:,:),wover(:)
+      real *8, allocatable :: srcover(:,:),wover(:),wts(:)
       integer, allocatable :: ixyzso(:),novers(:)
 
       real *8, allocatable :: cms(:,:),rads(:),rad_near(:)
@@ -1617,6 +1649,489 @@
 
       integer ipars
       real *8 timeinfo(10),t1,t2,omp_get_wtime
+      complex *16 zpars(1)
+
+
+      real *8 ttot,done,pi
+      real *8 rfac,rfac0
+      real *8 w1,w2,vtmp1(3),rinttmp(6)
+      integer iptype_avg,norder_avg
+      integer ikerorder, iquadtype,npts_over
+      integer n_var
+      complex *16 ima
+      data ima/(0.0d0,1.0d0)/
+
+!
+!       gmres variables
+!
+
+      real *8 did,ztmp
+      real *8 rb,wnrm2
+      integer numit,it,iind,it1,k,l,count1
+      real *8 rmyerr
+      real *8 temp
+      real *8, allocatable :: vmat(:,:),hmat(:,:)
+      real *8, allocatable :: cs(:),sn(:)
+      real *8, allocatable :: svec(:),yvec(:),wtmp(:)
+
+!
+!   n_var is the number of unknowns in the linear system.
+!   as we have one vector unknown J we need n_var=2*npts
+!
+
+      n_var=6*npts
+
+      allocate(vmat(n_var,numit+1),hmat(numit,numit))
+      allocate(cs(numit),sn(numit))
+      allocate(wtmp(n_var),svec(numit+1),yvec(numit+1))
+
+
+      done = 1
+      pi = atan(done)*4
+
+
+!
+!
+!        setup targets as on surface discretization points
+! 
+      ndtarg = 12
+      ntarg = npts
+      allocate(targs(ndtarg,npts),uvs_targ(2,ntarg),ipatch_id(ntarg))
+!C$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,ntarg
+        targs(:,i)=srcvals(:,i)
+        ipatch_id(i) = -1
+        uvs_targ(1,i) = 0
+        uvs_targ(2,i) = 0
+      enddo
+!C$OMP END PARALLEL DO   
+
+
+!
+!    initialize patch_id and uv_targ for on surface targets
+!
+      call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,&
+         ipatch_id,uvs_targ)
+
+!
+!
+!        this might need fixing
+!
+      iptype_avg = floor(sum(iptype)/(npatches+0.0d0))
+      norder_avg = floor(sum(norders)/(npatches+0.0d0))
+
+      call get_rfacs(norder_avg,iptype_avg,rfac,rfac0)
+
+      allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
+
+      call get_centroid_rads(npatches,norders,ixyzs,iptype,npts,& 
+        srccoefs,cms,rads)
+
+!C$OMP PARALLEL DO DEFAULT(SHARED) 
+      do i=1,npatches
+        rad_near(i) = rads(i)*rfac
+      enddo
+!C$OMP END PARALLEL DO      
+
+!
+!    find near quadrature correction interactions
+!
+      print *, "entering find near mem"
+      call findnearmem(cms,npatches,rad_near,ndtarg,targs,npts,nnz)
+      print *, "nnz=",nnz
+
+      allocate(row_ptr(npts+1),col_ind(nnz))
+      
+      call findnear(cms,npatches,rad_near,ndtarg,targs,npts,row_ptr,&
+       col_ind)
+
+      allocate(iquad(nnz+1)) 
+      call get_iquad_rsc(npatches,ixyzs,npts,nnz,row_ptr,col_ind,&
+        iquad)
+
+      ikerorder = 0
+
+!
+!    estimate oversampling for far-field, and oversample geometry
+!
+
+      allocate(novers(npatches),ixyzso(npatches+1))
+
+      print *, "beginning far order estimation"
+
+      zpars(1) = dpars(1)*ima
+
+      call get_far_order(eps,npatches,norders,ixyzs,iptype,cms,&
+       rads,npts,srccoefs,ndtarg,npts,targs,ikerorder,zpars(1),&
+       nnz,row_ptr,col_ind,rfac,novers,ixyzso)
+
+      npts_over = ixyzso(npatches+1)-1
+      print *, "npts_over=",npts_over
+      allocate(srcover(12,npts_over),wover(npts_over))
+      allocate(wts(npts))
+
+      call oversample_geom(npatches,norders,ixyzs,iptype,npts,&
+       srccoefs,srcvals,novers,ixyzso,npts_over,srcover)
+
+      call get_qwts(npatches,novers,ixyzso,iptype,npts_over,&
+       srcover,wover)
+
+      call get_qwts(npatches,norders,ixyzs,iptype,npts,&
+       srcvals,wts)
+
+
+!
+!   compute near quadrature correction
+!
+      nquad = iquad(nnz+1)-1
+      print *, "nquad=",nquad
+      allocate(wnear(10*nquad))
+      
+!C$OMP PARALLEL DO DEFAULT(SHARED)      
+      do i=1,10*nquad
+        wnear(i)=0
+      enddo
+!C$OMP END PARALLEL DO    
+
+
+      iquadtype = 1
+
+      print *, "starting to generate near quadrature"
+      call cpu_time(t1)
+!C$      t1 = omp_get_wtime()      
+      call getnearquad_statj_gendeb(npatches,norders,&
+       ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,iquadtype,nnz, &
+       row_ptr,col_ind,iquad,rfac0,nquad,wnear)
+      call cpu_time(t2)
+!C$      t2 = omp_get_wtime()     
+ 1111 continue      
+      call prin2('quadrature generation time=*',t2-t1,1)
+      
+      print *, "done generating near quadrature, now computing rhs"
+
+      allocate(abc0(npts))
+      
+      call lpcomp_divs0tan_addsub(npatches,norders,ixyzs,&
+          iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
+          iquad,nquad,wnear(2*nquad+1),rhs,novers,npts_over,ixyzso, &
+          srcover,wover,abc0)
+      
+      allocate(rhsuse(6*npts))
+      rhsuse = 0
+!!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,vtmp1)      
+      do i=1,npts
+        vtmp1(1) = rhs(i)
+        vtmp1(2) = rhs(i+npts)
+        vtmp1(3) = rhs(i+2*npts)
+        call dot_prod3d(vtmp1,srcvals(10,i),w1)
+
+        rhsuse(3*npts+i) = abc0(i) 
+        rhsuse(4*npts+i) = w1 
+        write(39,*) abc0(i),w1
+
+        vtmp1(1) = rhs(i+3*npts)
+        vtmp1(2) = rhs(i+4*npts)
+        vtmp1(3) = rhs(i+5*npts)
+        call dot_prod3d(vtmp1,srcvals(10,i),w1)
+        rhsuse(5*npts+i) = w1
+      enddo
+!!!$OMP END PARALLEL DO     
+      call prin2('rhsuse=*',rhsuse(3*npts+1),24)
+      call prin2('abc0=*',abc0,24)
+      print *, "done initializing rhs"
+      print *, "starting solver now"
+      do i=1,npts
+        write(41,'(6(2x,e11.5))') rhsuse(i), rhsuse(i+npts), &
+         rhsuse(2*npts+i), rhsuse(3*npts+i), rhsuse(4*npts+i), &
+         rhsuse(5*npts+i)
+      enddo
+
+      rinttmp(1:6) = 0
+      do j=1,6
+        do i=1,npts
+          rinttmp(j) = rinttmp(j) + rhsuse(i+(j-1)*npts)*wts(i)
+        enddo
+      enddo
+      call prin2('integral of rhs=*',rinttmp,6)
+
+
+!
+!
+!     start gmres code here
+!
+!     NOTE: matrix equation should be of the form (z*I + K)x = y
+!       the identity scaling (z) is defined via zid below,
+!       and K represents the action of the principal value 
+!       part of the matvec
+!
+      did=0.0d0
+
+      niter=0
+
+!
+!      compute norm of right hand side and initialize v
+! 
+      rb = 0
+
+      do i=1,numit
+        cs(i) = 0
+        sn(i) = 0
+      enddo
+!
+      do j=1,6
+        do i=1,npts
+          rb = rb + abs(rhsuse(i+(j-1)*npts))**2*wts(i)
+        enddo
+      enddo
+      rb = sqrt(rb)
+
+      do i=1,n_var
+        vmat(i,1) = rhsuse(i)/rb
+      enddo
+
+      svec(1) = rb
+
+      do it=1,numit
+        it1 = it + 1
+
+!
+!        NOTE:
+!        replace this routine by appropriate layer potential
+!        evaluation routine  
+!
+        call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,&
+          iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
+          iquad,nquad,wnear,vmat(1,it),novers,npts_over,ixyzso,srcover, &
+          wover,wtmp)
+        rinttmp(1:6) = 0
+        do j=1,6
+          do i=1,npts
+            rinttmp(j) = rinttmp(j) + wtmp(i+(j-1)*npts)*wts(i)
+          enddo
+        enddo
+        call prin2('integral of densities=*',rinttmp,6)
+
+
+        do k=1,it
+          hmat(k,it) = 0
+          do l=1,6
+            do j=1,npts      
+              hmat(k,it) = hmat(k,it) + wtmp(j+(l-1)*npts)* &
+                vmat(j+(l-1)*npts,k)*wts(j)
+            enddo
+          enddo
+
+          do j=1,n_var
+            wtmp(j) = wtmp(j)-hmat(k,it)*vmat(j,k)
+          enddo
+        enddo
+          
+        hmat(it,it) = hmat(it,it)+did
+        wnrm2 = 0
+        do l=1,6
+          do j=1,npts
+            wnrm2 = wnrm2 + abs(wtmp(j+(l-1)*npts))**2*wts(j)
+          enddo
+        enddo
+        wnrm2 = sqrt(wnrm2)
+
+        do j=1,n_var
+          vmat(j,it1) = wtmp(j)/wnrm2
+        enddo
+
+        do k=1,it-1
+          temp = cs(k)*hmat(k,it)+sn(k)*hmat(k+1,it)
+          hmat(k+1,it) = -sn(k)*hmat(k,it)+cs(k)*hmat(k+1,it)
+          hmat(k,it) = temp
+        enddo
+
+        ztmp = wnrm2
+
+        call rotmat_gmres(hmat(it,it),ztmp,cs(it),sn(it))
+          
+        hmat(it,it) = cs(it)*hmat(it,it)+sn(it)*wnrm2
+        svec(it1) = -sn(it)*svec(it)
+        svec(it) = cs(it)*svec(it)
+        rmyerr = abs(svec(it1))/rb
+        errs(it) = rmyerr
+        print *, "iter=",it,errs(it)
+
+        if(rmyerr.le.eps_gmres.or.it.eq.numit) then
+
+!
+!            solve the linear system corresponding to
+!            upper triangular part of hmat to obtain yvec
+!
+!            y = triu(H(1:it,1:it))\s(1:it);
+!
+          do j=1,it
+            iind = it-j+1
+            yvec(iind) = svec(iind)
+            do l=iind+1,it
+              yvec(iind) = yvec(iind) - hmat(iind,l)*yvec(l)
+            enddo
+            yvec(iind) = yvec(iind)/hmat(iind,iind)
+          enddo
+
+
+
+!
+!          estimate x
+!
+          do j=1,n_var
+            soln(j) = 0
+            do i=1,it
+              soln(j) = soln(j) + yvec(i)*vmat(j,i)
+            enddo
+          enddo
+
+
+          rres = 0
+          do i=1,n_var
+            wtmp(i) = 0
+          enddo
+!
+!        NOTE:
+!        replace this routine by appropriate layer potential
+!        evaluation routine  
+!
+          call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,&
+           iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
+            iquad,nquad,wnear,soln,novers,npts_over,ixyzso,srcover, &
+            wover,wtmp)
+            
+          do i=1,n_var
+            rres = rres + abs(did*soln(i) + wtmp(i)-rhsuse(i))**2
+          enddo
+          rres = sqrt(rres)/rb
+          niter = it
+          return
+        endif
+      enddo
+!
+
+      return
+      end subroutine statj_gendeb_solver
+!
+!
+!
+!
+      subroutine statj_gendeb_solver_rhspre(npatches,norders,ixyzs,&
+       iptype,npts,srccoefs,srcvals,eps,dpars,numit,&
+       rhs,eps_gmres,niter,errs,rres,soln)
+
+!
+!  This subroutine solves a tranmission like maxwell problem
+!  which arises in the computation of static currents
+!  of type 1 superconductors. 
+!
+!  The governing equations are:
+!    \curl B^{-} = dzk*J^{-}, \curl J^{-} = dzk*B^{-}
+!    \div B^{-} = 0. \div J^{-} = 0
+!    \curl B^{+} = 0, \div B^{+} = 0
+!
+!  Boundary conditions:
+!       - n \times n \times B^{-}/dzk + n \times n \times B^{+} (1)
+!       B^{-} \cdot n/dzk - B^{+} \cdot n  (2)
+!       J^{-} \cdot n
+!
+!  In fact the boundary conditions imposed are 
+!     ((2) + 2*\nabla S_{0} [(1)])*dzk  
+!     ((2) - \nabla S_{0}[(1)])
+!     -(3)*2
+!
+!  input:
+!    - npatches: integer
+!        number of patches
+!    - norders: integer(npatches)
+!        order of discretization on each patch 
+!    - ixyzs: integer(npatches+1)
+!        ixyzs(i) denotes the starting location in srccoefs,
+!        and srcvals array corresponding to patch i
+!    - iptype: integer(npatches)
+!        type of patch
+!        iptype = 1, triangular patch discretized using RV nodes
+!    - npts: integer
+!        total number of discretization points on the boundary
+!    - srccoefs: real *8 (9,npts)
+!        koornwinder expansion coefficients of xyz, dxyz/du,
+!        and dxyz/dv on each patch. 
+!        For each point 
+!          * srccoefs(1:3,i) is xyz info
+!          * srccoefs(4:6,i) is dxyz/du info
+!          * srccoefs(7:9,i) is dxyz/dv info
+!    - srcvals: real *8 (12,npts)
+!        xyz(u,v) and derivative info sampled at the 
+!        discretization nodes on the surface
+!          * srcvals(1:3,i) - xyz info
+!          * srcvals(4:6,i) - dxyz/du info
+!          * srcvals(7:9,i) - dxyz/dv info
+!          * srcvals(10:12,i) - normals info
+!    - eps: real *8
+!        precision requested
+!    - dpars: real *8 (1)
+!        the parameter k for the yukawa kernels
+!    - rhs: real *8 (6*npts)
+!        The boundary conditions to be imposed
+!        first three components should be 0
+!        the next component should be (bn + 2*divs0btau)*zk
+!        the next component should be (bn - 2*divs0btau)
+!        and finally the last component should be -2*jn
+!    - eps_gmres: real *8
+!        gmres tolerance requested
+!    - numit: integer
+!        max number of gmres iterations
+!
+!  output
+!    - niter: integer
+!        number of gmres iterations required for relative residual
+!        to converge to eps_gmres
+!    - errs: real *8 (1:niter)
+!        relative residual as a function of iteration number
+!    - rres: real *8
+!        relative residual for computed solution
+!    - soln - real *8(6*npts)
+!        The first three components are \rho^{-}, \rho^{+}, and \mu^{-}
+!        which satisfy \Delta_{\Gamma}^{-1} q^{-}, q^{+}, r^{-}
+!        respectively, and the last three components are
+!        q^{-}, q^{+}, and r^{-}
+!
+
+      implicit none
+      integer npatches,norder,npols,npts
+      integer ifinout
+      integer norders(npatches),ixyzs(npatches+1)
+      integer iptype(npatches)
+      real *8 srccoefs(9,npts),srcvals(12,npts),eps,eps_gmres
+      real *8 dpars(1)
+      real *8 rhs(6*npts)
+      real *8 soln(6*npts)
+
+      real *8, allocatable :: targs(:,:)
+      integer, allocatable :: ipatch_id(:)
+      real *8, allocatable :: uvs_targ(:,:)
+      integer ndtarg,ntarg
+
+      real *8 errs(numit+1)
+      real *8 rres,eps2
+      integer niter
+
+
+      integer nover,npolso,nptso
+      integer nnz,nquad
+      integer, allocatable :: row_ptr(:),col_ind(:),iquad(:)
+
+      real *8, allocatable :: wnear(:)
+      real *8, allocatable :: srcover(:,:),wover(:),wts(:)
+      integer, allocatable :: ixyzso(:),novers(:)
+
+      real *8, allocatable :: cms(:,:),rads(:),rad_near(:)
+      real *8, allocatable :: abc0(:)
+
+      integer i,j,jpatch,jquadstart,jstart
+
+      integer ipars
+      real *8 timeinfo(10),t1,t2,omp_get_wtime,rinttmp(6)
       complex *16 zpars(1)
 
 
@@ -1742,6 +2257,9 @@
 
       call get_qwts(npatches,novers,ixyzso,iptype,npts_over,&
        srcover,wover)
+      allocate(wts(npts))
+      call get_qwts(npatches,norders,ixyzs,iptype,npts,&
+       srcvals,wts)
 
 !
 !   compute near quadrature correction
@@ -1772,39 +2290,13 @@
       
       print *, "done generating near quadrature, now computing rhs"
 
-      allocate(abc0(npts))
-      
-      call lpcomp_divs0tan_addsub(npatches,norders,ixyzs,&
-          iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
-          iquad,nquad,wnear(2*nquad+1),rhs,novers,npts_over,ixyzso, &
-          srcover,wover,abc0)
-      
-      allocate(rhsuse(6*npts))
-      rhsuse = 0
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,vtmp1)      
-      do i=1,npts
-        vtmp1(1) = rhs(i)
-        vtmp1(2) = rhs(i+npts)
-        vtmp1(3) = rhs(i+2*npts)
-        call dot_prod3d(vtmp1,srcvals(10,i),w1)
-
-!   note there is extra minus sign in w1 to account for the
-!   fact that the input rhs is -bbm/dzk + bbp, while
-!   in imposing the normal component of the difference
-!   we actually impose (bbm/dzk - bbp) \cdot n
-        rhsuse(3*npts+i) = (w1 - 2*abc0(i))*dpars(1)
-        rhsuse(4*npts+i) = (w1 + 2*abc0(i))
-
-        vtmp1(1) = rhs(i+3*npts)
-        vtmp1(2) = rhs(i+4*npts)
-        vtmp1(3) = rhs(i+5*npts)
-        call dot_prod3d(vtmp1,srcvals(10,i),w1)
-        rhsuse(5*npts+i) = w1*2
+      rinttmp(1:6) = 0
+      do j=1,6
+        do i=1,npts
+          rinttmp(j) = rinttmp(j) + rhs(i+(j-1)*npts)*wts(i)
+        enddo
       enddo
-!$OMP END PARALLEL DO     
-      call prin2('rhsuse=*',rhsuse(3*npts+1),24) 
-      print *, "done initializing rhs"
-      print *, "starting solver now"
+      call prin2('integral of rhs=*',rinttmp,6)
 
 
 !
@@ -1831,12 +2323,12 @@
       enddo
 !
       do i=1,n_var
-        rb = rb + abs(rhsuse(i))**2
+        rb = rb + abs(rhs(i))**2
       enddo
       rb = sqrt(rb)
 
       do i=1,n_var
-        vmat(i,1) = rhsuse(i)/rb
+        vmat(i,1) = rhs(i)/rb
       enddo
 
       svec(1) = rb
@@ -1853,6 +2345,14 @@
           iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
           iquad,nquad,wnear,vmat(1,it),novers,npts_over,ixyzso,srcover, &
           wover,wtmp)
+        rinttmp(1:6) = 0
+        do j=1,6
+          do i=1,npts
+            rinttmp(j) = rinttmp(j) + wtmp(i+(j-1)*npts)*wts(i)
+          enddo
+        enddo
+        call prin2('integral of densities=*',rinttmp,6)
+
 
         do k=1,it
           hmat(k,it) = 0
@@ -1938,7 +2438,7 @@
             wover,wtmp)
             
           do i=1,n_var
-            rres = rres + abs(did*soln(i) + wtmp(i)-rhsuse(i))**2
+            rres = rres + abs(did*soln(i) + wtmp(i)-rhs(i))**2
           enddo
           rres = sqrt(rres)/rb
           niter = it
@@ -1948,4 +2448,4 @@
 !
 
       return
-      end subroutine statj_gendeb_solver
+      end subroutine statj_gendeb_solver_rhspre

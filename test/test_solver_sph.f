@@ -2,33 +2,38 @@
       real *8, allocatable :: srcvals(:,:),srccoefs(:,:)
       real *8, allocatable :: wts(:),rsigma(:)
       integer ipars(2)
+      integer, allocatable :: ipatch_id(:)
+      real *8, allocatable :: uvs_targ(:,:)
+      real *8 dpars(2)
 
       integer, allocatable :: norders(:),ixyzs(:),iptype(:)
 
-      real *8 xyz_out(3),xyz_in(3)
-      real *8, allocatable :: ffform(:,:,:),ffformex(:,:,:)
-      real *8, allocatable :: ffforminv(:,:,:),ffformexinv(:,:,:)
+      real *8 xyz_out(3),xyz_in(3),dxyz(3)
 
-      complex *16, allocatable :: sigma(:),rhs(:)
-      real *8, allocatable :: drhs(:),drhsuv(:,:),rhsdiv(:),rhsdiv2(:)
-      real *8, allocatable :: drhs_cart(:,:)
-      real *8, allocatable :: drhs_cart2(:,:)
-      real *8, allocatable :: rhs2(:),drhs2(:,:),drhs2ex(:,:)
+      complex *16, allocatable :: zbbm(:,:),zbbp(:,:),zjm(:,:)
+      complex *16, allocatable :: zjm0(:,:),zjm1(:)
+      complex *16, allocatable :: zynm(:)
+      real *8, allocatable :: dynm(:),work(:,:),dynmgrad(:,:)
+      
+      real *8 bbpex(3),bbpc(3)
+      real *8, allocatable :: bbm(:,:),bbp(:,:),jm(:,:)
+      real *8, allocatable :: rhspre(:,:),solnpre(:,:)
+      real *8, allocatable :: rhs(:,:),soln(:,:)
       real *8, allocatable :: errs(:)
+
       real *8 thet,phi,eps_gmres
+      real *8 df2(3)
+      complex *16 vf1(3),vf2(3)
       complex * 16 zpars(3)
       integer numit,niter
       character *100 title,dirname
       character *300 fname
 
-      integer ipatch_id
-      real *8 wtmp1(3),wtmp2(3)
-      real *8 uvs_targ(2)
       real *8, allocatable :: w(:,:)
 
       logical isout0,isout1
 
-      complex *16 pot,potex,ztmp,ima
+      complex *16 ztmp,ima
 
       data ima/(0.0d0,1.0d0)/
 
@@ -38,26 +43,20 @@
       done = 1
       pi = atan(done)*4
 
-
-      zk = 4.4d0+ima*0.0d0
-      zpars(1) = zk 
-      zpars(2) = -ima*zk
-      zpars(3) = 2.0d0
-
       
       xyz_in(1) = 0.11d0
-      xyz_in(2) = 0.0d-5
-      xyz_in(3) = 0.37d0
+      xyz_in(2) = 0.01d-5
+      xyz_in(3) = 0.07d0
 
       xyz_out(1) = -3.5d0
       xyz_out(2) = 3.1d0
-      xyz_out(3) = 20.1d0
+      xyz_out(3) = 5.1d0
 
       igeomtype = 1
-      ipars(1) = 4
+      ipars(1) = 2 
       npatches=12*(4**ipars(1))
 
-      norder = 8 
+      norder = 5 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -75,112 +74,145 @@
         iptype(i) = 1
       enddo
 
-      ixyzs(npatches+1) = 1+npols*npatches
+      print *, 'npts=',npts
 
-      call surf_quadratic_msh_vtk_plot(npatches,norders,ixyzs,iptype,
-     1  npts,srccoefs,srcvals,'sph-msh.vtk','msh')
+      ixyzs(npatches+1) = 1+npols*npatches
       allocate(wts(npts))
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
+      eps = 0.51d-5
 
-      allocate(sigma(npts),rhs(npts),drhs(npts))
-      allocate(ffform(2,2,npts))
-
-c
-c       define rhs to be one of the ynm's
-c
       nn = 2
       mm = 1
       nmax = nn
-      allocate(w(0:nmax,0:nmax))
-      call l3getsph(nmax,mm,nn,12,srcvals,rhs,npts,w)
+      allocate(work(0:nmax,0:nmax))
+
+      allocate(zynm(npts),dynm(npts))
+
+      call l3getsph(nmax,mm,nn,12,srcvals,zynm,npts,work)
+      allocate(rhs(npts,6),soln(npts,6),rhspre(npts,6),solnpre(npts,6))
+      dzk = 1.0d0
       do i=1,npts
-        drhs(i) = real(rhs(i))
+         dynm(i)  = real(zynm(i))
+         rhspre(i,1:3) = 0
+         bn = (nn+1.0d0)*dynm(i)
+         divs0btau = -nn*(nn+1.0d0)/(2*nn+1.0d0)*dynm(i)
+         rhspre(i,4) = (bn + 2*divs0btau)*dzk
+         rhspre(i,5) = (bn - 2*divs0btau)
+         rhspre(i,6) = 0
       enddo
 
-      allocate(drhsuv(2,npts),drhs_cart(3,npts),drhs_cart2(3,npts))
-      allocate(rhsdiv(npts),rhsdiv2(npts))
-
-      call get_surf_grad(1,npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,drhs,drhsuv)
-       
-      do i=1,npts
-        drhs_cart(1,i)=drhsuv(1,i)*srcvals(4,i) + 
-     1     drhsuv(2,i)*srcvals(7,i)
-        drhs_cart(2,i)=drhsuv(1,i)*srcvals(5,i) + 
-     1     drhsuv(2,i)*srcvals(8,i)
-        drhs_cart(3,i)=drhsuv(1,i)*srcvals(6,i) + 
-     1     drhsuv(2,i)*srcvals(9,i)
-        call cross_prod3d(srcvals(10,i),srcvals(4,i),wtmp1)
-        call cross_prod3d(srcvals(10,i),srcvals(7,i),wtmp2)
-
-        drhs_cart2(1:3,i) = drhsuv(1,i)*wtmp1(1:3) + 
-     1     drhsuv(2,i)*wtmp2(1:3)
-      enddo
-
-      call surf_div(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,drhs_cart,rhsdiv)
-      call surf_div(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,drhs_cart2,rhsdiv2)
-
-      call prin2('rhsdiv=*',rhsdiv,24)
-      call prin2('rhsdiv2=*',rhsdiv2,24)
-
-      erra1 = 0
-      ra = 0
-      erra2 = 0
-
-      do i=1,npts
-        ra = ra + drhs(i)**2*wts(i)
-        erra1 = erra1 + (rhsdiv(i)+nn*(nn+1.0d0)*drhs(i))**2*wts(i)
-        erra2 = erra2 + rhsdiv2(i)**2*wts(i)
-      enddo
+      allocate(dynmgrad(3,npts))
+      call surf_grad(npatches,norders,ixyzs,iptype,npts,
+     1  srccoefs,srcvals,dynm,dynmgrad)
       
-      call prin2('erra1=*',erra1,1)
-      call prin2('erra2=*',erra2,1)
-c
-c
-c   verify that n \times n \times \grad f of a function
-c   is the same as the surface grad f
-c
-c
-      allocate(rhs2(npts),drhs2ex(3,npts),drhs2(3,npts))
-
       do i=1,npts
-        dx = srcvals(1,i) - xyz_in(1)
-        dy = srcvals(2,i) - xyz_in(2)
-        dz = srcvals(3,i) - xyz_in(3)
-
-        rr = dx**2 + dy**2 + dz**2
-
-        rhs2(i) = rr
-        wtmp1(1) = 2*dx
-        wtmp1(2) = 2*dy
-        wtmp1(3) = 2*dz
-
-        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),wtmp1,
-     1    drhs2ex(1,i))
+        rhs(i,4:6) = 0
+        rhs(i,1:3) = (nn+1.0d0)*dynm(i)*srcvals(10:12,i) -
+     1     dynmgrad(1:3,i)         
       enddo
 
-      call surf_grad(npatches,norders,ixyzs,iptype,npts,srccoefs,
-     1  srcvals,rhs2,drhs2)
-      
+
+
+
+      ifinit = 0
+      ztmp = dzk*ima
+
+      numit = 100
+      allocate(errs(numit+1))
+      eps_gmres = 1.0d-6
+      call statj_gendeb_solver_rhspre(npatches,norders,ixyzs,iptype,
+     1  npts,srccoefs,srcvals,eps,dzk,numit,rhspre,eps_gmres,
+     2  niter,errs,rres,solnpre)
+
+      call statj_gendeb_solver(npatches,norders,ixyzs,iptype,
+     1  npts,srccoefs,srcvals,eps,dzk,numit,rhs,eps_gmres,
+     2  niter,errs,rres,soln)
+      call prin2('rres=*',rres,1)
+c
+c   The solution should be q^{+} = (2*nn+1)Ynm
+c   and everything else is 0
+c
+c
       erra = 0
       ra = 0
       do i=1,npts
-         erra = erra + (drhs2(1,i)-drhs2ex(1,i))**2*wts(i)
-         erra = erra + (drhs2(2,i)-drhs2ex(2,i))**2*wts(i)
-         erra = erra + (drhs2(3,i)-drhs2ex(3,i))**2*wts(i)
-         ra = ra + (drhs2ex(1,i)**2 + drhs2ex(2,i)**2 + 
-     1       drhs2ex(3,i)**2)*wts(i)
-         if(i.lt.5) print *, drhs2(1,i)/drhs2ex(1,i)
+        erra = erra + solnpre(i,1)**2*wts(i)
+        erra = erra + solnpre(i,4)**2*wts(i)
+        erra = erra + (solnpre(i,5)-(2*nn+1.0d0)*dynm(i))**2*wts(i)
+
+        do j=1,6
+          ra = ra + rhspre(i,j)**2*wts(i)
+        enddo
       enddo
+
       erra = sqrt(erra/ra)
-      call prin2('error in surface gradient=*',erra,1)
+      call prin2('error in solution=*',erra,1)
+c
+c   The solution should be q^{+} = (2*nn+1)Ynm
+c   and everything else is 0
+c
+c
+      erra = 0
+      ra = 0
+      do i=1,npts
+        erra = erra + soln(i,1)**2*wts(i)
+        erra = erra + soln(i,4)**2*wts(i)
+        erra = erra + (soln(i,5)-(2*nn+1.0d0)*dynm(i))**2*wts(i)
+
+        do j=1,6
+          ra = ra + rhs(i,j)**2*wts(i)
+        enddo
+      enddo
+
+      erra = sqrt(erra/ra)
+      call prin2('error in solution=*',erra,1)
+      stop
+
+      stop
+
+c
+c   test solution at an exterior point
+c
+
+      bbpc(1:3) = 0
+      bbpex(1:3) = 0
+      ra = 0
+
+      do i=1,npts
+        dx = xyz_out(1) - srcvals(1,i)
+        dy = xyz_out(2) - srcvals(2,i)
+        dz = xyz_out(3) - srcvals(3,i)
+        
+        r = sqrt(dx**2 + dy**2 + dz**2)
+
+        bbpc(1) = bbpc(1) - dx/r**3*soln(i,5)*wts(i)
+        bbpc(2) = bbpc(2) - dy/r**3*soln(i,5)*wts(i)
+        bbpc(3) = bbpc(3) - dz/r**3*soln(i,5)*wts(i)
+        ra = ra + wts(i)
+      enddo
+      bbpc(1:3) = bbpc(1:3)/4/pi
+      print *, "ra=",ra
+
+      ztmp = 0.0d0
+      dxyz(1) = xyz_out(1) - xyz_in(1)
+      dxyz(2) = xyz_out(2) - xyz_in(2)
+      dxyz(3) = xyz_out(3) - xyz_in(3)
+      r = sqrt(dxyz(1)**2 + dxyz(2)**2 + dxyz(3)**2)
+      bbpex(1:3) = dxyz(1:3)/r**3
+
+      erra = abs(bbpc(1)-bbpex(1)) + abs(bbpc(2)-bbpex(2)) + 
+     1   (bbpc(3)-bbpex(3))
+      ra = abs(bbpex(1)) + abs(bbpex(2)) + abs(bbpex(3))
+      call prin2('bbpex=*',bbpex,3)
+      call prin2('bbpc=*',bbpc,3)
+      print *, bbpex(1)/bbpc(1)
+      print *, bbpex(2)/bbpc(2)
+      print *, bbpex(3)/bbpc(3)
+      call prin2('absolute error in exterior b field=*',erra/ra,1)
 
 
-
-      return
+      stop
       end
 
 
@@ -244,8 +276,8 @@ c
         pi = atan(done)*4
         umin = 0
         umax = 2*pi
-        vmin = 2*pi
-        vmax = 0
+        vmin = 0
+        vmax = 2*pi
         allocate(triaskel(3,3,npatches))
         nover = 0
         call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
@@ -388,9 +420,6 @@ c
        
       return
       end
-
-
-
 
 
 

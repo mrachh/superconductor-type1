@@ -32,7 +32,8 @@
       integer, allocatable :: ixyzso(:),novers(:)
       integer, allocatable :: row_ptr(:),col_ind(:),iquad(:)
 
-      complex *16 zalpha,zbeta,zgamma,zdelta,zeta,zteta,zk
+      complex *16 zalpha,zbeta,zgamma,zdelta,zeta,zteta,zk,ztetap
+      complex *16 ztetam
       real *8 dalpha,dbeta,dgamma,ddelta,deta,dteta
       complex *16 fjvals(0:100),fhvals(0:100),fjder(0:100),fhder(0:100) 
 
@@ -108,8 +109,8 @@
 c
 c       define rhs to be one of the ynm's
 c
-      nn = 2
-      mm = 1
+      nn = 0
+      mm = 0
       nmax = nn
       allocate(w(0:nmax,0:nmax))
       call l3getsph(nmax,mm,nn,12,srcvals,rhs,npts,w)
@@ -117,6 +118,7 @@ c
 c  set the value of dzk
 c
       dzk = 0.19d0
+cc      dzk = 1.0d0
 
 
       njh = 5
@@ -154,18 +156,38 @@ c
       zteta = ima*zk**2/2*(fjvals(nn)*fhder(nn)+fjder(nn)*fhvals(nn))
       call prin2('zteta=*',zteta,2)
       dteta = real(zteta)
+
+
+      ztetap = ima*zk**2*fjvals(nn)*fhder(nn)
+      dtetap = real(ztetap)
+      call prin2('ztetap=*',ztetap,2)
+
+      ztetam = ima*zk**2*fjder(nn)*fhvals(nn)
+      dtetam = real(ztetam)
+      call prin2('ztetam=*',ztetam,2)
+
+
       
       
 
 c
 c  set rcrhom to 1 for now for testing purposes
 c
+
+      rcrhom = 0
+      rcrhop = 0
+      rcrmum = 0
+
+      rcqm = 0
+      rcqp = 0
+      rcrm = 0
+
       rcrhom = 2.9d0
       rcrhop = -0.17d0
       rcrmum = 1.3d0
 
       rcqm = 0.7d0
-      rcqp = 2.1d0
+      rcqp = 1.0d0
       rcrm = -1.1d0
 
       do i=1,npts
@@ -179,7 +201,7 @@ c
         sigma(5*npts+i) = rcrm*rrhs(i)
       enddo
 
-      eps = 0.51d-7
+      eps = 0.51d-5
 
       allocate(ipatch_id(npts),uvs_targ(2,npts))
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
@@ -295,6 +317,20 @@ C$OMP END PARALLEL DO
       do i=1,3*npts
         pot(i) = pot(i) + sigma(i)
       enddo
+
+      do i=1,npts
+        pot(5*npts+i) = pot(5*npts+i) - sigma(5*npts+i)/2
+      enddo
+
+      do i=1,npts
+        pot(4*npts+i) = pot(4*npts+i) + sigma(3*npts+i)/2/dzk +
+     1   sigma(4*npts+i)/2
+      enddo
+
+      do i=1,npts
+        pot(3*npts+i) = pot(3*npts+i) - sigma(3*npts+i)/4/dzk +
+     1     sigma(4*npts+i)/4
+      enddo
       call prin2('pot=*',pot,24)
 
       rslaps = -(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)**2
@@ -303,6 +339,10 @@ C$OMP END PARALLEL DO
       rfac1 = -4*(rcrhom*rslaps - rcqm*rs)
       rfac2 = -4*(rcrhop*rslaps - rcqp*rs)
       rfac3 = -4*(rcrmum*rslaps - rcrm*rs)
+
+      print *, "rfac1=",rfac1
+      print *, "rfac2=",rfac2
+      print *, "rfac3=",rfac3
 
       ra = 0
       do i = 1,npts
@@ -356,6 +396,7 @@ c
 
       print *, "rrmu=",rrmu
       print *, "rrmx=",rrmx
+      print *, "rrlu=",rrlu
       erra = 0
       do i=1,npts
         erra = erra + (rrlu*unm(1,i)-blm(1,i))**2*wts(i) + 
@@ -391,8 +432,8 @@ c
       rnrhom = -dzk*sqrt(nn*(nn+1.0d0))*deta/(2*nn+1.0d0)
       rnrhop = 0
       rnmum = 0
-      rnqm = dteta/dzk
-      rnqp = +1.0d0/2/(2*nn+1.0d0)
+      rnqm = dtetam/dzk
+      rnqp = (nn+1.0d0)/(2*nn+1.0d0)
       rnrm = 0
 
       rjrhom = 0
@@ -400,7 +441,7 @@ c
       rjmum = dzk**2*sqrt(nn*(nn+1.0d0))/(2*nn+1.0d0)*deta
       rjqm = 0
       rjqp = 0
-      rjrm = -dteta
+      rjrm = -dtetam
 
       erra = 0
       print *, "rtqm=",rtqm

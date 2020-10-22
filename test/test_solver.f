@@ -12,13 +12,15 @@
 
       complex *16, allocatable :: zbbm(:,:),zbbp(:,:),zjm(:,:)
       complex *16, allocatable :: zjm0(:,:),zjm1(:)
-      complex *16 bbpex(3),bbpc(3)
+      real *8 bbpex(3),bbpc(3)
       real *8, allocatable :: bbm(:,:),bbp(:,:),jm(:,:)
+      real *8, allocatable :: ptmp(:)
       real *8, allocatable :: rhs(:,:),soln(:,:)
       real *8, allocatable :: errs(:)
 
       real *8 thet,phi,eps_gmres
-      complex *16 vf1(3),vf2(3)
+      real *8 df2(3),rinttmp(6),cf2(1)
+      complex *16 vf1(3),vf2(3),w1(3),w2(3)
       complex * 16 zpars(3)
       integer numit,niter
       character *100 title,dirname
@@ -48,10 +50,10 @@
       xyz_out(3) = 5.1d0
 
       igeomtype = 1
-      ipars(1) = 2 
+      ipars(1) = 1 
       npatches=12*(4**ipars(1))
 
-      norder = 7 
+      norder = 5 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -79,7 +81,7 @@
 
       allocate(rhs(npts,6),soln(npts,6))
       allocate(zbbm(3,npts),zbbp(3,npts),zjm(3,npts))
-      allocate(bbm(3,npts),bbp(3,npts),jm(3,npts))
+      allocate(bbm(3,npts),bbp(3,npts),jm(3,npts),ptmp(npts))
 
       vf1(1) = 1.1d0
       vf1(2) = -0.2d0
@@ -89,45 +91,67 @@
       vf2(2) = 0.19d0
       vf2(3) = -0.71d0
 
+      df2 = vf2
+      cf2 = 1.1d0
+
       ifinit = 0
       dzk = 1.0d0
       ztmp = dzk*ima
       ifinit = 0
-      call fieldsED(ztmp,xyz_out,srcvals,npts,zbbm,zjm,vf1,ifinit)
       
       do i=1,npts
-        bbm(1:3,i) = real(zbbm(1:3,i))
-        jm(1:3,i) = real(zjm(1:3,i))
         bbm(1:3,i) = 0
         jm(1:3,i) = 0
       enddo
-      call prin2('zbbm=*',zbbm,24)
-      call prin2('zjm=*',zjm,24)
 
 
       allocate(zjm0(3,npts),zjm1(npts))
       ztmp = 0.0d0
-      call point_source_vector_helmholtz(npts,xyz_in,vf2,srcvals,ztmp,
-     1  zjm0,zbbp,zjm1)
-      call prin2('zbbp=*',zbbp,24)
+
+      thresh = 1.0d-16
+
+      call prin2('df2=*',df2,3)
+      bbp = 0
+      call prin2('xyz_in=*',xyz_in,3)
+
+cc      call l3ddirectdg(1,xyz_in,df2,1,srcvals(1:3,1:npts),npts,ptmp,
+cc     1  bbp,thresh)
+      call l3ddirectcg(1,xyz_in,cf2,1,srcvals(1:3,1:npts),npts,ptmp,
+     1  bbp,thresh)
+      call prin2('ptmp=*',ptmp,24)
+
+cc      do i=1,npts
+cc        dx = srcvals(1,i) - xyz_in(1)
+cc        dy = srcvals(2,i) - xyz_in(2)
+cc        dz = srcvals(3,i) - xyz_in(3)
+cc        dxyz(1) = dx
+cc        dxyz(2) = dy
+cc        dxyz(3) = dz
+cc        r = sqrt(dx**2 + dy**2 + dz**2)
+cc        bbp(1:3,i) = dxyz(1:3)/r**3
+cc      enddo
 
       
-      do i=1,npts
-        bbp(1:3,i) = real(zbbp(1:3,i))
-      enddo
+      call prin2('bbp=*',bbp,24)
 
       do i=1,npts
-        rhs(i,1:3) = -bbm(1:3,i)/dzk + bbp(1:3,i) 
+        rhs(i,1:3) = bbm(1:3,i)/dzk - bbp(1:3,i) 
         rhs(i,4:6) = jm(1:3,i)
       enddo
 
       numit = 100
       allocate(errs(numit+1))
-      eps_gmres = 1.0d-7
+      eps_gmres = 1.0d-6
       call statj_gendeb_solver(npatches,norders,ixyzs,iptype,
      1  npts,srccoefs,srcvals,eps,dzk,numit,rhs,eps_gmres,
      2  niter,errs,rres,soln)
       call prin2('rres=*',rres,1)
+
+      rinttmp(1:6) = 0
+      do i=1,npts
+        rinttmp(1:6) = rinttmp(1:6) + soln(i,1:6)*wts(i)
+      enddo
+      call prin2('integral of densities for final solution=*',rinttmp,6)
 
 c
 c   test solution at an exterior point
@@ -135,6 +159,7 @@ c
 
       bbpc(1:3) = 0
       bbpex(1:3) = 0
+      ra = 0
 
       do i=1,npts
         dx = xyz_out(1) - srcvals(1,i)
@@ -146,18 +171,24 @@ c
         bbpc(1) = bbpc(1) - dx/r**3*soln(i,5)*wts(i)
         bbpc(2) = bbpc(2) - dy/r**3*soln(i,5)*wts(i)
         bbpc(3) = bbpc(3) - dz/r**3*soln(i,5)*wts(i)
+        ra = ra + wts(i)
       enddo
       bbpc(1:3) = bbpc(1:3)/4/pi
+      print *, "ra=",ra
 
-      ztmp = 0.0d0
-      call point_source_vector_helmholtz(1,xyz_in,vf2,xyz_out,ztmp,
-     1  zjm0,bbpex,zjm1)
+cc      call l3ddirectdg(1,xyz_in,df2,1,xyz_out,1,ptmp,
+cc     1  bbpex,thresh)
+      call l3ddirectcg(1,xyz_in,cf2,1,xyz_out,1,ptmp,
+     1  bbpex,thresh)
 
       erra = abs(bbpc(1)-bbpex(1)) + abs(bbpc(2)-bbpex(2)) + 
      1   (bbpc(3)-bbpex(3))
       ra = abs(bbpex(1)) + abs(bbpex(2)) + abs(bbpex(3))
-      call prin2('bbpex=*',bbpex,6)
-      call prin2('bbpc=*',bbpc,6)
+      call prin2('bbpex=*',bbpex,3)
+      call prin2('bbpc=*',bbpc,3)
+      print *, bbpex(1)/bbpc(1)
+      print *, bbpex(2)/bbpc(2)
+      print *, bbpex(3)/bbpc(3)
       call prin2('absolute error in exterior b field=*',erra/ra,1)
 
 

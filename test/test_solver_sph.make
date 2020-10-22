@@ -47,7 +47,7 @@ SRC=../src
 
 .PHONY: all clean 
 
-OBJECTS =  test_solver.o \
+OBJECTS =  test_solver_sph.o \
     $(SRC)/staticj_gendeb3.o $(SRC)/surf_routs.o
 
 
