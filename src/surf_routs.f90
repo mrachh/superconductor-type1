@@ -449,3 +449,233 @@ end subroutine surf_div
 !
 !
 !
+!
+
+subroutine get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype, &
+  npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,nb,bvals, &
+  bwts,bpatches,buv)
+
+  implicit none
+  integer npatches,norders(npatches),ixyzs(npatches+1),iptype(npatches)
+  integer npts,m,ipars(2)
+  real *8 srcvals(12,npts),srccoefs(9,npts)
+  integer apatches(na),bpatches(nb)
+  real *8 avals(6,na),awts(na),auv(2,na)
+  real *8 bvals(6,nb),bwts(nb),buv(2,nb)
+  integer, intent(in) :: na,nb
+  integer nu,nv,i,j,k,l
+  real *8, allocatable :: xnodes(:),wts(:)
+  real *8, allocatable :: polsu(:,:),polsv(:,:)
+  real *8 uv(2)
+  real *8 umat,vmat
+  integer ipt,itri,lpt,nmax,norder,npmax,npols
+  integer itype
+
+  itype = 1
+  allocate(xnodes(m),wts(m))
+  call legeexps(itype,m,xnodes,umat,vmat,wts)
+
+  nu = ipars(1)
+  nv = ipars(2)
+
+  nmax = 20
+  npmax = (nmax+1)*(nmax+2)/2
+  allocate(polsu(npmax,m))
+  allocate(polsv(npmax,m))
+  do i=1,m
+    uv(1) = (xnodes(i)+1)/2
+    uv(2) = 0
+    call koorn_pols(uv,nmax,npmax,polsu(1,i))
+
+    uv(1) = 0
+    uv(2) = (xnodes(i)+1)/2
+    call koorn_pols(uv,nmax,npmax,polsv(1,i))
+  enddo
+
+
+  do i=1,nv
+    itri = 2*i-1
+    norder = norders(itri)
+    npols = (norder+1)*(norder+2)/2
+    do j=1,m
+      ipt = (i-1)*m + j
+      bpatches(ipt) = itri
+      buv(1,ipt) = 0
+      buv(2,ipt) = (xnodes(j)+1)/2
+      bwts(ipt) = wts(j)/2
+      bvals(1:6,ipt) = 0
+      do l=1,npols
+        lpt = ixyzs(itri)+l-1
+        bvals(1:3,ipt) = bvals(1:3,ipt) + srccoefs(1:3,lpt)*polsv(l,j)
+        bvals(4:6,ipt) = bvals(4:6,ipt) + srccoefs(7:9,lpt)*polsv(l,j)
+      enddo
+    enddo
+  enddo
+
+  do i=1,nu
+    itri = 2*nv*(i-1) + 1
+    do j=1,m
+      ipt = (i-1)*m + j
+      apatches(ipt) = itri
+      auv(1,ipt) = (xnodes(j)+1)/2
+      auv(2,ipt) = 0
+      awts(ipt) = wts(j)/2
+      avals(1:6,ipt) = 0
+      do l=1,npols
+        lpt = ixyzs(itri)+l-1
+        avals(1:6,ipt) = avals(1:6,ipt) + srccoefs(1:6,lpt)*polsu(l,j)
+      enddo
+    enddo
+  enddo
+
+
+end subroutine get_ab_cycles_torusparam
+!
+!
+!
+!
+!
+subroutine vtk_curv_plot(n,nda,avals,fname,title)
+!
+! This subroutine writes a vtk file to plot a given a curve 
+! as a collection of line segments
+!
+!
+!  Input arguments:
+!    - n: integer
+!        number of points
+!    - nda: integer
+!        leading dimension of data array
+!    - avals: real *8 (nda,n)
+!        curve to be plotted, the first three components
+!        must be xyz coordinates
+!    - fname: character (len=*)
+!        file name where vtk output should be written
+!
+  implicit none
+  integer, intent(in) :: nda,n
+  real *8, intent(in) :: avals(nda,n)
+  character (len=*), intent(in) :: fname,title
+
+
+  integer i,j,k,l,n0,npuv,ipatch,ipt,i1,m,norder,npols,iunit1
+
+  
+  iunit1 = 877
+  open(unit = iunit1, file=trim(fname), status='replace')
+
+  write(iunit1,'(a)') "# vtk DataFile Version 3.0"
+  write(iunit1,'(a)') trim(title)
+  write(iunit1,'(a)') "ASCII"
+  write(iunit1,'(a)') "DATASET UNSTRUCTURED_GRID"
+  write(iunit1,'(a,i9,a)') "POINTS ", n, " float"
+
+  do i = 1,n
+    write(iunit1,"(E11.5,2(2x,e11.5))") avals(1,i), avals(2,i), avals(3,i)
+  end do
+
+  write(iunit1,'(a,i9,i9)') "CELLS ", n, n*3
+
+  do i=1,n
+    write(iunit1,'(a,i9,i9)') "2 ", i-1, i
+  enddo
+
+  write(iunit1,'(a,i9)') "CELL_TYPES ", n
+  do ipatch = 1,n
+    write(iunit1,'(a)') "3"
+  end do
+
+  close(iunit1)
+
+end subroutine vtk_curv_plot
+!
+!
+!
+!
+!
+
+
+subroutine fun_surf_interp(nd,npatches,norders,ixyzs,iptype,npts, &
+  f,na,apatches,auv,finterp)
+
+  implicit real *8 (a-h,o-z)
+  integer nd,npatches,npts
+  integer norders(npatches),ixyzs(npatches+1),iptype(npatches)
+  real *8 f(nd,npts)
+  integer na,apatches(na)
+  real *8 auv(2,na),finterp(nd,na)
+
+  real *8, allocatable :: fcoefs(:,:)
+  real *8, allocatable :: pols(:)
+
+  allocate(pols(1000))
+  
+
+  allocate(fcoefs(nd,npts))
+  call surf_vals_to_coefs(nd,npatches,norders,ixyzs,iptype,npts,&
+    f, fcoefs)
+
+
+  do i=1,na
+    ip = apatches(i)
+    norder = norders(ip)
+    npols = (norder+1)*(norder+2)/2
+
+    call koorn_pols(auv(1,i),norder,npols,pols)
+    do idim=1,nd
+      finterp(idim,i) = 0
+    enddo
+    do l=1,npols
+      lpt = ixyzs(ip)+l-1
+      do idim=1,nd
+        finterp(idim,i) = finterp(idim,i) + fcoefs(idim,lpt)*pols(l)
+      enddo
+    enddo
+  enddo
+
+end subroutine fun_surf_interp
+!
+!
+!
+!
+!
+subroutine geom_coefs_interp(npatches,norders,ixyzs,iptype,npts, &
+  srccoefs,na,apatches, auv,srcinterp)
+
+  implicit real *8 (a-h,o-z)
+  integer nd,npatches,npts
+  integer norders(npatches),ixyzs(npatches+1),iptype(npatches)
+  real *8 srccoefs(9,npts)
+  integer na,apatches(na)
+  real *8 auv(2,na),srcinterp(12,na)
+  real *8, allocatable :: pols(:)
+
+
+  allocate(pols(1000))
+
+
+  do i=1,na
+    ip = apatches(i)
+    norder = norders(ip)
+    npols = (norder+1)*(norder+2)/2
+
+    call koorn_pols(auv(1,i),norder,npols,pols)
+    do idim=1,9
+      srcinterp(idim,i) = 0
+    enddo
+    do l=1,npols
+      lpt = ixyzs(ip)+l-1
+      do idim=1,9
+        srcinterp(idim,i) = srcinterp(idim,i) + srccoefs(idim,lpt)*pols(l)
+      enddo
+    enddo
+
+    call cross_prod3d(srcinterp(4,i),srcinterp(7,i),srcinterp(10,i))
+    rr = sqrt(srcinterp(10,i)**2 + srcinterp(11,i)**2 +  &
+      srcinterp(12,i)**2)
+    srcinterp(10,i) = srcinterp(10,i)/rr
+    srcinterp(11,i) = srcinterp(11,i)/rr
+    srcinterp(12,i) = srcinterp(12,i)/rr
+  enddo
+
+end subroutine geom_coefs_interp
