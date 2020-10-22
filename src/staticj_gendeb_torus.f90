@@ -246,9 +246,9 @@
 
       subroutine lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,&
         iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind, &
-        iquad,nquad,wnear,ngenus,hvecs,na,apatches,auv,avals,awts, &
-        nb,bpatches,buv,bvals,bwts,sigma,novers,nptso,ixyzso,srcover, &
-        whtsover,pot)
+        iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,apatches,auv,avals, &
+        awts, nb,bpatches,buv,bvals,bwts,sigma,novers,nptso,ixyzso, &
+        srcover,whtsover,pot)
 
 !
 !  This subroutine evaluates the sets of potentials to the following
@@ -355,6 +355,9 @@
 !        genus of the object
 !    - hvecs: real *8 (3,npts,ngenus*2)
 !        The harmonic vector fields on the object
+!    - bpphvecs: real *8 (3,npts,2*ngenus)
+!        \curl S_{0}[hvecs] precomputed and restricted to the
+!        boundary
 !    - na: integer
 !        number of discretization points on each acycle
 !    - apatches: integer(na,ngenus)
@@ -363,9 +366,10 @@
 !    - auv : real *8 (2,na,ngenus)
 !        auv(1:2,i,j) are the local uv coordinates of
 !        the ith node on the jth acycle
-!    - avals : real *8 (6,na,ngenus)
-!        avals(1:6,i,j) are the xyz coordinates and the
-!        derivative info for the ith node on the jth acycle
+!    - avals : real *8 (9,na,ngenus)
+!        avals(1:9,i,j) are the xyz coordinates, the
+!        derivative info, and the normal info
+!        for the ith node on the jth acycle
 !    - awts: real *8 (na,ngenus)
 !        quadrature weights for integrating smooth functions on the
 !        acycles
@@ -377,9 +381,10 @@
 !    - buv : real *8 (2,nb,ngenus)
 !        buv(1:2,i,j) are the local uv coordinates of
 !        the ith node on the jth bcycle
-!    - bvals : real *8 (6,nb,ngenus)
-!        bvals(1:6,i,j) are the xyz coordinates and the
-!        derivative info for the ith node on the jth bcycle
+!    - bvals : real *8 (9,nb,ngenus)
+!        bvals(1:9,i,j) are the xyz coordinates, the
+!        derivative info, and the normal info for the ith node 
+!        on the jth bcycle
 !    - bwts: real *8 (nb,ngenus)
 !        quadrature weights for integrating smooth functions on the
 !        bcycles
@@ -429,9 +434,9 @@
       integer na,nb
       integer apatches(na,ngenus),bpatches(nb,ngenus)
       real *8 auv(2,na,ngenus),buv(2,nb,ngenus)
-      real *8 avals(6,na,ngenus),bvals(6,nb,ngenus)
+      real *8 avals(9,na,ngenus),bvals(9,nb,ngenus)
       real *8 awts(na,ngenus),bwts(nb,ngenus)
-      real *8 hvecs(3,npts,2*ngenus)
+      real *8 hvecs(3,npts,2*ngenus),bbphvecs(3,npts,2*ngenus)
 
       integer novers(npatches)
       integer nover,npolso,nptso
@@ -453,7 +458,9 @@
       real *8, allocatable :: hess_aux(:,:,:)
       complex *16, allocatable :: zpot_aux(:,:),zgrad_aux(:,:,:)
       real *8, allocatable :: bmm(:,:),blm(:,:)
-      real *8, allocatable :: bjm(:,:),bbm(:,:)
+      real *8, allocatable :: bjm(:,:),bbm(:,:),bbp(:,:)
+      real *8, allocatable :: bbm_a(:,:,:),bbm_b(:,:,:)
+      real *8, allocatable :: hvecs_a(:,:,:),hvecs_b(:,:,:)
       real *8, allocatable :: ffforminv(:,:,:),curv(:)
       real *8, allocatable :: wtmp1(:,:),wtmp2(:,:),wtmp3(:,:), &
         wtmp4(:,:)
@@ -1088,6 +1095,7 @@
 !
 !  bjm = -dzk*S_{ik} [blm] - \nabla S_{ik} [r^{-}] - \nabla \times S_{ik} [bmm]
 !  bbm = -dzk*S_{ik} [bmm] + \nabla S_{ik} [q^{-}] + \nabla \times S_{ik} [bll^{-}]
+!  bbp = \nabla \times S_{0}[\ell_{H}^{+}]
 !
       
       deallocate(charges0,sigmaover)
@@ -1205,8 +1213,8 @@
 !      print *, "finished pot eval"
       deallocate(zpottmp,zgradtmp,zpot_aux,zgrad_aux)
 
-      allocate(bjm(3,npts),bbm(3,npts))
-!$OMP PARALLEL DO DEFAULT(SHARED)
+      allocate(bjm(3,npts),bbm(3,npts),bbp(3,npts))
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(igen)
       do i=1,npts
         bjm(1,i) = -dzk*pot_aux(1,i) & 
             - grad_aux(8,1,i) &
@@ -1224,6 +1232,11 @@
            (grad_aux(1,3,i)-grad_aux(3,1,i))
         bbm(3,i) = -dzk*pot_aux(6,i) + grad_aux(7,3,i) + &
            (grad_aux(2,1,i)-grad_aux(1,2,i))
+        bbp(1:3,i) = 0
+        do igen=1,2*ngenus
+          bbp(1:3,i) = bbp(1:3,i) + bbphvecs(1:3,i,igen)* &
+            sigma(6*npts+2*ngenus+igen)
+        enddo
       enddo
 !$OMP END PARALLEL DO
 
@@ -1247,7 +1260,7 @@
       allocate(abc1(1,npts))
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
       do i=1,npts
-        abc0(i,1:3) = bbm(1:3,i)/dzk - grads0qm(1:3,i)/dzk 
+        abc0(i,1:3) = bbm(1:3,i)/dzk - grads0qm(1:3,i)/dzk - bbp(1:3,i) 
       enddo
 !$OMP END PARALLEL DO
 
@@ -1268,8 +1281,9 @@
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,w3)
       do i=1,npts
         call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
+        call dot_prod3d(bbp(1,i),srcvals(10,i),w2)
 
-        w3 = w1/dzk - spqp(i) 
+        w3 = w1/dzk - spqp(i) - w2
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
         pot(3*npts+i) = (w3+2*w2)*dzk + rinttmp(4)/rsurf/dzk
@@ -1279,6 +1293,55 @@
       enddo
 !$OMP END PARALLEL DO
 
+
+      do igen=1,ngenus
+        do j=1,4
+          pot(6*npts + (igen-1)*4 + j)= -sigma(6*npts + (igen-1)*4 + j)
+        enddo
+      enddo
+
+
+      allocate(bbm_a(3,na,ngenus),bbm_b(3,nb,ngenus))
+      allocate(hvecs_a(3,na,ngenus),hvecs_b(3,nb,ngenus))
+
+      do igen=1,ngenus
+        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         bbm,na,apatches(1,igen),auv(1,1,igen),bbm_a(1,1,igen))
+        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         hvecs,na,apatches(1,igen),auv(1,1,igen),hvecs_a(1,1,igen))
+        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         bbm,nb,bpatches(1,igen),buv(1,1,igen),bbm_b(1,1,igen))
+        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         hvecs,nb,bpatches(1,igen),buv(1,1,igen),hvecs_b(1,1,igen))
+      enddo
+
+      do igen=1,ngenus
+        do j=1,na
+          pot(6*npts+(igen-1)*4 + 1) =  pot(6*npts+(igen-1)*4 + 1) + &
+            (bbm_a(1,j,igen)*avals(4,j,igen) + &
+            bbm_a(2,j,igen)*avals(5,j,igen) + &
+            bbm_a(3,j,igen)*avals(6,j,igen))*awts(j,igen)
+          call cross_prod3d(avals(7,j,igen),hvecs_a(1,j,igen),vtmp1)  
+          pot(6*npts+(igen-1)*4 + 3) =  pot(6*npts+(igen-1)*4 + 3) - &
+            (vtmp1(1)*avals(4,j,igen) + vtmp1(2)*avals(5,j,igen) + &
+            vtmp1(3)*avals(6,j,igen))*awts(j,igen)
+        enddo
+
+        do j=1,nb
+          pot(6*npts+(igen-1)*4 + 2) =  pot(6*npts+(igen-1)*4 + 2) + &
+            (bbm_b(1,j,igen)*bvals(4,j,igen) + &
+            bbm_b(2,j,igen)*bvals(5,j,igen) + &
+            bbm_b(3,j,igen)*bvals(6,j,igen))*bwts(j,igen)
+          call cross_prod3d(bvals(7,j,igen),hvecs_b(1,j,igen),vtmp1)  
+          pot(6*npts+(igen-1)*4 + 4) =  pot(6*npts+(igen-1)*4 + 4) - &
+            (vtmp1(1)*bvals(4,j,igen) + vtmp1(2)*bvals(5,j,igen) + &
+            vtmp1(3)*bvals(6,j,igen))*bwts(j,igen)
+        enddo
+      enddo
+
+      
+
+      
       return
       end subroutine lpcomp_statj_gendeb_addsub
 !
@@ -1589,6 +1652,331 @@
 
       return
       end subroutine lpcomp_divs0tan_addsub
+!
+!
+!
+!
+!
+!
+!
+!
+
+      subroutine lpcomp_s0curl_addsub(npatches,norders,ixyzs,&
+        iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
+        iquad,nquad,wnear,sigma,novers,nptso,ixyzso,srcover,whtsover, &
+        pcurl)
+
+!
+!  This subroutine evaluates the sets of potentials to the following
+!  representations where j is assumed to be a tangential vector field:
+!  1. curl (S_{0}[j])  
+!
+!  where the near field is precomputed and stored
+!  in the row sparse compressed format.
+!
+!  The identity term is not included in teh representation
+!
+!  The fmm is used to accelerate the far-field and 
+!  near-field interactions are handled via precomputed quadrature
+!
+!  Using add and subtract - no need to call tree and set fmm parameters
+!  can directly call existing fmm library
+!
+!  Input arguments:
+! 
+!    - npatches: integer
+!        number of patches
+!    - norders: integer(npatches)
+!        order of discretization on each patch 
+!    - ixyzs: integer(npatches+1)
+!        ixyzs(i) denotes the starting location in srccoefs,
+!        and srcvals array corresponding to patch i
+!    - iptype: integer(npatches)
+!        type of patch
+!        iptype = 1, triangular patch discretized using RV nodes
+!    - npts: integer
+!        total number of discretization points on the boundary
+!    - srccoefs: real *8 (9,npts)
+!        koornwinder expansion coefficients of xyz, dxyz/du,
+!        and dxyz/dv on each patch. 
+!        For each point 
+!          * srccoefs(1:3,i) is xyz info
+!          * srccoefs(4:6,i) is dxyz/du info
+!          * srccoefs(7:9,i) is dxyz/dv info
+!    - srcvals: real *8 (12,npts)
+!        xyz(u,v) and derivative info sampled at the 
+!        discretization nodes on the surface
+!          * srcvals(1:3,i) - xyz info
+!          * srcvals(4:6,i) - dxyz/du info
+!          * srcvals(7:9,i) - dxyz/dv info
+!          * srcvals(10:12,i) - normals info
+!    - eps: real *8
+!        precision requested
+!    - nnz: integer *8
+!        number of source patch-> target interactions in the near field
+!    - row_ptr: integer(npts+1)
+!        row_ptr(i) is the pointer
+!        to col_ind array where list of relevant source patches
+!        for target i start
+!    - col_ind: integer (nnz)
+!        list of source patches relevant for all targets, sorted
+!        by the target number
+!    - iquad: integer(nnz+1)
+!        location in wnear_ij array where quadrature for col_ind(i)
+!        starts for a single kernel. In this case the different kernels
+!        are matrix entries are located at (m-1)*nquad+iquad(i), where
+!        m is the kernel number
+!    - nquad: integer
+!        number of near field entries corresponding to each source target
+!        pair. The size of wnear is 4*nquad since there are 4 kernels
+!        per source target pair
+!    - wnear: real *8(3*nquad)
+!        Precomputed near field quadrature
+!          * the first kernel is \nabla_{x} S_{0}
+!          * the second kernel is \nabla_{y} S_{0}
+!          * the third kernel is \nabla_{z} S_{0}
+!    - sigma: real *8(3*npts)
+!        * sigma(1:npts) is the first component 
+!        * sigma(npts+1:2*npts) is the second component 
+!        * sigma(2*npts+1:3*npts) is the third component 
+!    - novers: integer(npatches)
+!        order of discretization for oversampled sources and
+!        density
+!    - ixyzso: integer(npatches+1)
+!        ixyzso(i) denotes the starting location in srcover,
+!        corresponding to patch i
+!    - nptso: integer
+!        total number of oversampled points
+!    - srcover: real *8 (12,nptso)
+!        oversampled set of source information
+!    - whtsover: real *8 (nptso)
+!        smooth quadrature weights at oversampled nodes
+!
+!  Output arguments:
+!    - pcurl: real *8 (3*npts)
+!
+
+      implicit none
+      integer npatches,norder,npols,npts
+      integer ndtarg,ntarg
+      integer norders(npatches),ixyzs(npatches+1)
+      integer ixyzso(npatches+1),iptype(npatches)
+      real *8 srccoefs(9,npts),srcvals(12,npts),eps
+      integer nnz,row_ptr(npts+1),col_ind(nnz),nquad
+      integer iquad(nnz+1)
+      real *8 sigma(3*npts)
+      real *8 wnear(3*nquad)
+
+      integer novers(npatches)
+      integer nover,npolso,nptso
+      real *8 srcover(12,nptso),whtsover(nptso)
+      real *8 pcurl(3*npts)
+      real *8, allocatable :: wts(:)
+
+      real *8 rhom,rhop,rmum,uf,vf,wtmp
+      real *8 u1,u2,u3,u4,w1,w2,w3,w4,w5
+
+      real *8, allocatable :: sources(:,:),srctmp(:,:)
+      real *8, allocatable :: charges0(:,:)
+      real *8, allocatable :: sigmaover(:,:),abc0(:,:)
+      real *8, allocatable :: pot_aux(:,:),grad_aux(:,:,:)
+      real *8, allocatable :: pcurltmp(:,:)
+      real *8, allocatable :: dpottmp(:),dgradtmp(:,:)
+      real *8 vtmp1(3),vtmp2(3),vtmp3(3),rncj,errncj
+
+      integer ns,nt
+      integer ifcharge,ifdipole
+      integer ifpgh,ifpghtarg
+      complex *16 tmp(10),val,E(4)
+
+      integer i,j,jpatch,jquadstart,jstart,count1,count2
+      real *8 radexp,epsfmm
+
+      integer ipars(2)
+      real *8 dpars(1),timeinfo(10),t1,t2,omp_get_wtime
+
+      real *8, allocatable :: radsrc(:)
+      real *8, allocatable :: srctmp2(:,:)
+      real *8, allocatable :: ctmp0(:,:)
+      real *8 thresh,ra,erra
+      real *8 rr,rmin
+      real *8 over4pi
+      real *8 rbl(3),rbm(3)
+      integer nss,ii,l,npover
+      complex *16 ima,ztmp
+
+      integer nd,ntarg0,nmax
+      integer ndd,ndz,ndi
+
+      real *8 ttot,done,pi
+      data ima/(0.0d0,1.0d0)/
+      data over4pi/0.07957747154594767d0/
+
+      parameter (ntarg0=1)
+
+      ns = nptso
+      ntarg = npts
+      done = 1
+      pi = atan(done)*4
+
+      ifpgh = 0
+      ifpghtarg = 2
+      pcurl = 0
+      allocate(sources(3,ns),srctmp(3,npts))
+      allocate(pcurltmp(3,npts))
+
+!
+!  estimate max number of sources in the near field of any target
+!
+!    
+      call get_near_corr_max(npts,row_ptr,nnz,col_ind,npatches,ixyzso,&
+        nmax)
+
+!
+!  Allocate various densities
+!
+
+      allocate(sigmaover(3,ns),abc0(3,npts))
+
+!
+!  extract source and target info
+
+!$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,ns
+        sources(1,i) = srcover(1,i)
+        sources(2,i) = srcover(2,i)
+        sources(3,i) = srcover(3,i)
+      enddo
+!$OMP END PARALLEL DO      
+
+
+!$OMP PARALLEL DO DEFAULT(SHARED)
+      do i=1,npts
+        srctmp(1,i) = srcvals(1,i)
+        srctmp(2,i) = srcvals(2,i)
+        srctmp(3,i) = srcvals(3,i)
+      enddo
+!$OMP END PARALLEL DO
+
+
+      nd = 3
+      allocate(charges0(nd,ns))
+
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(vtmp1)
+      do i=1,npts
+        vtmp1(1) = sigma(i)
+        vtmp1(2) = sigma(npts+i)
+        vtmp1(3) = sigma(2*npts+i)
+        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),vtmp1, &
+          abc0(1,i))
+      enddo
+!$OMP END PARALLEL DO
+
+      call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
+          npts,abc0,novers,ixyzso,ns,sigmaover)
+        
+!
+!$OMP PARALLEL DO DEFAULT(SHARED) 
+      do i=1,ns
+        charges0(1:3,i) = sigmaover(1:3,i)*whtsover(i)*over4pi
+      enddo
+!$OMP END PARALLEL DO      
+
+      allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
+
+!      print *, "before fmm"
+
+      call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
+        pot_aux,grad_aux)
+
+!$OMP PARALLEL DO DEFAULT(SHARED)         
+      do i=1,npts
+        pcurltmp(1,i) = grad_aux(3,2,i) - grad_aux(2,3,i)
+        pcurltmp(2,i) = grad_aux(1,3,i) - grad_aux(3,1,i) 
+        pcurltmp(3,i) = grad_aux(2,1,i) - grad_aux(1,2,i)
+      enddo
+!$OMP END PARALLEL DO      
+
+!      print *, "after fmm"
+
+!
+!  Add near quadrature correction
+!
+
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,jquadstart) &
+!$OMP PRIVATE(jstart,npols,l,w1,w2,w3)
+      do i=1,npts
+        do j=row_ptr(i),row_ptr(i+1)-1
+          jpatch = col_ind(j)
+          npols = ixyzs(jpatch+1)-ixyzs(jpatch)
+          jquadstart = iquad(j)
+          jstart = ixyzs(jpatch) 
+          do l=1,npols
+            w1 = wnear(jquadstart+l-1+0*nquad)
+            w2 = wnear(jquadstart+l-1+1*nquad)
+            w3 = wnear(jquadstart+l-1+2*nquad)
+            pcurltmp(1,i) = pcurltmp(1,i) + w2*abc0(3,jstart+l-1) - &
+              w3*abc0(2,jstart+l-1)
+            pcurltmp(2,i) = pcurltmp(2,i) + w3*abc0(1,jstart+l-1) - &
+              w1*abc0(3,jstart+l-1)
+            pcurltmp(3,i) = pcurltmp(3,i) + w1*abc0(2,jstart+l-1) - &
+              w2*abc0(1,jstart+l-1)
+          enddo
+        enddo
+      enddo
+!$OMP END PARALLEL DO     
+      
+!      print *, "after Laplace near correction"
+!      print *, "nmax=",nmax
+!      print *, "nd=",nd
+
+      call get_fmm_thresh(12,ns,srcover,12,npts,srcvals,thresh)
+
+!      print *, "Thresh=",thresh
+
+
+!
+! Subtract near contributions computed via fmm
+!
+      allocate(dpottmp(nd),dgradtmp(nd,3))
+      allocate(ctmp0(nd,nmax),srctmp2(3,nmax))
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
+!$OMP PRIVATE(ctmp0,l,jstart,nss,dpottmp,dgradtmp)
+      do i=1,npts
+        nss = 0
+        do j=row_ptr(i),row_ptr(i+1)-1
+          jpatch = col_ind(j)
+          do l=ixyzso(jpatch),ixyzso(jpatch+1)-1
+            nss = nss+1
+            srctmp2(1,nss) = srcover(1,l)
+            srctmp2(2,nss) = srcover(2,l)
+            srctmp2(3,nss) = srcover(3,l)
+
+            ctmp0(1:3,nss)=charges0(1:3,l)
+          enddo
+        enddo
+
+        dpottmp = 0
+        dgradtmp = 0
+
+        call l3ddirectcg(nd,srctmp2,ctmp0,nss,srctmp(1,i), &
+          ntarg0,dpottmp,dgradtmp,thresh)
+        pcurltmp(1,i) = pcurltmp(1,i) - (dgradtmp(3,2)-dgradtmp(2,3))
+        pcurltmp(2,i) = pcurltmp(2,i) - (dgradtmp(1,3)-dgradtmp(3,1))
+        pcurltmp(3,i) = pcurltmp(3,i) - (dgradtmp(2,1)-dgradtmp(1,2))
+      enddo
+!$OMP END PARALLEL DO      
+
+!      print *, "finished pot eval"
+
+      do i=1,npts
+        pcurl(i) = pcurltmp(1,i)
+        pcurl(npts+i) = pcurltmp(2,i)
+        pcurl(2*npts+i) = pcurltmp(3,i)
+
+      enddo
+      return
+      end subroutine lpcomp_s0curl_addsub
 !
 !
 !

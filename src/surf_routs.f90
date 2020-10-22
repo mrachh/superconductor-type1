@@ -460,14 +460,15 @@ subroutine get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype, &
   integer npts,m,ipars(2)
   real *8 srcvals(12,npts),srccoefs(9,npts)
   integer apatches(na),bpatches(nb)
-  real *8 avals(6,na),awts(na),auv(2,na)
-  real *8 bvals(6,nb),bwts(nb),buv(2,nb)
+  real *8 avals(9,na),awts(na),auv(2,na)
+  real *8 bvals(9,nb),bwts(nb),buv(2,nb)
   integer, intent(in) :: na,nb
   integer nu,nv,i,j,k,l
   real *8, allocatable :: xnodes(:),wts(:)
   real *8, allocatable :: polsu(:,:),polsv(:,:)
   real *8 uv(2)
   real *8 umat,vmat
+  real *8 wtmp(12),rr
   integer ipt,itri,lpt,nmax,norder,npmax,npols
   integer itype
 
@@ -503,12 +504,18 @@ subroutine get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype, &
       buv(1,ipt) = 0
       buv(2,ipt) = (xnodes(j)+1)/2
       bwts(ipt) = wts(j)/2
-      bvals(1:6,ipt) = 0
+      wtmp(1:12) = 0
       do l=1,npols
         lpt = ixyzs(itri)+l-1
-        bvals(1:3,ipt) = bvals(1:3,ipt) + srccoefs(1:3,lpt)*polsv(l,j)
-        bvals(4:6,ipt) = bvals(4:6,ipt) + srccoefs(7:9,lpt)*polsv(l,j)
+        wtmp(1:9) = wtmp(1:9) + srccoefs(1:9,lpt)*polsv(l,j)
+!        bvals(1:3,ipt) = bvals(1:3,ipt) + srccoefs(1:3,lpt)*polsv(l,j)
+!        bvals(4:6,ipt) = bvals(4:6,ipt) + srccoefs(7:9,lpt)*polsv(l,j)
       enddo
+      call cross_prod3d(wtmp(4),wtmp(7),wtmp(10))
+      rr = sqrt(wtmp(10)**2 + wtmp(11)**2 + wtmp(12)**2)
+      bvals(1:3,ipt) = wtmp(1:3)
+      bvals(4:6,ipt) = wtmp(7:9)
+      bvals(7:9,ipt) = wtmp(10:12)/rr
     enddo
   enddo
 
@@ -520,11 +527,16 @@ subroutine get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype, &
       auv(1,ipt) = (xnodes(j)+1)/2
       auv(2,ipt) = 0
       awts(ipt) = wts(j)/2
-      avals(1:6,ipt) = 0
+      wtmp(1:12) = 0
       do l=1,npols
         lpt = ixyzs(itri)+l-1
-        avals(1:6,ipt) = avals(1:6,ipt) + srccoefs(1:6,lpt)*polsu(l,j)
+!        avals(1:6,ipt) = avals(1:6,ipt) + srccoefs(1:6,lpt)*polsu(l,j)
+        wtmp(1:9) = wtmp(1:9) + srccoefs(1:9,lpt)*polsu(l,j)
       enddo
+      call cross_prod3d(wtmp(4),wtmp(7),wtmp(10))
+      rr = sqrt(wtmp(10)**2 + wtmp(11)**2 + wtmp(12)**2)
+      avals(1:6,ipt) = wtmp(1:6)
+      avals(7:9,ipt) = wtmp(10:12)/rr
     enddo
   enddo
 

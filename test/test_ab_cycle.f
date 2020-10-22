@@ -85,8 +85,8 @@
       m = 16
       na = ipars(1)*m
       nb = ipars(2)*m
-      allocate(avals(6,na),awts(na),auv(2,na),apatches(na))
-      allocate(bvals(6,nb),bwts(nb),buv(2,nb),bpatches(nb))
+      allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
+      allocate(bvals(9,nb),bwts(nb),buv(2,nb),bpatches(nb))
       call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
      1   npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,
      2   nb,bvals,bwts,bpatches,buv)
@@ -94,8 +94,8 @@
       call prin2('avals=*',avals,24)
       call prin2('bvals=*',bvals,24)
 
-      call vtk_curv_plot(na,6,avals,'acycle.vtk','a')
-      call vtk_curv_plot(nb,6,bvals,'bcycle.vtk','b')
+      call vtk_curv_plot(na,9,avals,'acycle.vtk','a')
+      call vtk_curv_plot(nb,9,bvals,'bcycle.vtk','b')
       call prinf('na=*',na,1)
       call prinf('nb=*',nb,1)
 
@@ -170,11 +170,45 @@
       allocate(srcinterpa(12,na),srcinterpb(12,nb))
       call geom_coefs_interp(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,na,apatches,auv,srcinterpa)
+
+c
+c  test normals
+c
+      ra = 0
+      erra = 0
+      do i=1,na
+        ra = ra + srcinterpa(10,i)**2*awts(i)
+        ra = ra + srcinterpa(11,i)**2*awts(i)
+        ra = ra + srcinterpa(12,i)**2*awts(i)
+        erra = erra + (srcinterpa(10,i)-avals(7,i))**2*awts(i)
+        erra = erra + (srcinterpa(11,i)-avals(8,i))**2*awts(i)
+        erra = erra + (srcinterpa(12,i)-avals(9,i))**2*awts(i)
+      enddo
+
+
+      erra = sqrt(erra/ra)
+      call prin2('error in normals on acycles=*',erra,1)
 cc      call prin2('srcinterpa=*',srcinterpa(1:3,1:12),36)
 cc      call prin2('avals=*',avals(1:3,1:12),36)
       
       call geom_coefs_interp(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,nb,bpatches,buv,srcinterpb) 
+c
+c  test normals
+c
+      ra = 0
+      erra = 0
+      do i=1,nb
+        ra = ra + srcinterpb(10,i)**2*bwts(i)
+        ra = ra + srcinterpb(11,i)**2*bwts(i)
+        ra = ra + srcinterpb(12,i)**2*bwts(i)
+        erra = erra + (srcinterpb(10,i)-bvals(7,i))**2*bwts(i)
+        erra = erra + (srcinterpb(11,i)-bvals(8,i))**2*bwts(i)
+        erra = erra + (srcinterpb(12,i)-bvals(9,i))**2*bwts(i)
+      enddo
+
+      erra = sqrt(erra/ra)
+      call prin2('error in normals on bcycles=*',erra,1)
       
 c
 c  compute exact values of the interpolant

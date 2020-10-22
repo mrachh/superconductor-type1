@@ -1,0 +1,16 @@
+test_lpapp.f - test layer potential application, nothing seems 
+  to be correct after changes made
+
+test_lpapp2.f - final testing code for layer potential application
+  uses staticj_gendeb2.f90
+
+test_lpapp_curl.f - testing code for computing curl s0 of a tangential
+   vector field on the sphere
+
+test_solver.f/test_solver_sph.f - tests the solver using the final code
+   staticj_gendeb3.f90
+
+test_ab_cycle.f - test generation of ab cycles and the computation
+   of harmonic vector fields on a standard 2 torus
+
+

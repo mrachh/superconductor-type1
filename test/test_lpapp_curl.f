@@ -8,12 +8,13 @@
 
       integer, allocatable :: norders(:),ixyzs(:),iptype(:)
 
-      real *8 xyz_out(3),xyz_in(3)
+      real *8 xyz_out(3),xyz_in(3),vtmp1(3),vtmp2(3)
       real *8, allocatable :: ffform(:,:,:),ffformex(:,:,:)
       real *8, allocatable :: ffforminv(:,:,:),ffformexinv(:,:,:)
 
       complex *16, allocatable :: rhs(:)
       real *8, allocatable :: sigma(:), pot(:),pot1(:),rrhs(:)
+      real *8, allocatable :: pcurl(:,:)
       real *8, allocatable :: unm(:,:),xnm(:,:)
       real *8, allocatable :: drhs(:,:)
       real *8, allocatable :: sigma2(:)
@@ -103,7 +104,7 @@
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
 
-      allocate(sigma(6*npts),rhs(npts),pot(6*npts),rrhs(npts))
+      allocate(sigma(3*npts),rhs(npts),pot(3*npts),rrhs(npts))
       allocate(ffform(2,2,npts))
 
 c
@@ -121,84 +122,24 @@ c
 cc      dzk = 1.0d0
 
 
-      njh = 5
-      ifder = 1
-      rscale = 1.0d0
-      zk = ima*dzk
-      call prin2('zk=*',zk,2)
-      call besseljs3d(njh,zk,rscale,fjvals,ifder,fjder)
-      call h3dall(njh,zk,rscale,fhvals,ifder,fhder)
+      rcu = 2.9d0
+      rcx = 0.0d0
 
-      zalpha = ima*((nn+1)*fjvals(nn)*fhvals(nn-1)+
-     1   nn*fjvals(nn+1)*fhvals(nn)-zk*fjvals(nn+1)*fhvals(nn-1))
-      dalpha = real(zalpha)
-      call prin2('zalpha=*',zalpha,2)
-      
-      zbeta = fjvals(nn)*fhvals(nn)*zk*zk/ima/zk
-      dbeta = real(zbeta)
-      call prin2('zbeta=*',zbeta,2)
-      
-      zgamma = ima*zk*fjvals(nn)*fhvals(nn)*sqrt(nn*(nn+1.0d0))
-      dgamma = real(zgamma)
-      call prin2('zgamma=*',zgamma,2)
-      
-      zdelta = ima*((fjvals(nn)+zk*fjder(nn))*fhvals(nn)*zk + 
-     1  (fhvals(nn)+zk*fhder(nn))*fjvals(nn)*zk)/2.0d0
-      ddelta = real(zdelta)
-      call prin2('zdelta=*',zdelta,2)
-      
-      zeta = ima*sqrt(nn*(nn+1.0d0))*(fjvals(nn)*fhvals(nn-1)-
-     1   fjvals(nn+1)*fhvals(nn))
-      deta = real(zeta)
-      
-      call prin2('zeta=*',zeta,2)
-      
-      zteta = ima*zk**2/2*(fjvals(nn)*fhder(nn)+fjder(nn)*fhvals(nn))
-      call prin2('zteta=*',zteta,2)
-      dteta = real(zteta)
+      allocate(unm(3,npts),xnm(3,npts))
+      call surf_grad(npatches,norders,ixyzs,iptype,npts,
+     1  srccoefs,srcvals,rrhs,unm)
+      do i=1,npts
+        unm(1:3,i) = unm(1:3,i)/sqrt(nn*(nn+1.0d0))
+        call cross_prod3d(srcvals(10,i),unm(1,i),xnm(1,i))
+      enddo
 
-
-      ztetap = ima*zk**2*fjvals(nn)*fhder(nn)
-      dtetap = real(ztetap)
-      call prin2('ztetap=*',ztetap,2)
-
-      ztetam = ima*zk**2*fjder(nn)*fhvals(nn)
-      dtetam = real(ztetam)
-      call prin2('ztetam=*',ztetam,2)
-
-
-      
-      
-
-c
-c  set rcrhom to 1 for now for testing purposes
-c
-
-      rcrhom = 0
-      rcrhop = 0
-      rcrmum = 0
-
-      rcqm = 0
-      rcqp = 0
-      rcrm = 0
-
-      rcrhom = 2.9d0
-      rcrhop = -0.17d0
-      rcrmum = 1.3d0
-
-      rcqm = 0.7d0
-      rcqp = 1.0d0
-      rcrm = -1.1d0
 
       do i=1,npts
         rrhs(i) = real(rhs(i))
 
-        sigma(i) = rcrhom*rrhs(i)
-        sigma(npts+i) = rcrhop*rrhs(i)
-        sigma(2*npts+i) = rcrmum*rrhs(i)
-        sigma(3*npts+i) = rcqm*rrhs(i)
-        sigma(4*npts+i) = rcqp*rrhs(i)
-        sigma(5*npts+i) = rcrm*rrhs(i)
+        sigma(i) = rcu*unm(1,i) + rcx*xnm(1,i) 
+        sigma(npts+i) = rcu*unm(2,i) + rcx*xnm(2,i) 
+        sigma(2*npts+i) = rcu*unm(3,i) + rcx*xnm(3,i) 
       enddo
 
       eps = 0.51d-5
@@ -307,199 +248,54 @@ C$OMP END PARALLEL DO
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
 
-      call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,iptype,
-     1  npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind,iquad,nquad,
-     2  wnear,sigma,novers,npts_over,ixyzso,srcover,wover,pot)
+      call lpcomp_s0curl_addsub(npatches,norders,ixyzs,iptype,npts,
+     1  npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
+     2  wnear(2*nquad+1),sigma,novers,npts_over,ixyzso,srcover,
+     3  wover,pot)
 
-     
-
-      call prin2('pot=*',pot,24)
-      do i=1,3*npts
-        pot(i) = pot(i) + sigma(i)
-      enddo
-
+      allocate(pcurl(3,npts))
       do i=1,npts
-        pot(5*npts+i) = pot(5*npts+i) - sigma(5*npts+i)/2
+        pcurl(1,i) = pot(i) 
+        pcurl(2,i) = pot(i+npts)
+        pcurl(3,i) = pot(i+2*npts)
       enddo
 
+      errnc = 0
+      errnd = 0
+      rnc = 0
+      rnd = 0
+
+      runc = (nn+1.0d0)/(2*nn+1.0d0)*rcu
+      rxnc = (nn+0.0d0)/(2*nn+1.0d0)*rcx
+      rund = 0
+      rxnd = -(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)*rcx
       do i=1,npts
-        pot(4*npts+i) = pot(4*npts+i) + sigma(3*npts+i)/2/dzk +
-     1   sigma(4*npts+i)/2
-      enddo
+        call cross_prod3d(srcvals(10,i),pcurl(1,i),vtmp1)
+        vtmp1(1) = vtmp1(1) + sigma(i)/2
+        vtmp1(2) = vtmp1(2) + sigma(npts+i)/2
+        vtmp1(3) = vtmp1(3) + sigma(2*npts+i)/2
 
-      do i=1,npts
-        pot(3*npts+i) = pot(3*npts+i) - sigma(3*npts+i)/4/dzk +
-     1     sigma(4*npts+i)/4
-      enddo
-      call prin2('pot=*',pot,24)
-
-      rslaps = -(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)**2
-      rs = 1.0d0/(2*nn+1.0d0)
-
-      rfac1 = -4*(rcrhom*rslaps - rcqm*rs)
-      rfac2 = -4*(rcrhop*rslaps - rcqp*rs)
-      rfac3 = -4*(rcrmum*rslaps - rcrm*rs)
-
-      print *, "rfac1=",rfac1
-      print *, "rfac2=",rfac2
-      print *, "rfac3=",rfac3
-
-      ra = 0
-      do i = 1,npts
-        ra = ra + rrhs(i)**2*wts(i)
-      enddo
-
-
-      erra = 0
-      do i=1,npts
-        erra=  erra + (pot(i)-rfac1*rrhs(i))**2*wts(i)
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in first component=*',erra,1) 
-
-      erra = 0
-      do i=1,npts
-        erra=  erra + (pot(i+npts)-rfac2*rrhs(i))**2*wts(i)
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in second component=*',erra,1) 
-
-      erra = 0
-      do i=1,npts
-        erra=  erra + (pot(i+2*npts)-rfac3*rrhs(i))**2*wts(i)
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in third component=*',erra,1)
-
-c
-c  the code assumes that fort.37 contains bmm
-c  and fort.38 contains blm
-c
-      allocate(blm(3,npts),bmm(3,npts))
-      do i=1,npts
-        read(37,*) bmm(1,i),bmm(2,i),bmm(3,i)
-        read(38,*) blm(1,i),blm(2,i),blm(3,i)
-      enddo
-
-      allocate(unm(3,npts),xnm(3,npts))
-      call surf_grad(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,rrhs,unm)
-      do i=1,npts
-        unm(1:3,i) = unm(1:3,i)/sqrt(nn*(nn+1.0d0))
-        call cross_prod3d(srcvals(10,i),unm(1,i),xnm(1,i))
-      enddo
-
-      rrlu = -dzk*rcrmum*sqrt(nn*(nn+1.0d0))/(2*nn+1.0d0)
-      rrlx = 0
-      rrmu = dzk*rcrhom*sqrt(nn*(nn+1.0d0))/(2*nn+1.0d0)
-      rrmx = -dzk*rcrhop*sqrt(nn*(nn+1.0d0))/(2*nn+1.0d0)
-
-      print *, "rrmu=",rrmu
-      print *, "rrmx=",rrmx
-      print *, "rrlu=",rrlu
-      erra = 0
-      do i=1,npts
-        erra = erra + (rrlu*unm(1,i)-blm(1,i))**2*wts(i) + 
-     1    (rrlu*unm(2,i)-blm(2,i))**2*wts(i) + 
-     2    (rrlu*unm(3,i)-blm(3,i))**2*wts(i)
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in blm=*',erra,1)
-
-      erra = 0
-      do i=1,npts
-        rtmp1 = rrmu*unm(1,i)+rrmx*xnm(1,i)
-        erra = erra + (rrmu*unm(1,i)+rrmx*xnm(1,i)-bmm(1,i))**2*wts(i)+ 
-     1    (rrmu*unm(2,i)+rrmx*xnm(2,i)-bmm(2,i))**2*wts(i) + 
-     2    (rrmu*unm(3,i)+rrmx*xnm(3,i)-bmm(3,i))**2*wts(i)
-        if(i.lt.5) print *, bmm(1,i)/unm(1,i),rrmu,
-     1     bmm(1,i)/unm(1,i)/rrmu
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in bmm=*',erra,1)
-
-
-
-
-      rtrhom = dzk*(nn+0.0d0)*(nn+1.0d0)*dalpha/(2*nn+1.0d0)**2
-      print *, "rtrhom=*",rtrhom
-      rtrhop = 0
-      rtmum = 0
-      rtqm = -dgamma*sqrt(nn*(nn+1.0d0))/(2*nn+1.0d0)/dzk
-      rtqp = nn*(nn+1.0d0)/(2*nn+1.0d0)**2
-      rtrm = 0
-
-      rnrhom = -dzk*sqrt(nn*(nn+1.0d0))*deta/(2*nn+1.0d0)
-      rnrhop = 0
-      rnmum = 0
-      rnqm = dtetam/dzk
-      rnqp = (nn+1.0d0)/(2*nn+1.0d0)
-      rnrm = 0
-
-      rjrhom = 0
-      rjrhop = dbeta*dzk*nn*(nn+1.0d0)/(2*nn+1.0d0)
-      rjmum = dzk**2*sqrt(nn*(nn+1.0d0))/(2*nn+1.0d0)*deta
-      rjqm = 0
-      rjqp = 0
-      rjrm = -dtetam
-
-      erra = 0
-      print *, "rtqm=",rtqm
-      print *, "rtqp=",rtqp
-      print *, "rtrm=",rtrm
-
-      print *, " "
-      print *, " "
-      print *, "rtrhom=",rtrhom
-      rr = rcqm*rtqm + rcqp*rtqp+rcrm*rtrm
-      rr = rcrhom*rtrhom + rcrhop*rtrhop+rcrmum*rtmum+rr
-      print *, "rr=",rr
-      do i=1,npts
-        erra = erra + (rr*rrhs(i)-pot(3*npts+i))**2*wts(i)
-        if(i.lt.5) print *,pot(3*npts+i)/rrhs(i),rr,
-     1    pot(3*npts+i)/rrhs(i)/rr
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in 4th component=*',erra,1)
-      call prin2(" *",i,0)
-      call prin2(" *",i,0)
-
-      print *, "rnqm=",rnqm
-      print *, "rnqp=",rnqp
-      print *, "rnrm=",rnrm
-      print *, "rnrhom=",rnrhom
-      rr = rcqm*rnqm + rcqp*rnqp + rcrm*rnrm
-      rr = rcrhom*rnrhom + rcrhop*rnrhop+rcrmum*rnmum+rr
-      print *, "rr=",rr
-      erra = 0
-      do i=1,npts
-        erra = erra+(rr*rrhs(i)-pot(4*npts+i))**2*wts(i)
-        if(i.lt.5) print *,pot(4*npts+i)/rrhs(i),rr,
-     1    pot(4*npts+i)/rrhs(i)/rr
+        vtmp2(1) = runc*unm(1,i) + rxnc*xnm(1,i) 
+        vtmp2(2) = runc*unm(2,i) + rxnc*xnm(2,i) 
+        vtmp2(3) = runc*unm(3,i) + rxnc*xnm(3,i) 
         
+
+        rnc = rnc + (vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)*wts(i)
+        errnc = errnc + (vtmp1(1)-vtmp2(1))**2*wts(i)
+        errnc = errnc + (vtmp1(2)-vtmp2(2))**2*wts(i)
+        errnc = errnc + (vtmp1(3)-vtmp2(3))**2*wts(i)
+        wtmp = 0
+        call dot_prod3d(srcvals(10,i),pcurl(1,i),wtmp)
+
+        rnd = rnd + rrhs(i)**2*wts(i)
+        errnd = errnd + (wtmp - rxnd*rrhs(i))**2*wts(i)
       enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in fifth component=*',erra,1)
-      call prin2(" *",i,0)
-      call prin2(" *",i,0)
 
-      print *, "rjqm=",rjqm
-      print *, "rjqp=",rjqp
-      print *, "rjrm=",rjrm
+      errnd = sqrt(errnd/rnd)
+      errnc = sqrt(errnc/rnc)
 
-      erra = 0
-      rr = rcqm*rjqm + rcqp*rjqp+rcrm*rjrm
-      rr = rcrhop*rjrhop + rcrhom*rjrhom + rcrmum*rjmum+rr
-      do i=1,npts
-        erra = erra+(rr*rrhs(i)-pot(5*npts+i))**2*wts(i)
-        if(i.lt.5) print *,pot(5*npts+i)/rrhs(i),rr,
-     1    pot(5*npts+i)/rrhs(i)/rr
-      enddo
-      erra = sqrt(erra/ra)
-      call prin2('error in sixth component=*',erra,1)
-
-      
-
+      call prin2('error in n times curl s0 = *',errnc,1)
+      call prin2('error in n dot curl s0 =*',errnd,1)
 
 
       stop
