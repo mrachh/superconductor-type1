@@ -1825,6 +1825,8 @@
       allocate(sources(3,ns),srctmp(3,npts))
       allocate(pcurltmp(3,npts))
 
+      nmax = 0
+
 !
 !  estimate max number of sources in the near field of any target
 !
@@ -1864,11 +1866,9 @@
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(vtmp1)
       do i=1,npts
-        vtmp1(1) = sigma(i)
-        vtmp1(2) = sigma(npts+i)
-        vtmp1(3) = sigma(2*npts+i)
-        call cross_cross_prod3d(srcvals(10,i),srcvals(10,i),vtmp1, &
-          abc0(1,i))
+        abc0(1,i) = sigma(i)
+        abc0(2,i) = sigma(npts+i)
+        abc0(3,i) = sigma(2*npts+i)
       enddo
 !$OMP END PARALLEL DO
 

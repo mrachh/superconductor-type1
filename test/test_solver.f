@@ -50,7 +50,7 @@
       xyz_out(3) = 5.1d0
 
       igeomtype = 1
-      ipars(1) = 1 
+      ipars(1) = 2 
       npatches=12*(4**ipars(1))
 
       norder = 5 
