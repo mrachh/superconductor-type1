@@ -1095,7 +1095,7 @@
 !
 !  bjm = -dzk*S_{ik} [blm] - \nabla S_{ik} [r^{-}] - \nabla \times S_{ik} [bmm]
 !  bbm = -dzk*S_{ik} [bmm] + \nabla S_{ik} [q^{-}] + \nabla \times S_{ik} [bll^{-}]
-!  bbp = \nabla \times S_{0}[\ell_{H}^{+}]
+!  bbp = \nabla \times S_{0}[\ell_{H}^{+}] (precomputed)
 !
       
       deallocate(charges0,sigmaover)
@@ -1982,7 +1982,8 @@
 !
 !
       subroutine statj_gendeb_solver(npatches,norders,ixyzs,&
-       iptype,npts,srccoefs,srcvals,eps,dpars,numit,&
+       iptype,npts,srccoefs,srcvals,eps,dpars,ngenus,hvecs,bbphvecs, &
+       na,apatches,auv,avals,awts,nb,bpatches,buv,bvals,bwts,numit,&
        rhs,eps_gmres,niter,errs,rres,soln)
 
 !
@@ -1996,14 +1997,25 @@
 !    \curl B^{+} = 0, \div B^{+} = 0
 !
 !  Boundary conditions:
-!       - n \times n \times B^{-}/dzk + n \times n \times B^{+} (1)
+!       n \times n \times B^{-}/dzk - n \times n \times B^{+} (1)
 !       B^{-} \cdot n/dzk - B^{+} \cdot n  (2)
-!       J^{-} \cdot n
+!       J^{-} \cdot n (3)
+!       \int_{A_{j}} B^{-} \cdot dl  (4-j)
+!       \int_{B_{j}} B^{-} \cdot dl  (5-j)
+!       \int_{A_{j}} B^{+} \cdot dl  (6-j)
+!       \int_{B_{j}} B^{+} \cdot dl  (7-j)
 !
 !  In fact the boundary conditions imposed are 
 !     ((2) - \nabla S_{0} [(1)])  
 !     ((2) + \nabla S_{0}[(1)])*dzk
 !     (3)*2
+!     (4-1),(5-1),(6-1),(7-1)
+!     (4-2),(5-2),(6-2),(7-2)
+!     (4-3),(5-3),(6-3),(7-3)
+!           .
+!           .
+!           .
+!
 !
 !  input:
 !    - npatches: integer
@@ -2036,6 +2048,43 @@
 !        precision requested
 !    - dpars: real *8 (1)
 !        the parameter k for the yukawa kernels
+!    - ngenus: integer
+!        genus of the object
+!    - hvecs: real *8 (3,npts,ngenus*2)
+!        The harmonic vector fields on the object
+!    - bpphvecs: real *8 (3,npts,2*ngenus)
+!        \curl S_{0}[hvecs] precomputed and restricted to the
+!        boundary
+!    - na: integer
+!        number of discretization points on each acycle
+!    - apatches: integer(na,ngenus)
+!        apatches(i,j) is the 
+!        patch id of the ith node on the jth acycle
+!    - auv : real *8 (2,na,ngenus)
+!        auv(1:2,i,j) are the local uv coordinates of
+!        the ith node on the jth acycle
+!    - avals : real *8 (9,na,ngenus)
+!        avals(1:9,i,j) are the xyz coordinates, the
+!        derivative info, and the normal info
+!        for the ith node on the jth acycle
+!    - awts: real *8 (na,ngenus)
+!        quadrature weights for integrating smooth functions on the
+!        acycles
+!    - nb: integer
+!        number of discretization points on each bcycle
+!    - bpatches: integer(nb,ngenus)
+!        bpatches(i,j) is the 
+!        patch id of the ith node on the jth bcycle
+!    - buv : real *8 (2,nb,ngenus)
+!        buv(1:2,i,j) are the local uv coordinates of
+!        the ith node on the jth bcycle
+!    - bvals : real *8 (9,nb,ngenus)
+!        bvals(1:9,i,j) are the xyz coordinates, the
+!        derivative info, and the normal info for the ith node 
+!        on the jth bcycle
+!    - bwts: real *8 (nb,ngenus)
+!        quadrature weights for integrating smooth functions on the
+!        bcycles
 !    - rhs: real *8 (6*npts)
 !        Boundary data, the first three components are
 !        B^{-}/dzk - B^{+}
@@ -2065,11 +2114,20 @@
       integer npatches,norder,npols,npts
       integer ifinout
       integer norders(npatches),ixyzs(npatches+1)
+      integer ngenus
       integer iptype(npatches)
       real *8 srccoefs(9,npts),srcvals(12,npts),eps,eps_gmres
       real *8 dpars(1)
-      real *8 rhs(6*npts)
-      real *8 soln(6*npts)
+      real *8 rhs(6*npts + 4*ngenus)
+      real *8 soln(6*npts + 4*ngenus)
+
+      integer na,nb
+      integer apatches(na,ngenus),bpatches(nb,ngenus)
+      real *8 auv(2,na,ngenus),buv(2,nb,ngenus)
+      real *8 avals(9,na,ngenus),bvals(9,nb,ngenus)
+      real *8 awts(na,ngenus),bwts(nb,ngenus)
+      real *8 hvecs(3,npts,2*ngenus),bbphvecs(3,npts,2*ngenus)
+
 
       real *8, allocatable :: targs(:,:)
       integer, allocatable :: ipatch_id(:)
@@ -2126,7 +2184,7 @@
 !   as we have one vector unknown J we need n_var=2*npts
 !
 
-      n_var=6*npts
+      n_var=6*npts + 4*ngenus
 
       allocate(vmat(n_var,numit+1),hmat(numit,numit))
       allocate(cs(numit),sn(numit))
@@ -2263,7 +2321,7 @@
           iquad,nquad,wnear(2*nquad+1),rhs,novers,npts_over,ixyzso, &
           srcover,wover,abc0)
       
-      allocate(rhsuse(6*npts))
+      allocate(rhsuse(6*npts+4*ngenus))
       rhsuse = 0
 !!!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,vtmp1)      
       do i=1,npts
@@ -2274,7 +2332,6 @@
 
         rhsuse(3*npts+i) = (w1 + 2*abc0(i))*dpars(1)
         rhsuse(4*npts+i) = (w1 - 2*abc0(i))
-        write(39,*) abc0(i),w1
 
         vtmp1(1) = rhs(i+3*npts)
         vtmp1(2) = rhs(i+4*npts)
@@ -2287,11 +2344,6 @@
       call prin2('abc0=*',abc0,24)
       print *, "done initializing rhs"
       print *, "starting solver now"
-      do i=1,npts
-        write(41,'(6(2x,e11.5))') rhsuse(i), rhsuse(i+npts), &
-         rhsuse(2*npts+i), rhsuse(3*npts+i), rhsuse(4*npts+i), &
-         rhsuse(5*npts+i)
-      enddo
 
       rinttmp(1:6) = 0
       do j=1,6
@@ -2300,6 +2352,10 @@
         enddo
       enddo
       call prin2('integral of rhs=*',rinttmp,6)
+
+      do i=1,4*ngenus
+         rhsuse(6*npts+i) = rhs(6*npts+i)
+      enddo
 
 
 !
@@ -2330,6 +2386,9 @@
           rb = rb + abs(rhsuse(i+(j-1)*npts))**2*wts(i)
         enddo
       enddo
+      do j=1,4*ngenus
+        rb = rb + rhsuse(6*npts+j)**2
+      enddo
       rb = sqrt(rb)
 
       do i=1,n_var
@@ -2348,8 +2407,9 @@
 !
         call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,&
           iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
-          iquad,nquad,wnear,vmat(1,it),novers,npts_over,ixyzso,srcover, &
-          wover,wtmp)
+          iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,apatches,auv, &
+          avals,awts,nb,bpatches,buv,bvals,bwts,vmat(1,it),novers, &
+          npts_over,ixyzso,srcover,wover,wtmp)
         rinttmp(1:6) = 0
         do j=1,6
           do i=1,npts
@@ -2368,6 +2428,10 @@
             enddo
           enddo
 
+          do l=1,4*ngenus
+            hmat(k,it) = hmat(k,it) + wtmp(6*npts+l)*vmat(6*npts+l)
+          enddo
+
           do j=1,n_var
             wtmp(j) = wtmp(j)-hmat(k,it)*vmat(j,k)
           enddo
@@ -2379,6 +2443,9 @@
           do j=1,npts
             wnrm2 = wnrm2 + abs(wtmp(j+(l-1)*npts))**2*wts(j)
           enddo
+        enddo
+        do l=1,4*ngenus
+          wnrm2 = wnrm2 + wtmp(6*npts+l)**2
         enddo
         wnrm2 = sqrt(wnrm2)
 
@@ -2443,9 +2510,10 @@
 !        evaluation routine  
 !
           call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs,&
-           iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
-            iquad,nquad,wnear,soln,novers,npts_over,ixyzso,srcover, &
-            wover,wtmp)
+            iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
+            iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,apatches,auv, &
+            avals,awts,nb,bpatches,buv,bvals,bwts,soln,novers, &
+            npts_over,ixyzso,srcover,wover,wtmp)
             
           do i=1,n_var
             rres = rres + abs(did*soln(i) + wtmp(i)-rhsuse(i))**2
