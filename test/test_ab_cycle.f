@@ -83,8 +83,8 @@
 
 
       m = 16
-      na = ipars(1)*m
-      nb = ipars(2)*m
+      na = ipars(2)*m
+      nb = ipars(1)*m
       allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
       allocate(bvals(9,nb),bwts(nb),buv(2,nb),bpatches(nb))
       call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
@@ -127,11 +127,11 @@
       call prin2('rvecb=*',rvecb,1)
       call prin2('rscb=*',rscb,1)
       
-      erravec = abs(rveca-pi*4.25d0*4.25d0)
-      errasc = abs(rsca-2*pi*4.25d0)
+      errbvec = abs(rvecb-pi*4.25d0*4.25d0)
+      errbsc = abs(rscb-2*pi*4.25d0)
       
-      errbvec = abs(rvecb + pi)
-      errbsc = abs(rscb - 2*pi)
+      erravec = abs(rveca + pi)
+      errasc = abs(rsca - 2*pi)
       
       call prin2('erravec=*',erravec,1)
       call prin2('errbvec=*',errbvec,1)

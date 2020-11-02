@@ -59,8 +59,8 @@
 
 
       igeomtype = 4
-      ipars(1) = 4*2
-      ipars(2) = 4*2
+      ipars(1) = 4*8
+      ipars(2) = 4*8
       npatches = 2*ipars(1)*ipars(2)
       fname = 'torus.vtk'
 
@@ -105,7 +105,8 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       call test_exterior_pt(npatches,norders,npts,
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
- 
+
+
       m = 32
       na = ipars(2)*m
       nb = ipars(1)*m
@@ -155,11 +156,6 @@ c
       allocate(rhs(6*npts+4),soln(6*npts+4))
       rhs = 0
       soln = 0
-      do i=1,npts
-        rhs(i) = -bbp(1,i)
-        rhs(i+npts) = -bbp(2,i)
-        rhs(i+2*npts) = -bbp(3,i)
-      enddo
 
       allocate(bbp_a(3,na),bbp_b(3,nb))
       call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
@@ -168,19 +164,9 @@ c
      1   bbp,nb,bpatches,buv,bbp_b)
 
       
-      do i=1,na
-        rhs(6*npts+3) = rhs(6*npts+3) + (bbp_a(1,i)*avals(4,i) + 
-     1    bbp_a(2,i)*avals(5,i) + bbp_a(3,i)*avals(6,i))*awts(i)
-      enddo
-
-      do i=1,nb
-        rhs(6*npts+4) = rhs(6*npts+4) + (bbp_b(1,i)*bvals(4,i) + 
-     1    bbp_b(2,i)*bvals(5,i) + bbp_b(3,i)*bvals(6,i))*bwts(i)
-      enddo
-      call prin2('proj3=*',rhs(6*npts+3),1)
-      call prin2('proj4=*',rhs(6*npts+4),1)
-      rhs(6*npts+3) = 0 
-      rhs(6*npts+4) = 0
+      rhs = 0
+      rhs(6*npts+1) = 1.0d0
+      rhs(6*npts+3) = 1.0d0
 
 c
 c   test hvecs by computing the surface divergence at a point
@@ -507,11 +493,6 @@ c
       call prin2('dpars=*',dpars,2)
       call prin2('eps=*',eps,1)
 
-cc      call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs,iptype,
-cc     1    npts,srccoefs,srcvals,12,npts,srcvals,eps,dpars,nnz,row_ptr,
-cc     2    col_ind,iquad,nquad,wnear,soln(2*npts+1),
-cc     3    novers,npts_over,ixyzso,srcover,wover,ptmp)
-
       call prin2('soln=*',soln(2*npts+1),24)
       call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
@@ -536,36 +517,23 @@ cc     3    novers,npts_over,ixyzso,srcover,wover,ptmp)
         rint = rint + ptmp(i)*wts(i)
       enddo
       call prin2('integral of S of first density=*',rint,1)
-
-      do i=1,npts
-        write(70,'(6(2x,e11.5))') soln(i),soln(npts+i),soln(2*npts+i),
-     1    soln(3*npts+i),soln(4*npts+i),soln(5*npts+i)
-
-      enddo
-      stop
       
       allocate(bbpcomp(3,npts),bjmcomp(3,npts),bbmcomp(3,npts))
       ngenus = 1
       
-cc      call lpcomp_statj_gendeb_postproc_addsub(npatches,norders,
-cc     1  ixyzs,iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,
-cc     2  col_ind,iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,
-cc     3  novers,npts_over,ixyzso,srcover,wover,bjmcomp,bbmcomp,
-cc     4  bbpcomp)
+      call lpcomp_statj_gendeb_postproc_addsub(npatches,norders,
+     1  ixyzs,iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,
+     2  col_ind,iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,
+     3  novers,npts_over,ixyzso,srcover,wover,bjmcomp,bbmcomp,
+     4  bbpcomp)
 
       errbm = 0
-      ra = 0.0d0
-      do i=1,npts
-        do j=1,6
-          ra = ra + rhs(i+(j-1)*npts)**2*wts(i)
-        enddo
-      enddo
       do i =1,npts
         errbm = errbm + bbmcomp(1,i)**2*wts(i) 
         errbm = errbm + bbmcomp(2,i)**2*wts(i) 
         errbm = errbm + bbmcomp(3,i)**2*wts(i) 
       enddo
-      errbm = sqrt(errbm/ra)
+      errbm = sqrt(errbm)
       call prin2('error in bm=*',errbm,1)
 
        
@@ -575,7 +543,7 @@ cc     4  bbpcomp)
         errjm = errjm + bjmcomp(2,i)**2*wts(i) 
         errjm = errjm + bjmcomp(3,i)**2*wts(i) 
       enddo
-      errjm = sqrt(errjm/ra)
+      errjm = sqrt(errjm)
       call prin2('error in jm=*',errjm,1)
 
 
@@ -593,13 +561,16 @@ cc     4  bbpcomp)
         errbp = errbp + (bbpcomp(2,i)-bbp(2,i))**2*wts(i) 
         errbp = errbp + (bbpcomp(3,i)-bbp(3,i))**2*wts(i) 
       enddo
-      errbp = sqrt(errbp/ra)
+      errbp = sqrt(errbp/rbp)
       call prin2('error in bp=*',errbp,1)
 
       call prin2('bbp=*',bbp,24)
       call prin2('bbpcomp=*',bbpcomp,24)
-      call prin2('ra=*',ra,1)
 
+      call prin2('bjm=*',bjm,24)
+
+      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,
+     1  npts,srccoefs,srcvals,sigma,'current1.vtk','a')
 
 
 
@@ -848,7 +819,6 @@ c
       pi = atan(done)*4
 
       npols = (norder+1)*(norder+2)/2
-      call prin2('xyzout=*',xyzout,3)
 
 
       ra = 0
@@ -866,11 +836,11 @@ c
           ra = ra + val*wts(i)
         enddo
       enddo
-      print *, "ra=",ra
-cc      call prin2('ra=*',ra,1)
 
-      if(abs(ra+4*pi).le.1.0d-1) isout = .false.
-      if(abs(ra).le.1.0d-1) isout = .true.
+      call prin2('ra=*',ra,1)
+
+      if(abs(ra+4*pi).le.1.0d-3) isout = .false.
+      if(abs(ra).le.1.0d-3) isout = .true.
 
       return
       end

@@ -925,7 +925,8 @@
 !
 !
       do i=1,npts
-        abc4(1:6,i) = abc2(1:6,i) + 2*curv(i)*abc3(1:6,i) 
+        abc4(1:6,i) = abc2(1:6,i) + 2*curv(i)*abc3(1:6,i)
+        abc4(1:3,i) = abc4(1:3,i) - rinttmp(1:3)/rsurf
       enddo
       call prin2('rsurf=*',rsurf,1)
 
@@ -1004,9 +1005,9 @@
       call prin2('rinttmp=*',rinttmp,6)
       call prin2('rsurf=*',rsurf,1)
       do i=1,npts
-        pot(i) = -4*(abc0(1,i)-pot_aux(1,i)+rinttmp(1)/rsurf)
-        pot(i+npts) = -4*(abc0(2,i)-pot_aux(2,i)+rinttmp(2)/rsurf)
-        pot(i+2*npts) = -4*(abc0(3,i)-pot_aux(3,i)+rinttmp(3)/rsurf)
+        pot(i) = -4*(abc0(1,i)-pot_aux(1,i))
+        pot(i+npts) = -4*(abc0(2,i)-pot_aux(2,i))
+        pot(i+2*npts) = -4*(abc0(3,i)-pot_aux(3,i))
       enddo
       do i=1,npts
         pot(i) = pot(i) + 4*(s0qm(i)-0*rinttmp(4)/rsurf)
