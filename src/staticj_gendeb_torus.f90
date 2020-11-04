@@ -588,7 +588,7 @@
         abc0(3,i) = sigma(2*npts+i)
         abc0(4,i) = sigma(3*npts+i) - rqmint
         abc0(5,i) = sigma(4*npts+i)
-        abc0(6,i) = sigma(5*npts+i) - rrmint
+        abc0(6,i) = sigma(5*npts+i) 
       enddo
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
@@ -1122,7 +1122,7 @@
         abc0(1:3,i) = blm(1:3,i)
         abc0(4:6,i) = bmm(1:3,i)
         abc0(7,i) = sigma(3*npts+i) - rqmint
-        abc0(8,i) = sigma(5*npts+i) - rrmint
+        abc0(8,i) = sigma(5*npts+i) 
       enddo
 !$OMP END PARALLEL DO
 
@@ -1296,10 +1296,10 @@
         w3 = w1/dzk - spqp(i) - w2
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
-        pot(3*npts+i) = (w3+2*w2)*dzk - 0*0.1d0*rqmint + 0*0.3d0*rrmint
-        pot(4*npts+i) = (w3-2*w2) + 0*0.75d0*rqmint + 0*0.1d0*rrmint
+        pot(3*npts+i) = (w3+2*w2)*dzk + rqmint 
+        pot(4*npts+i) = (w3-2*w2) 
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = -2*w1 - 0*0.7d0*rrmint -0*0.661d0*rqmint
+        pot(5*npts+i) = -2*w1 
       enddo
 !$OMP END PARALLEL DO
 

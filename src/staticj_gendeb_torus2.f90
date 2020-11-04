@@ -541,7 +541,7 @@
       rqmint = rqmint/rsurf
       rrmint = rrmint/rsurf
 !      rqmint = 0
-!      rrmint = 0
+      rrmint = 0
 !
 !  Compute inverse of first fundamental form and mean curvature 
 !
