@@ -1296,10 +1296,10 @@
         w3 = w1/dzk - spqp(i) - w2
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
-        pot(3*npts+i) = (w3+2*w2)*dzk - 0.1d0*rqmint + 0.3d0*rrmint
-        pot(4*npts+i) = (w3-2*w2) + 0.75d0*rqmint + 0.1d0*rrmint
+        pot(3*npts+i) = (w3+2*w2)*dzk - 0*0.1d0*rqmint + 0*0.3d0*rrmint
+        pot(4*npts+i) = (w3-2*w2) + 0*0.75d0*rqmint + 0*0.1d0*rrmint
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = -2*w1 - 0.7d0*rrmint -0.661d0*rqmint
+        pot(5*npts+i) = -2*w1 - 0*0.7d0*rrmint -0*0.661d0*rqmint
       enddo
 !$OMP END PARALLEL DO
 

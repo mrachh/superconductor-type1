@@ -540,8 +540,8 @@
       enddo
       rqmint = rqmint/rsurf
       rrmint = rrmint/rsurf
-      rqmint = 0
-      rrmint = 0
+!      rqmint = 0
+!      rrmint = 0
 !
 !  Compute inverse of first fundamental form and mean curvature 
 !
@@ -873,6 +873,8 @@
         do igen = 1,2*ngenus
           blm(1:3,i) = blm(1:3,i) + &
             sigma(6*npts+igen)*hvecs(1:3,i,igen)
+          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,igen),vtmp1)
+          bmm(1:3,i) = bmm(1:3,i) 
         enddo
       enddo
 
@@ -971,18 +973,8 @@
 !
 !  End of computing abc0 = D0 (abc1) = D0^2[rhom,rhop,rmum,qm,qp,rm]
 !
-      deallocate(dipvec0,charges0,pot_aux,grad_aux,hess_aux)
-      deallocate(sigmaover,dpottmp,dgradtmp,ctmp0,dtmp0)
-      deallocate(abc4)
-
-      nd = 7
-      allocate(abc4(nd,npts))
-      allocate(charges0(nd,ns),sigmaover(nd,ns))
-      allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
-      allocate(dpottmp(nd),dgradtmp(nd,3))
-      allocate(ctmp0(nd,nmax))
 !
-!  Compute integrals of S0[rhom,rhop,rmum,qm,qp,rm,rqmint]
+!  Compute integrals of S0[rhom,rhop,rmum,qm,qp,rm]
 !
       rinttmp(1:6) = 0
       rsurf = 0
@@ -993,6 +985,16 @@
       call prin2('rinttmp=*',rinttmp,6)
       call prin2('rsurf=*',rsurf,1)
 
+      deallocate(dipvec0,charges0,pot_aux,grad_aux,hess_aux)
+      deallocate(sigmaover,dpottmp,dgradtmp,ctmp0,dtmp0)
+      deallocate(abc4)
+
+      nd = 7
+      allocate(abc4(nd,npts))
+      allocate(charges0(nd,ns),sigmaover(nd,ns))
+      allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
+      allocate(dpottmp(nd),dgradtmp(nd,3))
+      allocate(ctmp0(nd,nmax))
 
 !
 !
@@ -1314,7 +1316,7 @@
         pot(4*npts+i) = w3 + sigma(3*npts+i)/2/dzk + sigma(4*npts+i)/2 -&
           rqmint/2/dzk
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = w1 - sigma(5*npts+i)/2 - rrmint + rrmint 
+        pot(5*npts+i) = w1 - sigma(5*npts+i)/2 + rrmint + rrmint/2 
       enddo
 !$OMP END PARALLEL DO
 

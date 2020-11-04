@@ -5,7 +5,7 @@
 
       integer, allocatable :: norders(:),ixyzs(:),iptype(:)
 
-      real *8 xyz_out(3),xyz_in(3)
+      real *8 xyz_out(3),xyz_in(3,2)
       real *8 vtmp1(3),bbpc(3),bbpex(3)
       real *8, allocatable :: ffform(:,:,:),ffformex(:,:,:)
       real *8, allocatable :: ffforminv(:,:,:),ffformexinv(:,:,:)
@@ -26,7 +26,7 @@
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
-      real *8 vf2(3),dpars(2)
+      real *8 vf2(3,2),dpars(2),cf2(2)
       complex * 16 zpars(3)
       integer numit,niter
       character *100 title,dirname
@@ -59,15 +59,19 @@
 
 
       igeomtype = 4
-      ipars(1) = 4*2
-      ipars(2) = 4*2
+      ipars(1) = 4*4
+      ipars(2) = 4*4
       npatches = 2*ipars(1)*ipars(2)
       fname = 'torus.vtk'
 
 
-      xyz_in(1) = 3.24d0
-      xyz_in(2) = 0.002d0
-      xyz_in(3) = 0.001d0
+      xyz_in(1,1) = 3.24d0
+      xyz_in(2,1) = 0.002d0
+      xyz_in(3,1) = 0.001d0
+
+      xyz_in(1,2) = 3.26d0
+      xyz_in(2,2) = -0.01d0
+      xyz_in(3,2) = 0.001d0
 
       xyz_out(1) = -3.5d0
       xyz_out(2) = 7.1d0
@@ -140,16 +144,23 @@ c
 c   compute the boundary data, for now assume that only external
 c   B field is applied and that the interior fields are 0 
 c
-      cf2 = 1.1d0
-      vf2(1) = hkrand(0)
-      vf2(2) = hkrand(0)
-      vf2(3) = hkrand(0)
+      vf2(1,1) = hkrand(0)
+      vf2(2,1) = hkrand(0)
+      vf2(3,1) = hkrand(0)
+
+      vf2(1:3,1) = vf2(1:3,1)*1.0d1*0 
+      vf2(1:3,2) = 0
+      cf2(1) = 1
+      cf2(2) = -1*0 
+
+      
+
       thresh = 1.0d-16
       allocate(bbp(3,npts),ptmp(npts))
       ptmp = 0
       bbp = 0
-      call l3ddirectcg(1,xyz_in,vf2,1,srcvals(1:3,1:npts),npts,ptmp,
-     1 bbp,thresh)
+      call l3ddirectcdg(1,xyz_in,cf2,vf2,2,srcvals(1:3,1:npts),npts,
+     1 ptmp,bbp,thresh)
       
       call prin2('ptmp=*',ptmp,24)
       allocate(rhs(6*npts+4),soln(6*npts+4))
@@ -189,9 +200,9 @@ c
       rint = 0
       rext = 0
       do i=1,npts
-        dx = xyz_in(1) - srcvals(1,i)
-        dy = xyz_in(2) - srcvals(2,i)
-        dz = xyz_in(3) - srcvals(3,i)
+        dx = xyz_in(1,1) - srcvals(1,i)
+        dy = xyz_in(2,1) - srcvals(2,i)
+        dz = xyz_in(3,1) - srcvals(3,i)
         
         rr = sqrt(dx**2 + dy**2 + dz**2)
         rint = rint + dx*hvecs(1,i,1)*wts(i)/rr**3
@@ -442,16 +453,17 @@ c
       numit = 200
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
+      eps_gmres = 1.0d-9
       call statj_gendeb_solver(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,eps,dzk,ngenus,hvecs,bbphvecs,na,apatches,auv,
-     2  avals,awts,nb,bpatches,buv,bvals,bwts,numit,rhs,eps,
+     2  avals,awts,nb,bpatches,buv,bvals,bwts,numit,rhs,eps_gmres,
      3  niter,errs,rres,soln)
       
 
       call prin2('projs=*',soln(6*npts+1),4)
       bbpc(1:3) = 0
       bbpex(1:3) = 0
-      call l3ddirectcg(1,xyz_in,vf2,1,xyz_out,1,ptmp,bbpex,thresh)
+      call l3ddirectcdg(1,xyz_in,cf2,vf2,2,xyz_out,1,ptmp,bbpex,thresh)
 
       c0 = soln(6*npts+3)
       do i=1,npts
