@@ -447,11 +447,11 @@
       real *8 rhom,rhop,rmum,uf,vf,wtmp
       real *8 u1,u2,u3,u4,w1,w2,w3,w4,w5,w0
 
-      real *8 rqmint, rrmint, rqpint,rra,rrb
+      real *8 rqmint, rrmint
 
       real *8, allocatable :: sources(:,:),srctmp(:,:)
       real *8, allocatable :: charges0(:,:),dipvec0(:,:,:)
-      real *8, allocatable :: g0r1(:)
+      real *8, allocatable :: g0rqmint(:)
       real *8, allocatable :: sigmaover(:,:)
       real *8, allocatable :: sigmause(:,:)
       real *8, allocatable :: abc1(:,:),abc2(:,:),abc3(:,:)
@@ -533,17 +533,15 @@
       rsurf = 0
       rqmint = 0
       rrmint = 0
-      rqpint = 0
       do i=1,npts
         rsurf = rsurf + wts(i)
         rqmint = rqmint + sigma(3*npts+i)*wts(i)
-        rqpint = rqpint + sigma(3*npts+i)*wts(i)
         rrmint = rrmint + sigma(5*npts+i)*wts(i)
       enddo
       rqmint = rqmint/rsurf
       rrmint = rrmint/rsurf
-      rqpint = rqpint/rsurf
-
+!      rqmint = 0
+!      rrmint = 0
 !
 !  Compute inverse of first fundamental form and mean curvature 
 !
@@ -579,7 +577,7 @@
 !  Allocate various densities
 !
       allocate(spqp(npts),s0qp(npts),s0qm(npts),s0rm(npts))
-      allocate(g0r1(npts))
+      allocate(g0rqmint(npts))
       allocate(s0laps0qp(npts),s0laps0qm(npts),grads0qm(3,npts))
       nd = 6
       allocate(sigmaover(nd,ns))
@@ -593,9 +591,9 @@
         abc0(1,i) = sigma(i)
         abc0(2,i) = sigma(npts+i)
         abc0(3,i) = sigma(2*npts+i)
-        abc0(4,i) = sigma(3*npts+i) 
+        abc0(4,i) = sigma(3*npts+i) - rqmint
         abc0(5,i) = sigma(4*npts+i)
-        abc0(6,i) = sigma(5*npts+i) 
+        abc0(6,i) = sigma(5*npts+i) - rrmint
       enddo
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
@@ -1020,7 +1018,7 @@
 !
       do i=1,npts
         abc4(1:6,i) = abc2(1:6,i) + 2*curv(i)*abc3(1:6,i)
-        abc4(7,i) = 1
+        abc4(7,i) = rqmint
         abc4(1:3,i) = abc4(1:3,i) - rinttmp(1:3)/rsurf
       enddo
 
@@ -1097,19 +1095,17 @@
 ! of the output potential
 !
       do i=1,npts
-        g0r1(i) = pot_aux(7,i)
         pot(i) = -4*(abc0(1,i)-pot_aux(1,i))
         pot(i+npts) = -4*(abc0(2,i)-pot_aux(2,i))
         pot(i+2*npts) = -4*(abc0(3,i)-pot_aux(3,i))
       enddo
       do i=1,npts
-        pot(i) = pot(i) + 4*(s0qm(i)-g0r1(i)*rqmint) + sigma(i)
-        pot(i+npts) = pot(i+npts) + 4*(s0qp(i)-g0r1(i)*rqpint) +  &
-          sigma(i+npts)
-        pot(i+2*npts) = pot(i+2*npts) + 4*(s0rm(i)-g0r1(i)*rrmint) &
-          + sigma(i+2*npts)
+        pot(i) = pot(i) + 4*s0qm(i) + sigma(i)
+        pot(i+npts) = pot(i+npts) + 4*s0qp(i) + sigma(i+npts)
+        pot(i+2*npts) = pot(i+2*npts) + 4*s0rm(i) + sigma(i+2*npts)
         s0laps0qp(i) = abc0(5,i)-pot_aux(5,i)
         s0laps0qm(i) = abc0(4,i)-pot_aux(4,i)
+        g0rqmint(i) = pot_aux(7,i)
       enddo
 
 !
@@ -1140,8 +1136,8 @@
       do i=1,npts
         abc0(1:3,i) = blm(1:3,i)
         abc0(4:6,i) = bmm(1:3,i)
-        abc0(7,i) = sigma(3*npts+i) 
-        abc0(8,i) = sigma(5*npts+i) 
+        abc0(7,i) = sigma(3*npts+i) - rqmint
+        abc0(8,i) = sigma(5*npts+i) - rrmint
       enddo
 !$OMP END PARALLEL DO
 
@@ -1315,10 +1311,12 @@
         w3 = w1/dzk - spqp(i) - w2
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
-        pot(3*npts+i) = w2 + sigma(3*npts+i)/4/dzk - sigma(4*npts+i)/4 
-        pot(4*npts+i) = w3 + sigma(3*npts+i)/2/dzk + sigma(4*npts+i)/2 
+        pot(3*npts+i) = w2 + sigma(3*npts+i)/4/dzk - sigma(4*npts+i)/4 - &
+           rqmint/4/dzk 
+        pot(4*npts+i) = w3 + sigma(3*npts+i)/2/dzk + sigma(4*npts+i)/2 -&
+          rqmint/2/dzk
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = w1 - sigma(5*npts+i)/2 
+        pot(5*npts+i) = w1 - sigma(5*npts+i)/2 + rrmint/2  
       enddo
 !$OMP END PARALLEL DO
 
@@ -1351,8 +1349,8 @@
          hvec_bbp_use,nb,bpatches(1,igen),buv(1,1,igen), &
            hvecs_b(1,1,igen))
       enddo
+
       do igen=1,ngenus
-        rra = 0
         do j=1,na
           pot(6*npts+(igen-1)*4 + 1) =  pot(6*npts+(igen-1)*4 + 1) + &
             (bbm_a(1,j,igen)*avals(4,j,igen) + &
@@ -1363,13 +1361,8 @@
           pot(6*npts+(igen-1)*4 + 3) =  pot(6*npts+(igen-1)*4 + 3) + &
             (vtmp1(1)*avals(4,j,igen) + vtmp1(2)*avals(5,j,igen) + &
             vtmp1(3)*avals(6,j,igen))*awts(j,igen)
-          rra = rra + sqrt(avals(4,j,igen)**2 + avals(5,j,igen)**2 + &
-            avals(6,j,igen)**2)*awts(j,igen)
         enddo
-        pot(6*npts+(igen-1)*4+1) = pot(6*npts+(igen-1)*4+1)/rra
-        pot(6*npts+(igen-1)*4+3) = pot(6*npts+(igen-1)*4+3)/rra
 
-        rrb = 0
         do j=1,nb
           pot(6*npts+(igen-1)*4 + 2) =  pot(6*npts+(igen-1)*4 + 2) + &
             (bbm_b(1,j,igen)*bvals(4,j,igen) + &
@@ -1380,14 +1373,7 @@
           pot(6*npts+(igen-1)*4 + 4) =  pot(6*npts+(igen-1)*4 + 4) + &
             (vtmp1(1)*bvals(4,j,igen) + vtmp1(2)*bvals(5,j,igen) + &
             vtmp1(3)*bvals(6,j,igen))*bwts(j,igen)
-          rrb = rrb + sqrt(bvals(4,j,igen)**2 + bvals(5,j,igen)**2 + &
-            bvals(6,j,igen)**2)*bwts(j,igen)
         enddo
-        pot(6*npts+(igen-1)*4+2) = pot(6*npts+(igen-1)*4+2)/rrb
-        pot(6*npts+(igen-1)*4+4) = pot(6*npts+(igen-1)*4+4)/rrb
-        call prin2('rra=*',rra,1)
-        call prin2('rrb=*',rrb,1)
-        
       enddo
 
       

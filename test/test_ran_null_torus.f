@@ -5,7 +5,7 @@
 
       integer, allocatable :: norders(:),ixyzs(:),iptype(:)
 
-      real *8 xyz_out(3),xyz_in(3,2)
+      real *8 xyz_out(3),xyz_in(3)
       real *8 vtmp1(3),bbpc(3),bbpex(3)
       real *8, allocatable :: ffform(:,:,:),ffformex(:,:,:)
       real *8, allocatable :: ffforminv(:,:,:),ffformexinv(:,:,:)
@@ -26,7 +26,7 @@
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
-      real *8 vf2(3,2),dpars(2),cf2(2)
+      real *8 vf2(3),dpars(2)
       complex * 16 zpars(3)
       integer numit,niter
       character *100 title,dirname
@@ -60,18 +60,14 @@
 
       igeomtype = 4
       ipars(1) = 4*4
-      ipars(2) = 2*4
+      ipars(2) = 4*4
       npatches = 2*ipars(1)*ipars(2)
       fname = 'torus.vtk'
 
 
-      xyz_in(1,1) = 2.001d0
-      xyz_in(2,1) = 0.002d0
-      xyz_in(3,1) = 0.001d0
-
-      xyz_in(1,2) = 2.003d0
-      xyz_in(2,2) = -0.01d0
-      xyz_in(3,2) = 0.001d0
+      xyz_in(1) = 3.24d0
+      xyz_in(2) = 0.002d0
+      xyz_in(3) = 0.001d0
 
       xyz_out(1) = -3.5d0
       xyz_out(2) = 7.1d0
@@ -110,7 +106,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
  
-      m = 40
+      m = 32
       na = ipars(2)*m
       nb = ipars(1)*m
       allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
@@ -118,6 +114,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
      1   npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,
      2   nb,bvals,bwts,bpatches,buv)
+      call prin2('bvals=*',bvals(6,1:nb),nb)
 
       allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
       allocate(rhstmp(npts*3),outtmp(npts*3))
@@ -143,45 +140,32 @@ c
 c   compute the boundary data, for now assume that only external
 c   B field is applied and that the interior fields are 0 
 c
-      vf2(1,1) = hkrand(0)
-      vf2(2,1) = hkrand(0)
-      vf2(3,1) = hkrand(0)
-
-      vf2(1:3,1) = vf2(1:3,1)*1.0d0*1 
-      vf2(1:3,2) = 0
-      cf2(1) = 1*0
-      cf2(2) = -1*0 
-
-      
-
+      cf2 = 1.1d0
+      vf2(1) = hkrand(0)
+      vf2(2) = hkrand(0)
+      vf2(3) = hkrand(0)
       thresh = 1.0d-16
       allocate(bbp(3,npts),ptmp(npts))
       ptmp = 0
       bbp = 0
-
-      ntarg = npts
-      allocate(targs(3,npts))
-C$OMP PARALLEL DO DEFAULT(SHARED)      
-      do i=1,npts 
-        targs(1,i) = srcvals(1,i)
-        targs(2,i) = srcvals(2,i)
-        targs(3,i) = srcvals(3,i)
-      enddo
-C$OMP END PARALLEL DO      
-
-      call l3ddirectcdg(1,xyz_in,cf2,vf2,2,targs,npts,
-     1 ptmp,bbp,thresh)
-      call prin2('bbp=*',bbp,24)
+      call l3ddirectdg(1,xyz_in,vf2,1,srcvals(1:3,1:npts),npts,ptmp,
+     1 bbp,thresh)
       
       call prin2('ptmp=*',ptmp,24)
       allocate(rhs(6*npts+4),soln(6*npts+4))
+
       rhs = 0
       soln = 0
       do i=1,npts
-        rhs(i) = -bbp(1,i)
-        rhs(i+npts) = -bbp(2,i)
-        rhs(i+2*npts) = -bbp(3,i)
+        rhs(i) = bbp(2,i)
+        rhs(i+npts) = 0*bbp(3,i)
+        rhs(i+2*npts) = 0*bbp(4,i)
       enddo
+
+      call surf_grad(npatches,norders,ixyzs,iptype,npts,srccoefs,
+     1  srcvals,rhs,outtmp)
+      call surf_div(npatches,norders,ixyzs,iptype,npts,srccoefs,
+     1  srcvals,outtmp,rhs(3*npts+i))
 
       allocate(bbp_a(3,na),bbp_b(3,nb))
       call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
@@ -189,28 +173,20 @@ C$OMP END PARALLEL DO
       call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
      1   bbp,nb,bpatches,buv,bbp_b)
 
-      rra = 0 
+      
       do i=1,na
         rhs(6*npts+3) = rhs(6*npts+3) + (bbp_a(1,i)*avals(4,i) + 
      1    bbp_a(2,i)*avals(5,i) + bbp_a(3,i)*avals(6,i))*awts(i)
-        rra = rra + 
-     1     sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)*awts(i)
       enddo
 
-      rrb = 0
       do i=1,nb
         rhs(6*npts+4) = rhs(6*npts+4) + (bbp_b(1,i)*bvals(4,i) + 
      1    bbp_b(2,i)*bvals(5,i) + bbp_b(3,i)*bvals(6,i))*bwts(i)
-        rrb = rrb + 
-     1     sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)*bwts(i)
       enddo
-      call prin2('rra=*',rra,1)
-      call prin2('rrb=*',rrb,1)
-      rhs(6*npts+3) = rhs(6*npts+3)/rra*0 
-      rhs(6*npts+4) = rhs(6*npts+4)/rrb*0
       call prin2('proj3=*',rhs(6*npts+3),1)
       call prin2('proj4=*',rhs(6*npts+4),1)
-
+      rhs(6*npts+3) = 0 
+      rhs(6*npts+4) = 0
 
 c
 c   test hvecs by computing the surface divergence at a point
@@ -219,9 +195,9 @@ c
       rint = 0
       rext = 0
       do i=1,npts
-        dx = xyz_in(1,1) - srcvals(1,i)
-        dy = xyz_in(2,1) - srcvals(2,i)
-        dz = xyz_in(3,1) - srcvals(3,i)
+        dx = xyz_in(1) - srcvals(1,i)
+        dy = xyz_in(2) - srcvals(2,i)
+        dz = xyz_in(3) - srcvals(3,i)
         
         rr = sqrt(dx**2 + dy**2 + dz**2)
         rint = rint + dx*hvecs(1,i,1)*wts(i)/rr**3
@@ -283,6 +259,16 @@ C$OMP PARALLEL DO DEFAULT(SHARED)
 C$OMP END PARALLEL DO     
 
       call prin2('rad_near=*',rad_near,24)
+      ntarg = npts
+      allocate(targs(3,npts))
+C$OMP PARALLEL DO DEFAULT(SHARED)      
+      do i=1,npts 
+        targs(1,i) = srcvals(1,i)
+        targs(2,i) = srcvals(2,i)
+        targs(3,i) = srcvals(3,i)
+      enddo
+C$OMP END PARALLEL DO      
+
 c
 c    find near quadrature correction interactions
 c
@@ -459,183 +445,96 @@ c
         call prin2('ra3=*',ra3,1)
         call prin2('ra4=*',ra4,1)
       enddo
-      numit = 50
-      allocate(errs(numit+1))
-      call prinf('ngenus=*',ngenus,1)
-      eps_gmres = 1.0d-8
-      call statj_gendeb_solver(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,eps,dzk,ngenus,hvecs,bbphvecs,na,apatches,auv,
-     2  avals,awts,nb,bpatches,buv,bvals,bwts,numit,rhs,eps_gmres,
-     3  niter,errs,rres,soln)
+c
+c
+c   test orthogonal complement of range first
+c
+
+      call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs, 
+     1  iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind, 
+     2  iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,apatches,auv,
+     3  avals,awts,nb,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
+     4  ixyzso,srcover,wover,soln)
+   
+      rran2 = 0
+      rsurf = 0
+      do i=1,npts
+        rran2 = rran2 + soln(5*npts+i)*wts(i)
+        rsurf = rsurf + wts(i)
+      enddo
+      call prin2('rran2=*',rran2/rsurf,1)
       
 
-      call prin2('projs=*',soln(6*npts+1),4)
-      bbpc(1:3) = 0
-      bbpex(1:3) = 0
-      call l3ddirectcdg(1,xyz_in,cf2,vf2,2,xyz_out,1,ptmp,bbpex,thresh)
-
-      c0 = soln(6*npts+3)
-      do i=1,npts
-        dx = xyz_out(1) - srcvals(1,i)
-        dy = xyz_out(2) - srcvals(2,i)
-        dz = xyz_out(3) - srcvals(3,i)
-        
-        sig = soln(4*npts+i)
-        
-
-        r = sqrt(dx**2 + dy**2 + dz**2)
-
-        bbpc(1) = bbpc(1) - dx/r**3*sig*wts(i)
-        bbpc(2) = bbpc(2) - dy/r**3*sig*wts(i)
-        bbpc(3) = bbpc(3) - dz/r**3*sig*wts(i)
-
-        do igen=1,2*ngenus
-        
-          bbpc(1) = bbpc(1) -1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
-     1        (dy*hvecs(3,i,igen)-dz*hvecs(2,i,igen))
-          bbpc(2) = bbpc(2) -1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
-     1        (dz*hvecs(1,i,igen)-dx*hvecs(3,i,igen))
-          bbpc(3) = bbpc(3) -1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
-     1        (dx*hvecs(2,i,igen)-dy*hvecs(1,i,igen))
-        enddo
-        ra = ra + wts(i)
-      enddo
-      bbpc(1:3) = bbpc(1:3)/4/pi
-      print *, "ra=",ra
-
-      erra = abs(bbpc(1)-bbpex(1)) + abs(bbpc(2)-bbpex(2)) + 
-     1   (bbpc(3)-bbpex(3))
-      ra = abs(bbpex(1)) + abs(bbpex(2)) + abs(bbpex(3))
-      call prin2('bbpex=*',bbpex,3)
-      call prin2('bbpc=*',bbpc,3)
-      print *, bbpex(1)/bbpc(1)
-      print *, bbpex(2)/bbpc(2)
-      print *, bbpex(3)/bbpc(3)
-      call prin2('relativd error in exterior b field=*',erra/ra,1)
 
       dpars(1) = 1.0d0
       dpars(2) = 0.0d0
 
-      rinttmp(1:6) = 0
-      rsurf = 0
-      do i=1,npts
-        do j=1,6
-          rinttmp(j) = rinttmp(j) + soln((j-1)*npts+i)*wts(i)
-          rsurf = rsurf + wts(i)
-        enddo
-      enddo
-      call prin2('integral of densities=*',rinttmp(1:6)/rsurf,6)
-
       ptmp = 0
       call prin2('dpars=*',dpars,2)
       call prin2('eps=*',eps,1)
+      deallocate(rhstmp)
+      allocate(rhstmp(npts))
+      do i=1,npts 
+        rhstmp(i) = 1
+      enddo
 
-cc      call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs,iptype,
-cc     1    npts,srccoefs,srcvals,12,npts,srcvals,eps,dpars,nnz,row_ptr,
-cc     2    col_ind,iquad,nquad,wnear,soln(2*npts+1),
-cc     3    novers,npts_over,ixyzso,srcover,wover,ptmp)
-
-      call prin2('soln=*',soln(2*npts+1),24)
       call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
-     2  soln(2*npts+1),ptmp)
+     1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_targ,eps,dpars,
+     2  rhstmp,ptmp)
       call prin2('ptmp=*',ptmp,24)
       rint = 0
       do i=1,npts
-        rint = rint + ptmp(i)*wts(i)
+        rint = rint + ptmp(i)*wts(i)*soln(3*npts+i)
       enddo
-      print *, "rint=",rint
-      call prin2('integral of S of third density=*',rint,1)
-       
-
-      call prin2('soln=*',soln(2*npts+1),24)
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
-     2  soln(npts+1),ptmp)
-      call prin2('ptmp=*',ptmp,24)
-      rint = 0
-      rint2 = 0
-      do i=1,npts
-        rint = rint + ptmp(i)*wts(i)
-        rint2 = rint2 + soln(4*npts+i)*wts(i)
-      enddo
-      print *, "rint=",rint
-      call prin2('integral of S of second density=*',rint,1)
-      call prin2('integral of fifth density=*',rint2,1)
-      call prin2('difference=*',abs(rint2-rint)/rsurf,1)
-       
-
-      ptmp = 0
-      call prin2('soln=*',soln,24)
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
-     2  soln,ptmp)
-      call prin2('ptmp=*',ptmp,24)
-      rint = 0
-      do i=1,npts
-        rint = rint + ptmp(i)*wts(i)
-      enddo
-      call prin2('integral of S of first density=*',rint,1)
-
-      do i=1,npts
-        write(70,'(6(2x,e11.5))') soln(i),soln(npts+i),soln(2*npts+i),
-     1    soln(3*npts+i),soln(4*npts+i),soln(5*npts+i)
-
-      enddo
+      call prin2('rran1=*',rint/rsurf,1)
       stop
-      
-      allocate(bbpcomp(3,npts),bjmcomp(3,npts),bbmcomp(3,npts))
-      ngenus = 1
-      
-cc      call lpcomp_statj_gendeb_postproc_addsub(npatches,norders,
-cc     1  ixyzs,iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,
-cc     2  col_ind,iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,
-cc     3  novers,npts_over,ixyzso,srcover,wover,bjmcomp,bbmcomp,
-cc     4  bbpcomp)
 
-      errbm = 0
-      ra = 0.0d0
+      rhs = 0
+      do i=1,npts
+        rhs(3*npts+i) = 1.0d0/rsurf
+      enddo
+      soln = 0
+      call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs, 
+     1  iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind, 
+     2  iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,apatches,auv,
+     3  avals,awts,nb,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
+     4  ixyzso,srcover,wover,soln)
+      call prin2('proj1=*',soln(6*npts+1),4)
+      ra = 0
       do i=1,npts
         do j=1,6
-          ra = ra + rhs(i+(j-1)*npts)**2*wts(i)
+          erra = erra + soln(i+(j-1)*npts)**2*wts(i)
         enddo
       enddo
-      do i =1,npts
-        errbm = errbm + bbmcomp(1,i)**2*wts(i) 
-        errbm = errbm + bbmcomp(2,i)**2*wts(i) 
-        errbm = errbm + bbmcomp(3,i)**2*wts(i) 
+      do j=1,4
+        erra = erra + soln(6*npts+j)**2
       enddo
-      errbm = sqrt(errbm/ra)
-      call prin2('error in bm=*',errbm,1)
+      call prin2('error in null vector 1=*',sqrt(erra),1)
+   
 
-       
-      errjm = 0
-      do i =1,npts
-        errjm = errjm + bjmcomp(1,i)**2*wts(i) 
-        errjm = errjm + bjmcomp(2,i)**2*wts(i) 
-        errjm = errjm + bjmcomp(3,i)**2*wts(i) 
+      rhs = 0
+      do i=1,npts
+        rhs(5*npts+i) = 1.0d0/rsurf
       enddo
-      errjm = sqrt(errjm/ra)
-      call prin2('error in jm=*',errjm,1)
-
+      soln = 0
+      call lpcomp_statj_gendeb_addsub(npatches,norders,ixyzs, 
+     1  iptype,npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind, 
+     2  iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,apatches,auv,
+     3  avals,awts,nb,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
+     4  ixyzso,srcover,wover,soln)
+      call prin2('proj1=*',soln(6*npts+1),4)
+      ra = 0
+      do i=1,npts
+        do j=1,6
+          erra = erra + soln(i+(j-1)*npts)**2*wts(i)
+        enddo
+      enddo
+      do j=1,4
+        erra = erra + soln(6*npts+j)**2
+      enddo
+      call prin2('error in null vector 1=*',sqrt(erra),1)
+   
       
-
-      errbp = 0
-      rbp = 0
-      do i =1,npts
-        rbp = rbp + bbpcomp(1,i)**2*wts(i) 
-        rbp = rbp + bbpcomp(2,i)**2*wts(i) 
-        rbp = rbp + bbpcomp(3,i)**2*wts(i) 
-        errbp = errbp + (bbpcomp(1,i)-bbp(1,i))**2*wts(i) 
-        errbp = errbp + (bbpcomp(2,i)-bbp(2,i))**2*wts(i) 
-        errbp = errbp + (bbpcomp(3,i)-bbp(3,i))**2*wts(i) 
-      enddo
-      errbp = sqrt(errbp/ra)
-      call prin2('error in bp=*',errbp,1)
-
-      call prin2('bbp=*',bbp,24)
-      call prin2('bbpcomp=*',bbpcomp,24)
-      call prin2('ra=*',ra,1)
 
 
 
@@ -807,7 +706,7 @@ c
         call prinf('npatches=*',npatches,1)
          
         p1(1) = 1.0d0
-        p1(2) = 1.75d0
+        p1(2) = 3.0d0
         p1(3) = 0.25d0
 
         p2(1) = 1.0d0

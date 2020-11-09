@@ -120,8 +120,6 @@
       enddo
 
       call prin2('rveca=*',rveca,1)
-      call prin2('16p=*',16*pi,1)
-
       call prin2('rsca=*',rsca,1)
 
       call prin2('rvecb=*',rvecb,1)

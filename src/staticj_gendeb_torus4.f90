@@ -644,7 +644,6 @@
 !  blm = -dzk*\nabla_{\Gamma} S_{0}[\mum]  + \sum_{l=1}^{2g} c_{l} 
 !    hvec(l)
 !  bmm = dzk*\nabla_{\Gamma}S_{0}[\rhom] &
-!     - dzk* (n \times \nabla_{\Gamma} S_{0}[\rhop]
 !
       allocate(dipvec0(nd,3,ns),charges0(nd,ns))
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts), &
@@ -720,8 +719,7 @@
          call dot_prod3d(grad_aux(2,1:3,i),srcvals(4,i),u3)
          call dot_prod3d(grad_aux(2,1:3,i),srcvals(7,i),u4)
 
-         bmm(1:3,i) = dzk*(u1*wtmp1(1:3,i) + u2*wtmp2(1:3,i) - &
-           u3*wtmp3(1:3,i) - u4*wtmp4(1:3,i))
+         bmm(1:3,i) = dzk*(u1*wtmp1(1:3,i) + u2*wtmp2(1:3,i)) 
       enddo
 !$OMP END PARALLEL DO
 
@@ -784,8 +782,6 @@
 
             bmm(1:3,i) = bmm(1:3,i) + dzk*(uf*wtmp1(1:3,i) + &
               vf*wtmp2(1:3,i))*rhom
-            bmm(1:3,i) = bmm(1:3,i) - dzk*(uf*wtmp3(1:3,i) + &
-              vf*wtmp4(1:3,i))*rhop
           enddo
         enddo
       enddo
@@ -860,7 +856,7 @@
          call dot_prod3d(dgradtmp(2,1:3),srcvals(7,i),u4)
 
          bmm(1:3,i) = bmm(1:3,i) - dzk*(u1*wtmp1(1:3,i) + &
-           u2*wtmp2(1:3,i) - u3*wtmp3(1:3,i) - u4*wtmp4(1:3,i))
+           u2*wtmp2(1:3,i)) 
       enddo
 !$OMP END PARALLEL DO     
       
@@ -2438,8 +2434,8 @@
 !
       do j=1,6
         do i=1,npts
-!          rb = rb + abs(rhsuse(i+(j-1)*npts))**2*wts(i)
-          rb = rb + abs(rhsuse(i+(j-1)*npts))**2
+          rb = rb + abs(rhsuse(i+(j-1)*npts))**2*wts(i)
+!          rb = rb + abs(rhsuse(i+(j-1)*npts))**2
         enddo
       enddo
       do j=1,4*ngenus
@@ -2478,10 +2474,10 @@
           hmat(k,it) = 0
           do l=1,6
             do j=1,npts      
-!              hmat(k,it) = hmat(k,it) + wtmp(j+(l-1)*npts)* &
-!                vmat(j+(l-1)*npts,k)*wts(j)
               hmat(k,it) = hmat(k,it) + wtmp(j+(l-1)*npts)* &
-                vmat(j+(l-1)*npts,k)
+                vmat(j+(l-1)*npts,k)*wts(j)
+!              hmat(k,it) = hmat(k,it) + wtmp(j+(l-1)*npts)* &
+!                vmat(j+(l-1)*npts,k)
             enddo
           enddo
 
@@ -2498,8 +2494,8 @@
         wnrm2 = 0
         do l=1,6
           do j=1,npts
-!            wnrm2 = wnrm2 + abs(wtmp(j+(l-1)*npts))**2*wts(j)
-            wnrm2 = wnrm2 + abs(wtmp(j+(l-1)*npts))**2
+            wnrm2 = wnrm2 + abs(wtmp(j+(l-1)*npts))**2*wts(j)
+!            wnrm2 = wnrm2 + abs(wtmp(j+(l-1)*npts))**2
           enddo
         enddo
         do l=1,4*ngenus
