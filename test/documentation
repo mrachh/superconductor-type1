@@ -4,6 +4,10 @@ test_lpapp.f - test layer potential application, nothing seems
 test_lpapp2.f - final testing code for layer potential application
   uses staticj_gendeb2.f90
 
+test_lpapp3.f - testing code for intermediate layer potential 
+  evaluation routines contained in src/intsurflaprep.f90. These are
+  the routines that will be used in src/staticj_gendeb_final1.f90
+
 test_lpapp_curl.f - testing code for computing curl s0 of a tangential
    vector field on the sphere
 
