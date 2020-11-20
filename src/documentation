@@ -12,5 +12,8 @@ staticj_gendeb3.f90 = staticj_gendeb_sc.f90 - Final working code for simply conn
 staticj_gendeb4.f90 - interemdiate testing code to get to static_gendeb3.f90
   Implements the system of equations discussed in the paper  
   
-   
+staticj_gendeb_final1.f90 - unified version for all genus geometries
+  and varied strength of q^{+} terms in l^{-} and m^{-}.
+  Matvec is implemented so linear system looks like (I+K) \rho
+
 

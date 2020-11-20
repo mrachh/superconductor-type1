@@ -38,6 +38,7 @@
       complex *16 zalpha,zbeta,zgamma,zdelta,zeta,zteta,zk,ztetap
       complex *16 ztetam
       real *8 dalpha,dbeta,dgamma,ddelta,deta,dteta
+      real *8 wtmp1(3)
       complex *16 fjvals(0:100),fhvals(0:100),fjder(0:100),fhder(0:100) 
 
 
@@ -207,6 +208,15 @@ c
         sigma(5*npts+i) = rcrm*rrhs(i)
       enddo
 
+      allocate(unm(3,npts),xnm(3,npts))
+      call surf_grad(npatches,norders,ixyzs,iptype,npts,
+     1  srccoefs,srcvals,rrhs,unm)
+      do i=1,npts
+        unm(1:3,i) = unm(1:3,i)/sqrt(nn*(nn+1.0d0))
+        call cross_prod3d(srcvals(10,i),unm(1,i),xnm(1,i))
+      enddo
+
+
       eps = 0.51d-5
 
       allocate(ipatch_id(npts),uvs_targ(2,npts))
@@ -303,12 +313,13 @@ C$OMP END PARALLEL DO
 
       iquadtype = 1
 
-
+c      goto 1111
       call getnearquad_statj_gendeb(npatches,norders,
      1      ixyzs,iptype,npts,srccoefs,srcvals,
      1      eps,dzk,iquadtype,nnz,row_ptr,col_ind,
      1      iquad,rfac0,nquad,wnear)
       call prinf('finished generating near quadrature correction*',i,0)
+ 1111 continue      
 
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
@@ -316,12 +327,74 @@ C$OMP END PARALLEL DO
       allocate(spqp(npts),grads0qm(3,npts),s0laps0qp(npts))
       allocate(s0laps0qm(npts))
 
+
       call statj_gendebproc_qpqm(npatches,norders,ixyzs,iptype,
-     1  npts,srccoefs,srcvals,eps,dzk,nnz,row_ptr,col_ind,iquad,nquad,
+     1  npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
      2  wnear,sigma,novers,npts_over,ixyzso,srcover,wover,curv,
      3  spqp,grads0qm,s0laps0qp,s0laps0qm)
+      
 
-     
+      print *, "done with computation"
+
+      do i=1,npts
+        s0laps0qp(i) = s0laps0qp(i) - sigma(4*npts+i)/4
+        s0laps0qm(i) = s0laps0qm(i) - sigma(3*npts+i)/4
+      enddo
+
+      erraqm = 0
+      erraqp = 0
+      ra = 0
+      rqm  = -rcqm*(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)**2
+      rqp  = -rcqp*(nn+0.0d0)*(nn+1.0d0)/(2*nn+1.0d0)**2
+      do i=1,npts
+        erraqp = erraqp + (s0laps0qp(i) - rqp*rrhs(i))**2*wts(i)
+        erraqm = erraqm + (s0laps0qm(i) - rqm*rrhs(i))**2*wts(i)
+        rfac = s0laps0qp(i)/rqp/rrhs(i)
+        if(i.lt.5) print *, s0laps0qp(i),rqp*rrhs(i),rfac
+        ra = ra + rrhs(i)**2*wts(i)
+      enddo
+      erraqp = sqrt(erraqp/ra)
+      erraqm = sqrt(erraqm/ra)
+      call prin2('error in s0laps0qp=*',erraqp,1)
+      call prin2('error in s0laps0qm=*',erraqm,1)
+c
+c  test error in spqp
+c
+      erra = 0
+      ra = 0
+      rspqp = -1.0d0/2/(2*nn+1.0d0)*rcqp
+      do i=1,npts
+        erra = erra + (rspqp*rrhs(i)-spqp(i))**2*wts(i)
+        ra = ra + rrhs(i)**2*wts(i)
+      enddo
+      erra = sqrt(erra/ra)
+      call prin2('error in spqp=*',erra,1)
+c
+c  test error in grads0qm
+c
+
+      rspqm = -1.0d0/2/(2*nn+1.0d0)*rcqm
+      rugrads0 = sqrt((nn+0.0d0)*(nn+1.0d0))/(2*nn+1.0d0)*rcqm
+      print *, 'rugrads0=',rugrads0
+      erra = 0
+      ra = 0
+      do i=1,npts
+        wtmp1(1:3) = rrhs(i)*rspqm*srcvals(10:12,i) + 
+     1     unm(1:3,i)*rugrads0
+        erra = erra + (wtmp1(1) - grads0qm(1,i))**2*wts(i)
+        erra = erra + (wtmp1(2) - grads0qm(2,i))**2*wts(i)
+        erra = erra + (wtmp1(3) - grads0qm(3,i))**2*wts(i)
+        ra = ra + rrhs(i)**2*wts(i)
+        if(i.lt.5) print *, wtmp1(1),grads0qm(1,i),
+     1     wtmp1(1)/grads0qm(1,i)
+        
+      enddo
+
+      erra = sqrt(erra/ra)
+      call prin2('error in grads0qm=*',erra,1)
+
+
+
 
       stop
       end

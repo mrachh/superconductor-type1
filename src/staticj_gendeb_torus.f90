@@ -799,6 +799,8 @@
 
 !      print *, "finished near computation for abc2,abc3,bmm,blm"
 
+
+!
 !     Remove near contribution of the FMM
 !
 
