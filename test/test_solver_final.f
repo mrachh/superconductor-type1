@@ -164,7 +164,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
 
-      if(igeomtype.eq.4) then
+      if(igeomtype.eq.4.or.igeomtype.eq.2) then
         m = 40
         na = ipars(2)*m
         nb = ipars(1)*m
@@ -211,15 +211,36 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       endif
 
       if(igeomtype.eq.2) then
-        eps = 1.0d-7
-        call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
-     1    npts,srccoefs,srcvals,wts,eps,hvecs(1,1,1),errest)
-        call prin2('errest=*',errest,1)
-        do i=1,npts
-          call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
-          write(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
-          write(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
-        enddo
+
+        ifread = 1
+        ifwrite = 0
+        if(ifread.eq.0) then
+          eps = 1.0d-7
+          call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
+     1      npts,srccoefs,srcvals,wts,eps,hvecs(1,1,1),errest)
+          call prin2('errest=*',errest,1)
+          do i=1,npts
+            call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
+          enddo
+        else
+          fname = 'stell_hvecs_3030_05_1.dat'
+          open(unit=78,file=fname)
+          fname = 'stell_hvecs_3030_05_2.dat'
+          open(unit=79,file=fname)
+          do i=1,npts
+            read(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
+            read(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
+          enddo
+        endif
+
+        if(ifwrite.eq.1) then
+          do i=1,npts
+            write(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
+            write(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
+          enddo
+          close(78)
+          close(79)
+        endif
       endif
 c
 c
@@ -275,7 +296,7 @@ C$OMP END PARALLEL DO
       call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, 
      1   srccoefs,srcvals,rhs(2*npts+1),'rhs3-torus.vtk','a')
 
-      if(igeomtype.eq.4) then
+      if(igeomtype.eq.4.or.igeomtype.eq.2) then
 
         allocate(bbp_a(3,na),bbp_b(3,nb))
         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
