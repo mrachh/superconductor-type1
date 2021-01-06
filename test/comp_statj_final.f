@@ -31,7 +31,7 @@
       complex * 16 zpars(3)
       integer numit,niter
       character *100 title,dirname
-      character *300 fname
+      character *300 fname,fname1,fname2,fname3
 
       integer, allocatable :: ipatch_id(:)
       real *8, allocatable :: uvs_targ(:,:)
@@ -119,16 +119,6 @@
         xyz_in(3,1) = 0.011d0
 
         xyz_in(1,2) = -0.3003d0
-      if(igeomtype.eq.1) then
-        ipars(1) = 1
-        npatches = 12*(4**(ipars(1)))
-        fname = 'sphere.vtk'
-
-        xyz_in(1,1) = 0.201d0
-        xyz_in(2,1) = 0.102d0
-        xyz_in(3,1) = 0.011d0
-
-        xyz_in(1,2) = -0.3003d0
         xyz_in(2,2) = -0.01d0
         xyz_in(3,2) = 0.001d0
 
@@ -173,7 +163,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
 
-      if(igeomtype.eq.4) then
+      if(igeomtype.eq.4.or.igeomtype.eq.2) then
         m = 40
         na = ipars(2)*m
         nb = ipars(1)*m
@@ -208,16 +198,50 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       allocate(rhstmp(npts*3),outtmp(npts*3))
       bbphvecs = 0
 
-      do igen=1,ngenus
+
+      if(igeomtype.eq.4) then
         do i=1,npts
           rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
-          hvecs(1,i,2*igen-1) = -srcvals(2,i)/rr1
-          hvecs(2,i,2*igen-1) = srcvals(1,i)/rr1
-          hvecs(3,i,2*igen-1) = 0 
-          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,2*igen-1),
-     1       hvecs(1:3,i,2*igen))
+          hvecs(1,i,1) = -srcvals(2,i)/rr1
+          hvecs(2,i,1) = srcvals(1,i)/rr1
+          hvecs(3,i,1) = 0 
+          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
+     1       hvecs(1:3,i,2))
         enddo
-      enddo
+      endif
+
+      if(igeomtype.eq.2) then
+
+        ifread = 1
+        ifwrite = 0
+        if(ifread.eq.0) then
+          eps = 1.0d-7
+          call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
+     1      npts,srccoefs,srcvals,wts,eps,hvecs(1,1,1),errest)
+          call prin2('errest=*',errest,1)
+          do i=1,npts
+            call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
+          enddo
+        else
+          fname = 'stell_hvecs_3030_05_1.dat'
+          open(unit=78,file=fname)
+          fname = 'stell_hvecs_3030_05_2.dat'
+          open(unit=79,file=fname)
+          do i=1,npts
+            read(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
+            read(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
+          enddo
+        endif
+
+        if(ifwrite.eq.1) then
+          do i=1,npts
+            write(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
+            write(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
+          enddo
+          close(78)
+          close(79)
+        endif
+      endif
 c
 c
 c   compute the boundary data, for now assume that only external
@@ -261,10 +285,10 @@ C$OMP END PARALLEL DO
       rhs = 0
       soln = 0
       dzk = 1.0d0
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, 
-     1   srccoefs,srcvals,rhs(2*npts+1),'rhs3-torus.vtk','a')
+cc      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, 
+cc     1   srccoefs,srcvals,rhs(2*npts+1),'rhs3-torus.vtk','a')
 
-      if(igeomtype.eq.4) then
+      if(igeomtype.eq.4.or.igeomtype.eq.2) then
 
         allocate(bbp_a(3,na),bbp_b(3,nb))
         rhs(6*npts+1) = 1 
@@ -417,20 +441,20 @@ c
           bbphvecs(1:3,j,igen) = bbphvecs(1:3,j,igen) - vtmp1(1:3)/2
         enddo
       enddo
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bbphvecs(1,1,1),'bbp-hvec1-reft.vtk','a')
-
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bbphvecs(1,1,2),'bbp-hvec2-reft.vtk','a')
-
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,hvecs(1,1,1),'hvec1.vtk-reft','a')
-
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
+c      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+c     1  srccoefs,srcvals,bbphvecs(1,1,1),'bbp-hvec1-reft.vtk','a')
+c
+c      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+c     1  srccoefs,srcvals,bbphvecs(1,1,2),'bbp-hvec2-reft.vtk','a')
+c
+c      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+c     1  srccoefs,srcvals,hvecs(1,1,1),'hvec1.vtk-reft','a')
+c
+c      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+c     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       print *, "here"
 
-      numit = 50
+      numit = 100
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
       eps_gmres = 1.0d-6
@@ -453,13 +477,23 @@ c
      1  iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
      2  iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
      3  ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
-      
+     
+      if(igeomtype.eq.2) then
+        fname1 = 'bjm-stell1.vtk'
+        fname2 = 'bbm-stell1.vtk'
+        fname3 = 'bbp-stell1.vtk'
+      endif
+      if(igeomtype.eq.4) then
+        fname1 = 'bjm-torus1.vtk'
+        fname2 = 'bbm-torus1.vtk'
+        fname3 = 'bbp-torus1.vtk'
+      endif
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bjmcomp,'bjm-torus1.vtk','a')
+     1  srccoefs,srcvals,bjmcomp,trim(fname1),'a')
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bbmcomp,'bbm-torus1.vtk','a')
+     1  srccoefs,srcvals,bbmcomp,trim(fname2),'a')
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bbpcomp,'bbp-torus1.vtk','a')
+     1  srccoefs,srcvals,bbpcomp,trim(fname3),'a')
 
 
       return
