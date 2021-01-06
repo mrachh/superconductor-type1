@@ -65,8 +65,8 @@
 
       igeomtype = 2 
       if(igeomtype.eq.4) then
-        ipars(1) = 4*8
-        ipars(2) = 2*8
+        ipars(1) = 4*1
+        ipars(2) = 2*1
         npatches = 2*ipars(1)*ipars(2)
         fname = 'torus.vtk'
 
@@ -87,7 +87,7 @@
       endif
 
       if(igeomtype.eq.2) then
-        ipars(1) = 30
+        ipars(1) = 10
         ipars(2) = 30
         npatches = 2*ipars(1)*ipars(2)
         
@@ -131,10 +131,12 @@
 
 
 
-      norder = 5 
+      norder = 8 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
+      call prinf('npatches=*',npatches,1)
+
       allocate(srcvals(12,npts),srccoefs(9,npts))
       ifplot = 1
 
@@ -163,6 +165,25 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       call test_exterior_pt(npatches,norders,npts,
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
+      if(igeomtype.eq.2) then
+        write(fname,'(a,i2,a,i2,a,i1,a)') 'stell_hvecs_',ipars(1),
+     1    '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2,a,i2,a,i1,a)') 'stell_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        print *, fname 
+        open(unit=79,file=trim(fname))
+      endif
+      if(igeomtype.eq.4) then
+        write(fname,'(a,i2,a,i2,a,i1,a)') 'torus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2,a,i2,a,i1,a)') 'torus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        open(unit=79,file=trim(fname))
+      endif
+
+
 
       if(igeomtype.eq.4.or.igeomtype.eq.2) then
         m = 40
@@ -210,7 +231,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
         enddo
       endif
 
-      if(igeomtype.eq.2) then
+      if(igeomtype.eq.2.or.igeomtype.eq.4) then
 
         ifread = 1
         ifwrite = 0
@@ -223,16 +244,13 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
             call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
           enddo
         else
-          fname = 'stell_hvecs_3030_05_1.dat'
-          open(unit=78,file=fname)
-          fname = 'stell_hvecs_3030_05_2.dat'
-          open(unit=79,file=fname)
           do i=1,npts
             read(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
             read(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
           enddo
+          close(78)
+          close(79)
         endif
-
         if(ifwrite.eq.1) then
           do i=1,npts
             write(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
@@ -251,9 +269,9 @@ c
       vf2(2,1) = hkrand(0)
       vf2(3,1) = hkrand(0)
 
-      vf2(1:3,1) = vf2(1:3,1)*1.0d0*1 
+      vf2(1:3,1) = vf2(1:3,1)*1.0d0*0 
       vf2(1:3,2) = 0
-      cf2(1) = 1*0
+      cf2(1) = 1*1
       cf2(2) = -1*0 
 
       
@@ -418,7 +436,7 @@ C$OMP END PARALLEL DO
       call prin2('eps=*',eps,1)
 
       iquadtype = 1
-      rbeta = 1.1d0
+      rbeta = 0.0d0
       rgamma = 1.0d0
       dpars(1) = dzk
       dpars(2) = rbeta
@@ -482,7 +500,7 @@ c
      1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       print *, "here"
 
-      numit = 50
+      numit = 100
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
       eps_gmres = 1.0d-6
@@ -492,7 +510,7 @@ c
      3  niter,errs,rres,soln)
       
 
-cc      call prin2('projs=*',soln(6*npts+1),4)
+      call prin2('projs=*',soln(6*npts+1),4)
       bbpc(1:3) = 0
       bbpex(1:3) = 0
       call l3ddirectcdg(1,xyz_in,cf2,vf2,2,xyz_out,1,ptmp,bbpex,thresh)

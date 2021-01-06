@@ -207,6 +207,7 @@
       call prinf('npts_over=*',npts_over,1)
       call prin2('eps=*',eps,1)
 
+
       
 
       iquadtype = 1
@@ -220,7 +221,7 @@
 
      
       call prin2('starting FAST iterative solve*',i,0)
-      numit = 50
+      numit = 100
       allocate(errs(numit+1))
      
       Wg = 0 
@@ -257,6 +258,10 @@
       ysize = ymax-ymin
       zsize = zmax-zmin
 
+      bsize = xsize
+      if(ysize.gt.bsize) bsize = ysize
+      if(zsize.gt.bsize) bsize = zsize
+
       do i=1,4
         do j=1,3
           rpars(i,j) = hkrand(0) - 0.5d0
@@ -270,17 +275,23 @@
       dvec(2) = -0.3d0
       dvec(3) = 0.7d0
       do i=1,npts
-!!        xx = (srcvals(1,i) - xc)/xsize
-!!        yy = (srcvals(2,i) - yc)/ysize
-!!        zz = (srcvals(3,i) - zc)/zsize
-!!        do j=1,3
-!!          V(j,i) = rpars(1,j) + (rpars(2,j)*xx + rpars(3,j)*yy+ &
-!!           rpars(4,j)*zz)**3/2
-!!        enddo
-        vtmp1(1:3) = srcvals(1:3,i) - xyz0(1:3)  
-        call cross_prod3d(dvec,vtmp1,vtmp2)
-        rr = sqrt(vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)
-        V(1:3,i) = vtmp2/rr**3
+        xx = (srcvals(1,i) - xc)/xsize
+        yy = (srcvals(2,i) - yc)/ysize
+        zz = (srcvals(3,i) - zc)/zsize
+        do j=1,3
+          V(j,i) = rpars(1,j) + (rpars(2,j)*xx**2 + rpars(3,j)*yy*(1-yy) + &
+           rpars(4,j)*zz)**2/2
+        enddo
+        V(1:3,i) = srcvals(1:3,i)
+        rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
+        V(1:3,i) = 0
+        V(1,i) = -srcvals(2,i)/rr1
+        V(2,i) = srcvals(1,i)/rr1
+        V(3,i) = 0
+!!        vtmp1(1:3) = srcvals(1:3,i) - xyz0(1:3)  
+!!        call cross_prod3d(dvec,vtmp1,vtmp2)
+!!        rr = sqrt(vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)
+!!        V(1:3,i) = vtmp2/rr**3
       enddo
 
       do i=1,npts
@@ -443,6 +454,7 @@
       call prin2('rrhs1=*',rrhs1,24)
 
       erra = 0
+      rsurf = 0
       do i=1,npts
         erra=  erra + ((rrhs1(i))**2)*wts(i)
       enddo
