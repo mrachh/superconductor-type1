@@ -65,8 +65,8 @@
 
       igeomtype = 2 
       if(igeomtype.eq.4) then
-        ipars(1) = 4*1
-        ipars(2) = 2*1
+        ipars(1) = 4*8
+        ipars(2) = 2*8
         npatches = 2*ipars(1)*ipars(2)
         fname = 'torus.vtk'
 
@@ -87,8 +87,8 @@
       endif
 
       if(igeomtype.eq.2) then
-        ipars(1) = 10
-        ipars(2) = 30
+        ipars(1) = 20
+        ipars(2) = 60
         npatches = 2*ipars(1)*ipars(2)
         
         fname = 'stellarator.vtk'
@@ -166,19 +166,19 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
       if(igeomtype.eq.2) then
-        write(fname,'(a,i2,a,i2,a,i1,a)') 'stell_hvecs_',ipars(1),
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_hvecs_',ipars(1),
      1    '_',ipars(2),'_',norder,'_1.dat'
         open(unit=78,file=trim(fname))
-        write(fname,'(a,i2,a,i2,a,i1,a)') 'stell_hvecs_',ipars(1),
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_hvecs_',ipars(1),
      1     '_',ipars(2),'_',norder,'_2.dat'
         print *, fname 
         open(unit=79,file=trim(fname))
       endif
       if(igeomtype.eq.4) then
-        write(fname,'(a,i2,a,i2,a,i1,a)') 'torus_hvecs_',ipars(1),
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus_hvecs_',ipars(1),
      1     '_',ipars(2),'_',norder,'_1.dat'
         open(unit=78,file=trim(fname))
-        write(fname,'(a,i2,a,i2,a,i1,a)') 'torus_hvecs_',ipars(1),
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus_hvecs_',ipars(1),
      1     '_',ipars(2),'_',norder,'_2.dat'
         open(unit=79,file=trim(fname))
       endif
@@ -231,7 +231,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
         enddo
       endif
 
-      if(igeomtype.eq.2.or.igeomtype.eq.4) then
+      if(igeomtype.eq.2) then
 
         ifread = 1
         ifwrite = 0
@@ -346,7 +346,7 @@ C$OMP END PARALLEL DO
 
 
 
-      eps = 0.51d-5
+      eps = 0.51d-8
 
       allocate(ipatch_id(npts),uvs_targ(2,npts))
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
@@ -436,7 +436,7 @@ C$OMP END PARALLEL DO
       call prin2('eps=*',eps,1)
 
       iquadtype = 1
-      rbeta = 0.0d0
+      rbeta = 1.1d0
       rgamma = 1.0d0
       dpars(1) = dzk
       dpars(2) = rbeta
@@ -500,20 +500,29 @@ c
      1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       print *, "here"
 
-      numit = 100
+      numit = 150
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
-      eps_gmres = 1.0d-6
+      eps_gmres = 1.0d-8
       call statj_gendeb_solver(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,eps,dpars,ngenus,hvecs,bbphvecs,na,apatches,
      2  auv,avals,awts,nb,bpatches,buv,bvals,bwts,numit,rhs,eps_gmres,
      3  niter,errs,rres,soln)
       
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_soln3_',ipars(1),
+     1    '_',ipars(2),'_',norder,'_1.dat'
+      open(unit=80,file=fname)
+      do i=1,6*npts+4*ngenus
+        write(80,*) soln(i)
+      enddo
+      close(80)
 
       call prin2('projs=*',soln(6*npts+1),4)
       bbpc(1:3) = 0
       bbpex(1:3) = 0
+      ptmp = 0
       call l3ddirectcdg(1,xyz_in,cf2,vf2,2,xyz_out,1,ptmp,bbpex,thresh)
+      ra = 0
 
       do i=1,npts
         dx = xyz_out(1) - srcvals(1,i)
@@ -540,6 +549,7 @@ c
         enddo
         ra = ra + wts(i)
       enddo
+
       bbpc(1:3) = bbpc(1:3)/4/pi
       print *, "ra=",ra
 
@@ -561,6 +571,7 @@ c
       call prin2('soln=*',soln,24)
       call prinf('ngenus=*',ngenus,1)
       call prin2('dpars=*',dpars,3)
+
 
       call lpcomp_statj_gendeb_postproc(npatches,norders,ixyzs,
      1  iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,

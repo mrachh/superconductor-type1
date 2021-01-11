@@ -1462,7 +1462,7 @@
       nd = 1
       deallocate(sigmaover,pot_aux,grad_aux,abc0)
       allocate(sigmaover(nd,ns),pot_aux(nd,npts),grad_aux(nd,3,npts))
-      allocate(abc0(nd,ns))
+      allocate(abc0(nd,npts))
 
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
