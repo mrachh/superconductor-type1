@@ -23,7 +23,7 @@
       real *8, allocatable :: auv(:,:),buv(:,:)
       real *8, allocatable :: hvecs(:,:,:),bbphvecs(:,:,:)
       real *8, allocatable :: rhstmp(:),outtmp(:)
-      real *8, allocatable :: hvecs_div(:,:)
+      real *8, allocatable :: hvecs_div(:,:),hvecs_div2(:)
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
@@ -63,10 +63,12 @@
 
 
 
-      igeomtype = 2 
+      ibg = 3
+
+      igeomtype = 2
       if(igeomtype.eq.4) then
-        ipars(1) = 4*8
-        ipars(2) = 2*8
+        ipars(1) = 4*4
+        ipars(2) = 2*4
         npatches = 2*ipars(1)*ipars(2)
         fname = 'torus.vtk'
 
@@ -217,6 +219,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       endif
 
       allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
+      allocate(hvecs_div2(npts))
       allocate(rhstmp(npts*3),outtmp(npts*3))
       bbphvecs = 0
 
@@ -229,6 +232,14 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
           call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
      1       hvecs(1:3,i,2))
         enddo
+        call surf_div(npatches,norders,ixyzs,iptype,npts, 
+     1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
+        errest = 0
+        do i=1,npts
+          errest = errest + hvecs_div2(i)**2*wts(i)
+        enddo
+        errest = sqrt(errest)
+        call prin2('errest=*',errest,1)
       endif
 
       if(igeomtype.eq.2) then
@@ -250,6 +261,14 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
           enddo
           close(78)
           close(79)
+          call surf_div(npatches,norders,ixyzs,iptype,npts, 
+     1     srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
+          errest = 0
+          do i=1,npts
+            errest = errest + hvecs_div2(i)**2*wts(i)
+          enddo
+          errest = sqrt(errest)
+          call prin2('errest=*',errest,1)
         endif
         if(ifwrite.eq.1) then
           do i=1,npts
@@ -265,11 +284,7 @@ c
 c   compute the boundary data, for now assume that only external
 c   B field is applied and that the interior fields are 0 
 c
-      vf2(1,1) = hkrand(0)
-      vf2(2,1) = hkrand(0)
-      vf2(3,1) = hkrand(0)
-
-      vf2(1:3,1) = vf2(1:3,1)*1.0d0*0 
+      vf2(1:3,1) = vf2(1:3,1)*1.0d0*1 
       vf2(1:3,2) = 0
       cf2(1) = 1*1
       cf2(2) = -1*0 
@@ -436,8 +451,27 @@ C$OMP END PARALLEL DO
       call prin2('eps=*',eps,1)
 
       iquadtype = 1
-      rbeta = 1.1d0
-      rgamma = 1.0d0
+
+      if(ibg.eq.1) then
+        rbeta = 0.0d0
+        rgamma = 0.0d0
+      endif
+
+      if(ibg.eq.2) then
+        rbeta = 1.0d0
+        rgamma = 0.0d0
+      endif
+
+      if(ibg.eq.3) then
+        rbeta = 0.0d0
+        rgamma = 1.0d0
+      endif
+
+      if(ibg.eq.4) then
+        rbeta = 1.0d0
+        rgamma = 1.0d0
+      endif
+
       dpars(1) = dzk
       dpars(2) = rbeta
       dpars(3) = rgamma
@@ -487,17 +521,17 @@ c
           bbphvecs(1:3,j,igen) = bbphvecs(1:3,j,igen) - vtmp1(1:3)/2
         enddo
       enddo
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bbphvecs(1,1,1),'bbp-hvec1-reft.vtk','a')
-
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,bbphvecs(1,1,2),'bbp-hvec2-reft.vtk','a')
-
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,hvecs(1,1,1),'hvec1.vtk-reft','a')
-
-      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
+cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+cc     1  srccoefs,srcvals,bbphvecs(1,1,1),'bbp-hvec1-reft.vtk','a')
+cc
+cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+cc     1  srccoefs,srcvals,bbphvecs(1,1,2),'bbp-hvec2-reft.vtk','a')
+cc
+cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+cc     1  srccoefs,srcvals,hvecs(1,1,1),'hvec1.vtk-reft','a')
+cc
+cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+cc     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       print *, "here"
 
       numit = 150
@@ -509,14 +543,6 @@ c
      2  auv,avals,awts,nb,bpatches,buv,bvals,bwts,numit,rhs,eps_gmres,
      3  niter,errs,rres,soln)
       
-      write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_soln3_',ipars(1),
-     1    '_',ipars(2),'_',norder,'_1.dat'
-      open(unit=80,file=fname)
-      do i=1,6*npts+4*ngenus
-        write(80,*) soln(i)
-      enddo
-      close(80)
-
       call prin2('projs=*',soln(6*npts+1),4)
       bbpc(1:3) = 0
       bbpex(1:3) = 0
@@ -561,6 +587,7 @@ c
       print *, bbpex(1)/bbpc(1)
       print *, bbpex(2)/bbpc(2)
       print *, bbpex(3)/bbpc(3)
+      errpt = erra/ra
       call prin2('relativd error in exterior b field=*',erra/ra,1)
 
 
@@ -601,6 +628,46 @@ c
       call prin2('error in current=*',errj,1)
       call prin2('error in interior magnetic field=*',errbm,1)
       call prin2('error in exterior magnetic field=*',errbp,1)
+
+      if(igeomtype.eq.2) then
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'stell_soln_',ipars(1),
+     1    '_',ipars(2),'_',norder,'_',ibg,'.dat'
+      endif
+      if(igeomtype.eq.4) then
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'torus_soln_',ipars(1),
+     1    '_',ipars(2),'_',norder,'_',ibg,'.dat'
+      endif
+
+      open(unit=80,file=fname)
+      write(80,*) niter
+      write(80,*) rres
+ 1230 format(5(2x,e11.5))     
+      write(80,1230) errest,errpt,errj,errbm,errbp
+      do i=1,6*npts+4*ngenus
+        write(80,*) soln(i)
+      enddo
+
+ 1233 format(6(2x,e22.16))
+      do i=1,npts
+        write(80,1233) bjmcomp(1,i),bjmcomp(2,i),bjmcomp(3,i),bjm(1,i),
+     1    bjm(2,i),bjm(3,i)
+      enddo
+
+      do i=1,npts
+        write(80,1233) bbmcomp(1,i),bbmcomp(2,i),bbmcomp(3,i),bbm(1,i),
+     1    bbm(2,i),bbm(3,i)
+      enddo
+
+      do i=1,npts
+        write(80,1233) bbpcomp(1,i),bbpcomp(2,i),bbpcomp(3,i),bbp(1,i),
+     1    bbp(2,i),bbp(3,i)
+      enddo
+
+      do i=1,niter
+        write(80,*) errs(i)
+      enddo
+      close(80)
+
       stop
 
       
