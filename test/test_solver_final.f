@@ -65,7 +65,7 @@
 
       ibg = 3
 
-      igeomtype = 2
+      igeomtype = 3
       if(igeomtype.eq.4) then
         ipars(1) = 4*4
         ipars(2) = 2*4
@@ -111,6 +111,29 @@
 
       endif
 
+      if(igeomtype.eq.3) then
+        ipars(1) = 4*4
+        ipars(2) = 4*2
+        npatches = 2*ipars(1)*ipars(2)
+        
+        fname = 'wtorus.vtk'
+
+        xyz_in(1,1) = -2.001d0
+        xyz_in(2,1) = 0.002d0
+        xyz_in(3,1) = 0.001d0
+
+        xyz_in(1,2) = -2.003d0
+        xyz_in(2,2) = -0.01d0
+        xyz_in(3,2) = 0.001d0
+
+        xyz_out(1) = -3.5d0
+        xyz_out(2) = 10.1d0
+        xyz_out(3) = 5.7d0
+
+        ngenus = 1
+
+      endif
+
       if(igeomtype.eq.1) then
         ipars(1) = 1
         npatches = 12*(4**(ipars(1)))
@@ -133,7 +156,7 @@
 
 
 
-      norder = 8 
+      norder = 5 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -167,6 +190,9 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       call test_exterior_pt(npatches,norders,npts,
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
+
+
+      stop
       if(igeomtype.eq.2) then
         write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_hvecs_',ipars(1),
      1    '_',ipars(2),'_',norder,'_1.dat'
@@ -185,9 +211,18 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
         open(unit=79,file=trim(fname))
       endif
 
+      if(igeomtype.eq.3) then
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'wtorus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'wtorus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        open(unit=79,file=trim(fname))
+      endif
 
 
-      if(igeomtype.eq.4.or.igeomtype.eq.2) then
+
+      if(igeomtype.ge.2) then
         m = 40
         na = ipars(2)*m
         nb = ipars(1)*m
@@ -242,10 +277,10 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
         call prin2('errest=*',errest,1)
       endif
 
-      if(igeomtype.eq.2) then
+      if(igeomtype.eq.2.or.igeomtype.eq.3) then
 
-        ifread = 1
-        ifwrite = 0
+        ifread = 0
+        ifwrite = 1
         if(ifread.eq.0) then
           eps = 1.0d-7
           call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
@@ -278,6 +313,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
           close(78)
           close(79)
         endif
+        stop
       endif
 c
 c
@@ -521,17 +557,6 @@ c
           bbphvecs(1:3,j,igen) = bbphvecs(1:3,j,igen) - vtmp1(1:3)/2
         enddo
       enddo
-cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-cc     1  srccoefs,srcvals,bbphvecs(1,1,1),'bbp-hvec1-reft.vtk','a')
-cc
-cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-cc     1  srccoefs,srcvals,bbphvecs(1,1,2),'bbp-hvec2-reft.vtk','a')
-cc
-cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-cc     1  srccoefs,srcvals,hvecs(1,1,1),'hvec1.vtk-reft','a')
-cc
-cc      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
-cc     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       print *, "here"
 
       numit = 150
@@ -636,6 +661,11 @@ cc     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       if(igeomtype.eq.4) then
       write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'torus_soln_',ipars(1),
      1    '_',ipars(2),'_',norder,'_',ibg,'.dat'
+      endif
+
+      if(igeomtype.eq.3) then
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'wtorus_soln_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
       endif
 
       open(unit=80,file=fname)
@@ -879,14 +909,14 @@ c
         p1(2) = 2
         p1(3) = 0.25d0
 
-        p2(1) = 1.2d0
+        p2(1) = 1.0d0
         p2(2) = 1.0d0
-        p2(3) = 1.7d0
+        p2(3) = 1.0d0
 
 c
 c         numberof oscillations
 c
-        p4(1) = 5.0d0
+        p4(1) = 3.0d0
 
 
         ptr1 => triaskel(1,1,1)
