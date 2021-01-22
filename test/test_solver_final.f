@@ -65,10 +65,32 @@
 
       ibg = 3
 
-      igeomtype = 3
+      igeomtype = 5
+      if(igeomtype.eq.5) then
+        ipars(1) = 20
+        ipars(2) = 60
+        npatches = 2*ipars(1)*ipars(2)
+        fname = 'torus2.vtk'
+
+        xyz_in(1,1) = 2.001d0
+        xyz_in(2,1) = 0.002d0
+        xyz_in(3,1) = 0.001d0
+
+        xyz_in(1,2) = 2.003d0
+        xyz_in(2,2) = -0.01d0
+        xyz_in(3,2) = 0.001d0
+
+        xyz_out(1) = -3.5d0
+        xyz_out(2) = 7.1d0
+        xyz_out(3) = 5.7d0
+
+        ngenus = 1
+
+      endif
+
       if(igeomtype.eq.4) then
-        ipars(1) = 4*4
-        ipars(2) = 2*4
+        ipars(1) = 4*8
+        ipars(2) = 2*8
         npatches = 2*ipars(1)*ipars(2)
         fname = 'torus.vtk'
 
@@ -112,8 +134,8 @@
       endif
 
       if(igeomtype.eq.3) then
-        ipars(1) = 4*4
-        ipars(2) = 4*2
+        ipars(1) = 4*8
+        ipars(2) = 4*4
         npatches = 2*ipars(1)*ipars(2)
         
         fname = 'wtorus.vtk'
@@ -156,7 +178,7 @@
 
 
 
-      norder = 5 
+      norder = 8 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -192,7 +214,6 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       print *, "isout=",isout1
 
 
-      stop
       if(igeomtype.eq.2) then
         write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_hvecs_',ipars(1),
      1    '_',ipars(2),'_',norder,'_1.dat'
@@ -210,6 +231,16 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1     '_',ipars(2),'_',norder,'_2.dat'
         open(unit=79,file=trim(fname))
       endif
+
+      if(igeomtype.eq.5) then
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus2_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus2_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        open(unit=79,file=trim(fname))
+      endif
+
 
       if(igeomtype.eq.3) then
         write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'wtorus_hvecs_',ipars(1),
@@ -258,7 +289,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       allocate(rhstmp(npts*3),outtmp(npts*3))
       bbphvecs = 0
 
-      if(igeomtype.eq.4) then
+      if(igeomtype.eq.4.or.igeomtype.eq.5) then
         do i=1,npts
           rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
           hvecs(1,i,1) = -srcvals(2,i)/rr1
@@ -279,8 +310,8 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
 
       if(igeomtype.eq.2.or.igeomtype.eq.3) then
 
-        ifread = 0
-        ifwrite = 1
+        ifread = 1
+        ifwrite = 0
         if(ifread.eq.0) then
           eps = 1.0d-7
           call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
@@ -313,7 +344,6 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
           close(78)
           close(79)
         endif
-        stop
       endif
 c
 c
@@ -667,6 +697,11 @@ c
       write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'wtorus_soln_',
      1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
       endif
+      if(igeomtype.eq.5) then
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'torus2_soln_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      endif
+
 
       open(unit=80,file=fname)
       write(80,*) niter
@@ -977,6 +1012,55 @@ c
         call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
      1     npols,uvs,umatr,srcvals,srccoefs)
       endif
+
+      if(igeomtype.eq.5) then
+        done = 1
+        pi = atan(done)*4
+        umin = 0
+        umax = 2*pi
+        vmin = 2*pi
+        vmax = 0
+        allocate(triaskel(3,3,npatches))
+        nover = 0
+        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
+     1     nover,npatches,npatches,triaskel)
+
+        mmax = 2
+        nmax = 1
+        xtri_geometry => xtri_stell_eval
+
+        allocate(deltas(-1:mmax,-1:nmax))
+        deltas(-1,-1) = 0.17d0*0
+        deltas(0,-1) = 0
+        deltas(1,-1) = 0
+        deltas(2,-1) = 0
+
+        deltas(-1,0) = 0.11d0*0
+        deltas(0,0) = 1*0
+        deltas(1,0) = 2.0d0
+        deltas(2,0) = -0.25d0*0
+
+        deltas(-1,1) = 0
+        deltas(0,1) = 1.0d0
+        deltas(1,1) = 0
+        deltas(2,1) = -0.45d0*0
+
+
+        ptr1 => triaskel(1,1,1)
+        ptr2 => deltas(-1,-1)
+        iptr3 => mmax
+        iptr4 => nmax
+
+        if(ifplot.eq.1) then
+           call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
+     1         iptr3,iptr4, norder,
+     2         'Triangulated surface of the stellarator')
+        endif
+
+        call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,iptr3,iptr4,
+     1     npols,uvs,umatr,srcvals,srccoefs)
+      endif
+      
       
       return  
       end
