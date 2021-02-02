@@ -47,7 +47,7 @@ SRC=../src
 
 .PHONY: all clean 
 
-OBJECTS =  test_solver_final.o \
+OBJECTS =  test_solver_final_paper.o \
     $(SRC)/staticj_gendeb_final1.o $(SRC)/surf_routs.o \
     $(SRC)/get_harm_vec_fields.o $(SRC)/lapbel_kernels.o \
     $(SRC)/lapbel2fast.o

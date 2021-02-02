@@ -885,6 +885,8 @@
       allocate(hvec_bbp_use(3,npts))
 
       hvec_bbp_use = 0
+      hvecs_a = 0
+      hvecs_b = 0
       do i=1,npts
         do igen=1,2*ngenus
           hvec_bbp_use(1:3,i) = hvec_bbp_use(1:3,i) + &
@@ -917,6 +919,8 @@
           pot(6*npts+(igen-1)*4 + 3) =  pot(6*npts+(igen-1)*4 + 3) + &
             (vtmp1(1)*avals(4,j,igen) + vtmp1(2)*avals(5,j,igen) + &
             vtmp1(3)*avals(6,j,igen))*awts(j,igen)
+           if(j.lt.10) call prin2('avals vtmp1=*',vtmp1,3)
+           if(j.lt.10) call prin2('pot=*',pot(6*npts+3),1)
         enddo
 
         do j=1,nb
@@ -929,6 +933,8 @@
           pot(6*npts+(igen-1)*4 + 4) =  pot(6*npts+(igen-1)*4 + 4) + &
             (vtmp1(1)*bvals(4,j,igen) + vtmp1(2)*bvals(5,j,igen) + &
             vtmp1(3)*bvals(6,j,igen))*bwts(j,igen)
+           if(j.lt.10) call prin2('bvals vtmp1=*',vtmp1,3)
+           if(j.lt.10) call prin2('pot=*',pot(6*npts+4),1)
         enddo
       enddo
 
@@ -2546,7 +2552,7 @@
       allocate(abc0(npts))
       abc0 = 0
 
-      if(1.eq.0) then
+      if(1.eq.1) then
       
       call lpcomp_divs0tan_addsub(npatches,norders,ixyzs,&
           iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
@@ -2611,7 +2617,6 @@
         w1 = 0
         call dot_prod3d(vtmp1,srcvals(10,i),w1)
         rhsuse(5*npts+i) = -w1*2
-        write(78,*) rhsuse(3*npts+i),rhsuse(4*npts+i),rhsuse(5*npts+i)
       enddo
 !!!$OMP END PARALLEL DO     
 !!      call prin2('rhsuse=*',rhsuse(3*npts+1),24)
@@ -2630,25 +2635,7 @@
       do i=1,4*ngenus
          rhsuse(6*npts+i) = rhs(6*npts+i)
       enddo
-
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, &
-        srccoefs,srcvals,rhsuse(3*npts+1),'rhsuse1-torus.vtk','a')
-
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, &
-        srccoefs,srcvals,rhsuse(4*npts+1),'rhsuse2-torus.vtk','a')
-
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, &
-        srccoefs,srcvals,rhsuse(5*npts+1),'rhsuse3-torus.vtk','a')
-
-
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, &
-        srccoefs,srcvals,rhs(1),'rhs1-torus.vtk','a')
-
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, &
-        srccoefs,srcvals,rhs(1*npts+1),'rhs2-torus.vtk','a')
-
-      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, &
-        srccoefs,srcvals,rhs(2*npts+1),'rhs3-torus.vtk','a')
+      if(ngenus.ge.1)  call prin2('rhsuse=*',rhsuse(6*npts+1),4)
 
 
 !
