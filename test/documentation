@@ -24,3 +24,15 @@ test_ab_cycle.f - test generation of ab cycles and the computation
    of harmonic vector fields on a standard 2 torus
 
 
+
+------
+stell4_* - integrals over a,b cycles computed to discretization error,
+   charge + dipole boundary condition
+stell5_* - integrals over a,b cycles set to 0 whenever possible,
+   charge + dipole boundary condition
+stell6_* - integrals over a,b cycles set to 0 whenever possible,
+   charge boundary condition
+stell7_* - integrals over a,b cycles set to 0 whenever possible,
+   charge boundary condition and initial div S_{0} tan computed in 
+   with composition of tan, div, S_{0} rather than tan, S_{0}, div
+

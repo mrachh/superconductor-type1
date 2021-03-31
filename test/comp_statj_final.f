@@ -23,7 +23,7 @@
       real *8, allocatable :: auv(:,:),buv(:,:)
       real *8, allocatable :: hvecs(:,:,:),bbphvecs(:,:,:)
       real *8, allocatable :: rhstmp(:),outtmp(:)
-      real *8, allocatable :: hvecs_div(:,:)
+      real *8, allocatable :: hvecs_div(:,:),hvecs_div2(:)
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
@@ -63,10 +63,11 @@
 
 
 
+      ibg = 3
       igeomtype = 2 
       if(igeomtype.eq.4) then
-        ipars(1) = 4*8
-        ipars(2) = 2*8
+        ipars(1) = 4*4
+        ipars(2) = 2*4
         npatches = 2*ipars(1)*ipars(2)
         fname = 'torus.vtk'
 
@@ -87,8 +88,8 @@
 
 
       if(igeomtype.eq.2) then
-        ipars(1) = 30
-        ipars(2) = 30
+        ipars(1) = 20
+        ipars(2) = 60
         npatches = 2*ipars(1)*ipars(2)
         
         fname = 'stellarator.vtk'
@@ -131,7 +132,7 @@
 
 
 
-      norder = 5 
+      norder = 8 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -163,7 +164,46 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1  srcvals,srccoefs,wts,xyz_out,isout1)
       print *, "isout=",isout1
 
-      if(igeomtype.eq.4.or.igeomtype.eq.2) then
+      if(igeomtype.eq.2) then
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_hvecs_',ipars(1),
+     1    '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'stell_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        print *, fname 
+        open(unit=79,file=trim(fname))
+      endif
+      if(igeomtype.eq.4) then
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        open(unit=79,file=trim(fname))
+      endif
+
+      if(igeomtype.eq.5) then
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus2_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'torus2_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        open(unit=79,file=trim(fname))
+      endif
+
+
+      if(igeomtype.eq.3) then
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'wtorus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_1.dat'
+        open(unit=78,file=trim(fname))
+        write(fname,'(a,i2.2,a,i2.2,a,i1,a)') 'wtorus_hvecs_',ipars(1),
+     1     '_',ipars(2),'_',norder,'_2.dat'
+        open(unit=79,file=trim(fname))
+      endif
+
+
+
+      if(igeomtype.ge.2) then
         m = 40
         na = ipars(2)*m
         nb = ipars(1)*m
@@ -195,11 +235,11 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       endif
 
       allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
+      allocate(hvecs_div2(npts))
       allocate(rhstmp(npts*3),outtmp(npts*3))
       bbphvecs = 0
 
-
-      if(igeomtype.eq.4) then
+      if(igeomtype.eq.4.or.igeomtype.eq.5) then
         do i=1,npts
           rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
           hvecs(1,i,1) = -srcvals(2,i)/rr1
@@ -208,9 +248,17 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
           call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
      1       hvecs(1:3,i,2))
         enddo
+        call surf_div(npatches,norders,ixyzs,iptype,npts, 
+     1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
+        errest = 0
+        do i=1,npts
+          errest = errest + hvecs_div2(i)**2*wts(i)
+        enddo
+        errest = sqrt(errest)
+        call prin2('errest=*',errest,1)
       endif
 
-      if(igeomtype.eq.2) then
+      if(igeomtype.eq.2.or.igeomtype.eq.3) then
 
         ifread = 1
         ifwrite = 0
@@ -223,16 +271,21 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
             call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
           enddo
         else
-          fname = 'stell_hvecs_3030_05_1.dat'
-          open(unit=78,file=fname)
-          fname = 'stell_hvecs_3030_05_2.dat'
-          open(unit=79,file=fname)
           do i=1,npts
             read(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
             read(79,*) hvecs(1,i,2),hvecs(2,i,2),hvecs(3,i,2)
           enddo
+          close(78)
+          close(79)
+          call surf_div(npatches,norders,ixyzs,iptype,npts, 
+     1     srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
+          errest = 0
+          do i=1,npts
+            errest = errest + hvecs_div2(i)**2*wts(i)
+          enddo
+          errest = sqrt(errest)
+          call prin2('errest=*',errest,1)
         endif
-
         if(ifwrite.eq.1) then
           do i=1,npts
             write(78,*) hvecs(1,i,1),hvecs(2,i,1),hvecs(3,i,1)
@@ -242,6 +295,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
           close(79)
         endif
       endif
+
 c
 c
 c   compute the boundary data, for now assume that only external
@@ -288,19 +342,26 @@ C$OMP END PARALLEL DO
 cc      call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype,npts, 
 cc     1   srccoefs,srcvals,rhs(2*npts+1),'rhs3-torus.vtk','a')
 
-      if(igeomtype.eq.4.or.igeomtype.eq.2) then
+      if(igeomtype.eq.4) then
 
         allocate(bbp_a(3,na),bbp_b(3,nb))
         rhs(6*npts+1) = 1 
         rhs(6*npts+3) = 1
-        call prin2('proj3=*',rhs(6*npts+3),1)
-        call prin2('proj4=*',rhs(6*npts+4),1)
+      endif
+c
+c  The a and b cycles for the stellarator discretization are
+c  flipped
+c
+      if(igeomtype.eq.2.or.igeomtype.eq.5) then
+        allocate(bbp_a(3,na),bbp_b(3,nb))
+        rhs(6*npts+2) = 1
+        rhs(6*npts+4) = 1
       endif
 
 
 
 
-      eps = 0.51d-5
+      eps = 0.51d-7
 
       allocate(ipatch_id(npts),uvs_targ(2,npts))
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
@@ -390,8 +451,28 @@ C$OMP END PARALLEL DO
       call prin2('eps=*',eps,1)
 
       iquadtype = 1
-      rbeta = 1.1d0
-      rgamma = 1.0d0
+
+
+      if(ibg.eq.1) then
+        rbeta = 0.0d0
+        rgamma = 0.0d0
+      endif
+
+      if(ibg.eq.2) then
+        rbeta = 1.0d0
+        rgamma = 0.0d0
+      endif
+
+      if(ibg.eq.3) then
+        rbeta = 0.0d0
+        rgamma = 1.0d0
+      endif
+
+      if(ibg.eq.4) then
+        rbeta = 1.0d0
+        rgamma = 1.0d0
+      endif
+
       dpars(1) = dzk
       dpars(2) = rbeta
       dpars(3) = rgamma
@@ -457,7 +538,7 @@ c     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
       numit = 100
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
-      eps_gmres = 1.0d-6
+      eps_gmres = 1.0d-8
       call statj_gendeb_solver(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,eps,dpars,ngenus,hvecs,bbphvecs,na,apatches,
      2  auv,avals,awts,nb,bpatches,buv,bvals,bwts,numit,rhs,eps_gmres,
@@ -477,17 +558,75 @@ c     1  srccoefs,srcvals,hvecs(1,1,2),'hvec2.vtk-reft','a')
      1  iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
      2  iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
      3  ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
-     
+
       if(igeomtype.eq.2) then
-        fname1 = 'bjm-stell1.vtk'
-        fname2 = 'bbm-stell1.vtk'
-        fname3 = 'bbp-stell1.vtk'
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_stell_soln_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname1,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_stell_bjm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname2,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_stell_bbm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname3,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_stell_bbp_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
       endif
       if(igeomtype.eq.4) then
-        fname1 = 'bjm-torus1.vtk'
-        fname2 = 'bbm-torus1.vtk'
-        fname3 = 'bbp-torus1.vtk'
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus_soln_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname1,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus_bjm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname2,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus_bbm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname3,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus_bbp_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
       endif
+
+      if(igeomtype.eq.3) then
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_wtorus_soln_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname1,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_wtorus_bjm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname2,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_wtorus_bbm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname3,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_wtorus_bbp_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      endif
+      if(igeomtype.eq.5) then
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus2_soln_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname1,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus2_bjm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname2,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus2_bbm_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      write(fname3,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'statj_torus2_bbp_',
+     1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
+      endif
+
+
+      open(unit=80,file=fname)
+      write(80,*) niter
+      write(80,*) rres
+      do i=1,6*npts+4*ngenus
+        write(80,*) soln(i)
+      enddo
+
+ 1233 format(3(2x,e22.16))
+      do i=1,npts
+        write(80,1233) bjmcomp(1,i),bjmcomp(2,i),bjmcomp(3,i)
+      enddo
+
+      do i=1,npts
+        write(80,1233) bbmcomp(1,i),bbmcomp(2,i),bbmcomp(3,i)
+      enddo
+
+      do i=1,npts
+        write(80,1233) bbpcomp(1,i),bbpcomp(2,i),bbpcomp(3,i)
+      enddo
+
+      do i=1,niter
+        write(80,*) errs(i)
+      enddo
+      close(80)
+     
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,bjmcomp,trim(fname1),'a')
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,

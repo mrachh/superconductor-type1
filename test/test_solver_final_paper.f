@@ -118,8 +118,8 @@ c
       endif
 
       if(igeomtype.eq.3) then
-        ipars(1) = 2*8
-        ipars(2) = 2*4
+        ipars(1) = 8*8
+        ipars(2) = 8*4
         npatches = 2*ipars(1)*ipars(2)
         
         fname = 'wtorus.vtk'
@@ -332,8 +332,8 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
 
       if(igeomtype.eq.2.or.igeomtype.eq.3) then
 
-        ifread = 1
-        ifwrite = 0
+        ifread = 0
+        ifwrite = 1
         if(ifread.eq.0) then
           eps = 1.0d-7
           call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
@@ -383,7 +383,7 @@ c
       zf2(3) = cos(thet3)
 
       ra = sqrt(abs(zf2(1))**2 + abs(zf2(2))**2 + abs(zf2(3))**2)
-      zf2(1:3) = zf2(1:3)/ra*0
+      zf2(1:3) = zf2(1:3)/ra
       rzf2(1:3) = real(zf2(1:3))
 
 

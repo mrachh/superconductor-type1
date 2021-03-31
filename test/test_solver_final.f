@@ -65,7 +65,7 @@
 
       ibg = 3
 
-      igeomtype = 3
+      igeomtype = 2
       if(igeomtype.eq.5) then
         ipars(1) = 20
         ipars(2) = 60
@@ -134,8 +134,8 @@
       endif
 
       if(igeomtype.eq.3) then
-        ipars(1) = 2*8
-        ipars(2) = 2*4
+        ipars(1) = 8*8
+        ipars(2) = 8*4
         npatches = 2*ipars(1)*ipars(2)
         
         fname = 'wtorus.vtk'
@@ -178,7 +178,7 @@
 
 
 
-      norder = 5 
+      norder = 8 
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -351,7 +351,7 @@ c
 c   compute the boundary data, for now assume that only external
 c   B field is applied and that the interior fields are 0 
 c
-      vf2(1:3,1) = vf2(1:3,1)*1.0d0*1 
+      vf2(1:3,1) = 1 
       vf2(1:3,2) = 0
       cf2(1) = 1*1
       cf2(2) = -1*0 
@@ -394,7 +394,8 @@ C$OMP END PARALLEL DO
         rhs(i+5*npts) = bjm(3,i)
       enddo
 
-      if(igeomtype.eq.4.or.igeomtype.eq.2) then
+      if(igeomtype.ge.2) then
+        print *, "Here"
 
         allocate(bbp_a(3,na),bbp_b(3,nb))
         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
@@ -417,8 +418,8 @@ C$OMP END PARALLEL DO
           rrb = rrb + 
      1      sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)*bwts(i)
         enddo
-        rhs(6*npts+3) = rhs(6*npts+3) 
-        rhs(6*npts+4) = rhs(6*npts+4)
+        rhs(6*npts+3) = rhs(6*npts+3)*0 
+        rhs(6*npts+4) = rhs(6*npts+4)*0
         call prin2('proj3=*',rhs(6*npts+3),1)
         call prin2('proj4=*',rhs(6*npts+4),1)
       endif
@@ -686,7 +687,7 @@ c
       call prin2('error in exterior magnetic field=*',errbp,1)
 
       if(igeomtype.eq.2) then
-      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'stell3_soln_',
+      write(fname,'(a,i2.2,a,i2.2,a,i1,a,i1,a)') 'stell8_soln_',
      1    ipars(1),'_',ipars(2),'_',norder,'_',ibg,'.dat'
       endif
       if(igeomtype.eq.4) then
