@@ -588,7 +588,8 @@ subroutine vtk_curv_plot(n,nda,avals,fname,title)
   write(iunit1,'(a,i9,i9)') "CELLS ", n, n*3
 
   do i=1,n
-    write(iunit1,'(a,i9,i9)') "2 ", i-1, i
+    if(i.ne.n)  write(iunit1,'(a,i9,i9)') "2 ", i-1, i
+    if(i.eq.n)  write(iunit1,'(a,i9,i9)') "2 ", i-1, 0
   enddo
 
   write(iunit1,'(a,i9)') "CELL_TYPES ", n
