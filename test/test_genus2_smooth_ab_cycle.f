@@ -26,6 +26,7 @@
       real *8, allocatable :: hinterp1bex(:,:),hinterp2bex(:,:)
       real *8, allocatable :: rrhs1(:),rrhs2(:)
       integer, allocatable :: apatches(:),bpatches(:)
+      integer, allocatable :: iaxyzs(:),ibxyzs(:)
       complex * 16 zpars(3)
       integer numit,niter
       character *100 title,dirname
@@ -49,118 +50,94 @@
       pi = atan(done)*4
 
 
-
-      igeomtype = 4
-      ipars(1) = 3*2
-      ipars(2) = 9*2
-      npatches = 2*ipars(1)*ipars(2)
-
-      if(igeomtype.eq.2) fname = 'stell.vtk'
-      if(igeomtype.eq.4) fname = 'torus.vtk'
-      if(igeomtype.eq.5) fname = 'torus2.vtk'
-
-      norder = 8 
+      norder = 2 
       npols = (norder+1)*(norder+2)/2
-
-      npts = npatches*npols
-      allocate(srcvals(12,npts),srccoefs(9,npts))
-      ifplot = 1
-
-      call setup_geom(igeomtype,norder,npatches,ipars, 
-     1       srcvals,srccoefs,ifplot,fname)
-
+      fname = '../../fmm3dbie/geometries/genus_2_o08_r03.go3'
+      call open_gov3_geometry_mem(fname,npatches,npts)
+      allocate(srcvals(12,npts),srccoefs(9,npts),wts(npts))
       allocate(norders(npatches),ixyzs(npatches+1),iptype(npatches))
+      call open_gov3_geometry(fname,npatches,norders,ixyzs,iptype,
+     1   npts,srcvals,srccoefs,wts)
 
-      do i=1,npatches
-        norders(i) = norder
-        ixyzs(i) = 1 +(i-1)*npols
-        iptype(i) = 1
-      enddo
+      call surf_vtk_plot(npatches,norders,ixyzs,iptype,npts,srccoefs,
+     1   srcvals,'genus2.vtk','a')
 
-      ixyzs(npatches+1) = 1+npols*npatches
-      if(igeomtype.eq.4) then
-        call surf_quadratic_msh_vtk_plot(npatches,norders,ixyzs,iptype,
-     1    npts,srccoefs,srcvals,'torus-msh.vtk','msh')
-      endif
+      fname = '2torus_acycle_ref3.dat'
+      open(unit=33,file=trim(fname))
+      read(33,*) ngenus
+      read(33,*) ne1
+      read(33,*) ne2
 
-      if(igeomtype.eq.2) then
-        call surf_quadratic_msh_vtk_plot(npatches,norders,ixyzs,iptype,
-     1    npts,srccoefs,srcvals,'stell-msh.vtk','msh')
-        call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype, 
-     1     npts,srccoefs,srcvals,srcvals(4,1:npts),'stellucomp.vtk','a')
-        call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype, 
-     1     npts,srccoefs,srcvals,srcvals(7,1:npts),'stellvcomp.vtk','a')
-      endif
-
-      if(igeomtype.eq.5) then
-        call surf_quadratic_msh_vtk_plot(npatches,norders,ixyzs,iptype,
-     1    npts,srccoefs,srcvals,'torus-msh.vtk','msh')
-        call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype, 
-     1   npts,srccoefs,srcvals,srcvals(4,1:npts),'torus2ucomp.vtk','a')
-        call surf_vtk_plot_scalar(npatches,norders,ixyzs,iptype, 
-     1   npts,srccoefs,srcvals,srcvals(7,1:npts),'torus2vcomp.vtk','a')
-      endif
-      allocate(wts(npts))
-      call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
+      m = 20
+      na = (ne1+ne2)*m
+      allocate(avals(9,na),awts(na),apatches(na),auv(2,na))
+      allocate(iaxyzs(3))
+      close(33)
+      call get_cycle_readfile(npatches,norders,ixyzs,iptype,npts,
+     1   srccoefs,srcvals,ngenus,m,na,fname,avals,awts,apatches,auv,
+     2   iaxyzs)
+      
+      na1 = iaxyzs(2)-iaxyzs(1)  
+      call vtk_curv_plot(na1,9,avals,'acycle1.vtk','a')
+      na2 = iaxyzs(3) - iaxyzs(2)
+      call vtk_curv_plot(na2,9,avals(1,iaxyzs(2)),'acycle2.vtk','a')
 
 
-      m = 16
-      na = ipars(2)*m
-      nb = ipars(1)*m
-      allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
-      allocate(bvals(9,nb),bwts(nb),buv(2,nb),bpatches(nb))
-      call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
-     1   npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,
-     2   nb,bvals,bwts,bpatches,buv)
+      fname = '2torus_bcycle_ref3.dat'
+      open(unit=33,file=trim(fname))
+      read(33,*) ngenus
+      read(33,*) ne1
+      read(33,*) ne2
 
-      call prin2('avals=*',avals,24)
-      call prin2('bvals=*',bvals,24)
+      m = 20
+      nb = (ne1+ne2)*m
+      allocate(bvals(9,nb),bwts(nb),bpatches(nb),buv(2,nb))
+      allocate(ibxyzs(3))
+      close(33)
+      call get_cycle_readfile(npatches,norders,ixyzs,iptype,npts,
+     1   srccoefs,srcvals,ngenus,m,nb,fname,bvals,bwts,bpatches,buv,
+     2   ibxyzs)
+      
+      nb1 = ibxyzs(2)-ibxyzs(1)  
+      call vtk_curv_plot(nb1,9,bvals,'bcycle1.vtk','a')
+      nb2 = ibxyzs(3) - ibxyzs(2)
+      call vtk_curv_plot(nb2,9,bvals(1,ibxyzs(2)),'bcycle2.vtk','a')
+      stop
 
-      call prin2('bvals=*',bvals(2:2,1:nb),nb)
-      call prin2('bvals=*',bvals(6:6,1:nb),nb)
-
-      call vtk_curv_plot(na,9,avals,'acycle.vtk','a')
-      call vtk_curv_plot(nb,9,bvals,'bcycle.vtk','b')
-      call prinf('na=*',na,1)
-      call prinf('nb=*',nb,1)
 
       rvecb = 0
       rscb = 0
 
       rveca = 0
-      rsca = 0
-      
-      do i=1,nb
-        rvecb = rvecb + (bvals(3,i)*bvals(4,i) + 
+      rsca = 0 
+
+      do igen=1,ngenus
+        rscb = 0
+        rvecb = 0
+        do i=ibxyzs(igen),ibxyzs(igen+1)-1
+          rvecb = rvecb + (bvals(3,i)*bvals(4,i) + 
      1        bvals(1,i)*bvals(5,i) + bvals(2,i)*bvals(6,i))*bwts(i)
-        ds = sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)
-        rscb = rscb + bwts(i)*ds
+          ds = sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)
+          rscb = rscb + bwts(i)*ds
+        enddo
+        print *, igen,rscb
+        print *, igen,rvecb
       enddo
-
-      do i=1,na
-        rveca = rveca + (avals(3,i)*avals(4,i) + 
+      
+      do igen=1,ngenus
+        rsca = 0
+        rveca = 0
+        do i=iaxyzs(igen),iaxyzs(igen+1)-1
+          rveca = rveca + (avals(3,i)*avals(4,i) + 
      1        avals(1,i)*avals(5,i) + avals(2,i)*avals(6,i))*awts(i)
-        ds = sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)
-        rsca = rsca + awts(i)*ds
+          ds = sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)
+          rsca = rsca + awts(i)*ds
+        enddo
+        print *, igen,rsca
+        print *, igen,rveca
       enddo
+      stop
 
-      call prin2('rveca=*',rveca,1)
-      call prin2('rsca=*',rsca,1)
-
-      call prin2('rvecb=*',rvecb,1)
-      call prin2('rscb=*',rscb,1)
-
-      
-      errbvec = abs(rvecb-pi*4.25d0*4.25d0)
-      errbsc = abs(rscb-2*pi*4.25d0)
-      
-      erravec = abs(rveca + pi)
-      errasc = abs(rsca - 2*pi)
-      
-      call prin2('erravec=*',erravec,1)
-      call prin2('errbvec=*',errbvec,1)
-      call prin2('errasc=*',errasc,1)
-      call prin2('errbsc=*',errbsc,1)
 
       allocate(hvec1(3,npts),hvec2(3,npts))
 
