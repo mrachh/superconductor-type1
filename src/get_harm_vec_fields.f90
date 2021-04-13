@@ -283,10 +283,10 @@
            rpars(4,j)*zz)**2/2
         enddo
         V(1:3,i) = srcvals(1:3,i)
-        rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
+        rr1 = (srcvals(2,i)-2)**2 + (srcvals(1,i)-2)**2
         V(1:3,i) = 0
-        V(1,i) = -srcvals(2,i)/rr1
-        V(2,i) = srcvals(1,i)/rr1
+        V(1,i) = -(srcvals(2,i)-2)/rr1
+        V(2,i) = (srcvals(1,i)-2)/rr1
         V(3,i) = 0
 !!        vtmp1(1:3) = srcvals(1:3,i) - xyz0(1:3)  
 !!        call cross_prod3d(dvec,vtmp1,vtmp2)
