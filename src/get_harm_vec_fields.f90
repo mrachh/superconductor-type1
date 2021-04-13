@@ -431,7 +431,7 @@
 
 
       ra = 0
-!$OMP PARALLEL DO DEFAULT(SHARED)      
+!$OMP PARALLEL DO DEFAULT(SHARED) reduction(+:ra)     
       do i=1,npts 
         H(1,i) = F(1,i)-sgalpha(1,i)-nsgbeta(1,i)
         H(2,i) = F(2,i)-sgalpha(2,i)-nsgbeta(2,i)

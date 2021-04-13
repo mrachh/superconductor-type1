@@ -23,7 +23,7 @@
       real *8, allocatable :: hinterpa(:,:,:)
       real *8, allocatable :: hinterpb(:,:,:)
       real *8, allocatable :: rrhs1(:),rrhs2(:)
-      real *8 xmat(4,4) 
+      real *8 xmat(4,4),cmat(4,4),rint(4) 
       integer, allocatable :: apatches(:),bpatches(:)
       integer, allocatable :: iaxyzs(:),ibxyzs(:)
       complex * 16 zpars(3)
@@ -52,7 +52,7 @@
       norder = 2 
       npols = (norder+1)*(norder+2)/2
 
-      iref = 1
+      iref = 3
  1311 format(a,i1,a)      
       write(fname,1311) '../../fmm3dbie/geometries/genus_2_o08_r0',
      1  iref,'.go3'
@@ -152,6 +152,13 @@
         enddo
         close(33)
       enddo
+      
+      igen = 1
+      write(fname,1312) 'genus_2_o08_r0',iref,'_hvec',igen,'.vtk'
+      call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
+     1   srccoefs,srcvals,hvecs(1,1,igen),fname,'a')
+      
+
 
       call prinf('apatches=*',apatches,30)
       call prin2('auv=*',auv,24)
@@ -192,6 +199,13 @@
         enddo
       enddo
       call prin2('xmat=*',xmat,16)
+
+      do igen=1,2*ngenus
+        rint(1:4) = 0
+        rint(igen) = 1
+        call dgausselim(4,xmat,rint,info,cmat(1,igen),dcond)
+      enddo
+      call prin2('cmat=*',cmat,16)
 
 
       return
