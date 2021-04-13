@@ -546,6 +546,145 @@ end subroutine get_ab_cycles_torusparam
 !
 !
 !
+!
+!
+!
+
+subroutine get_cycle_readfile(npatches,norders,ixyzs,iptype, &
+  npts,srccoefs,srcvals,ngenus,m,nc,fname,cvals,cwts,cpatches,cuv, &
+  icxyzs)
+
+  implicit none
+  integer npatches,norders(npatches),ixyzs(npatches+1),iptype(npatches)
+  integer npts,m,ngenus
+  real *8 srcvals(12,npts),srccoefs(9,npts)
+  integer cpatches(nc)
+  integer icxyzs(ngenus+1)
+  real *8 cvals(9,nc),cwts(nc),cuv(2,nc)
+  integer, intent(in) :: nc
+  integer nu,nv,i,j,k,l,iuv(2,-3:3)
+  real *8, allocatable :: xnodes(:),wts(:)
+  real *8, allocatable :: pols(:,:,:),uvnodes(:,:,:),wtsall(:,:)
+  real *8 uv(2)
+  real *8 umat,vmat
+  real *8 wtmp(12),rr
+  integer ipt,itri,lpt,nmax,norder,npmax,npols
+  integer itype,ngenus0,ne,iedge,netot
+  character (len=*) fname
+
+  itype = 1
+  allocate(xnodes(m),wts(m))
+  call legeexps(itype,m,xnodes,umat,vmat,wts)
+
+
+  nmax = 20
+  npmax = (nmax+1)*(nmax+2)/2
+  allocate(pols(npmax,m,-3:3))
+  allocate(uvnodes(2,m,-3:3))
+
+  iuv(1,1) = 1
+  iuv(2,1) = 0
+  
+  iuv(1,-1) = -1
+  iuv(2,-1) = 0
+
+  iuv(1,3) = 0
+  iuv(2,3) = 1
+  
+  iuv(1,-3) = 0
+  iuv(2,-3) = -1
+
+  iuv(1,2) = -1
+  iuv(2,2) = 1
+
+  iuv(1,-2) = 1
+  iuv(2,-2) = -1
+
+
+  do i=1,m
+    uv(1) = (xnodes(i)+1)/2
+    uv(2) = 0
+    uvnodes(1,i,1) = uv(1) 
+    uvnodes(2,i,1) = uv(2) 
+    call koorn_pols(uv,nmax,npmax,pols(1,i,1))
+    
+    uv(1) = 1.0d0-(xnodes(i)+1)/2
+    uv(2) = 0.0d0
+    uvnodes(1,i,-1) = uv(1) 
+    uvnodes(2,i,-1) = uv(2) 
+    call koorn_pols(uv,nmax,npmax,pols(1,i,-1))
+
+    uv(1) = 0
+    uv(2) = (xnodes(i)+1)/2
+    uvnodes(1,i,3) = uv(1)
+    uvnodes(2,i,3) = uv(2)
+    call koorn_pols(uv,nmax,npmax,pols(1,i,3))
+    
+    uv(1) = 0
+    uv(2) = 1.0d0-(xnodes(i)+1)/2
+    uvnodes(1,i,-3) = uv(1)
+    uvnodes(2,i,-3) = uv(2)
+    call koorn_pols(uv,nmax,npmax,pols(1,i,-3))
+    
+    uv(2) = (xnodes(i)+1)/2
+    uv(1) = 1.0d0-uv(2) 
+    uvnodes(1,i,2) = uv(1)
+    uvnodes(2,i,2) = uv(2)
+    call koorn_pols(uv,nmax,npmax,pols(1,i,2))
+
+    uv(1) = (xnodes(i)+1)/2
+    uv(2) = 1.0d0-uv(1) 
+    uvnodes(1,i,-2) = uv(1)
+    uvnodes(2,i,-2) = uv(2)
+    call koorn_pols(uv,nmax,npmax,pols(1,i,-2))
+  enddo
+
+  open(unit=33,file=fname)
+  read(33,*) ngenus0
+  icxyzs(1) = 1
+  
+  netot = 0
+  do i=1,ngenus
+    read(33,*) ne
+    icxyzs(i+1) = icxyzs(i) + ne*m
+    netot = netot+ne
+  enddo
+  call prinf('ngenus=*',ngenus,1)
+
+  do i=1,netot
+    read(33,*) itri,iedge
+    norder = norders(itri)
+    npols = (norder+1)*(norder+2)/2
+    do j=1,m
+      ipt = (i-1)*m + j
+      cpatches(ipt) = itri
+      cuv(1,ipt) = uvnodes(1,j,iedge)
+      cuv(2,ipt) = uvnodes(2,j,iedge) 
+      cwts(ipt) = wts(j)/2
+      wtmp(1:12) = 0
+      do l=1,npols
+        lpt = ixyzs(itri)+l-1
+        wtmp(1:9) = wtmp(1:9) + srccoefs(1:9,lpt)*pols(l,j,iedge)
+      enddo
+      call cross_prod3d(wtmp(4),wtmp(7),wtmp(10))
+      rr = sqrt(wtmp(10)**2 + wtmp(11)**2 + wtmp(12)**2)
+      cvals(1:3,ipt) = wtmp(1:3)
+      cvals(4:6,ipt) = wtmp(4:6)*iuv(1,iedge) + wtmp(7:9)*iuv(2,iedge)
+      cvals(7:9,ipt) = wtmp(10:12)/rr
+    enddo
+  enddo
+  close(33)
+
+
+
+end subroutine get_cycle_readfile
+!
+!
+!
+!
+!
+!
+
 subroutine vtk_curv_plot(n,nda,avals,fname,title)
 !
 ! This subroutine writes a vtk file to plot a given a curve 
