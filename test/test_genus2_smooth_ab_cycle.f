@@ -18,13 +18,12 @@
       real *8, allocatable :: avals(:,:),bvals(:,:)
       real *8, allocatable :: awts(:),bwts(:)
       real *8, allocatable :: auv(:,:),buv(:,:)
-      real *8, allocatable :: hvec1(:,:),hvec2(:,:)
+      real *8, allocatable :: hvecs(:,:,:)
       real *8, allocatable :: srcinterpa(:,:),srcinterpb(:,:)
-      real *8, allocatable :: hinterp1a(:,:),hinterp2a(:,:)
-      real *8, allocatable :: hinterp1b(:,:),hinterp2b(:,:)
-      real *8, allocatable :: hinterp1aex(:,:),hinterp2aex(:,:)
-      real *8, allocatable :: hinterp1bex(:,:),hinterp2bex(:,:)
+      real *8, allocatable :: hinterpa(:,:,:)
+      real *8, allocatable :: hinterpb(:,:,:)
       real *8, allocatable :: rrhs1(:),rrhs2(:)
+      real *8 xmat(4,4) 
       integer, allocatable :: apatches(:),bpatches(:)
       integer, allocatable :: iaxyzs(:),ibxyzs(:)
       complex * 16 zpars(3)
@@ -52,7 +51,11 @@
 
       norder = 2 
       npols = (norder+1)*(norder+2)/2
-      fname = '../../fmm3dbie/geometries/genus_2_o08_r03.go3'
+
+      iref = 1
+ 1311 format(a,i1,a)      
+      write(fname,1311) '../../fmm3dbie/geometries/genus_2_o08_r0',
+     1  iref,'.go3'
       call open_gov3_geometry_mem(fname,npatches,npts)
       allocate(srcvals(12,npts),srccoefs(9,npts),wts(npts))
       allocate(norders(npatches),ixyzs(npatches+1),iptype(npatches))
@@ -62,7 +65,7 @@
       call surf_vtk_plot(npatches,norders,ixyzs,iptype,npts,srccoefs,
      1   srcvals,'genus2.vtk','a')
 
-      fname = '2torus_acycle_ref3.dat'
+      write(fname,1311) '2torus_acycle_ref',iref,'.dat'
       open(unit=33,file=trim(fname))
       read(33,*) ngenus
       read(33,*) ne1
@@ -83,7 +86,7 @@
       call vtk_curv_plot(na2,9,avals(1,iaxyzs(2)),'acycle2.vtk','a')
 
 
-      fname = '2torus_bcycle_ref3.dat'
+      write(fname,1311) '2torus_bcycle_ref',iref,'.dat'
       open(unit=33,file=trim(fname))
       read(33,*) ngenus
       read(33,*) ne1
@@ -91,18 +94,21 @@
 
       m = 20
       nb = (ne1+ne2)*m
+      call prinf('nb=*',nb,1)
+      call prinf("ngenus=*",ngenus,1)
       allocate(bvals(9,nb),bwts(nb),bpatches(nb),buv(2,nb))
       allocate(ibxyzs(3))
       close(33)
       call get_cycle_readfile(npatches,norders,ixyzs,iptype,npts,
      1   srccoefs,srcvals,ngenus,m,nb,fname,bvals,bwts,bpatches,buv,
      2   ibxyzs)
+      call prinf('iaxyzs=*',iaxyzs,ngenus+1)
+      call prinf('ibxyzs=*',ibxyzs,ngenus+1)
       
       nb1 = ibxyzs(2)-ibxyzs(1)  
       call vtk_curv_plot(nb1,9,bvals,'bcycle1.vtk','a')
       nb2 = ibxyzs(3) - ibxyzs(2)
       call vtk_curv_plot(nb2,9,bvals(1,ibxyzs(2)),'bcycle2.vtk','a')
-      stop
 
 
       rvecb = 0
@@ -120,8 +126,6 @@
           ds = sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)
           rscb = rscb + bwts(i)*ds
         enddo
-        print *, igen,rscb
-        print *, igen,rvecb
       enddo
       
       do igen=1,ngenus
@@ -133,225 +137,61 @@
           ds = sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)
           rsca = rsca + awts(i)*ds
         enddo
-        print *, igen,rsca
-        print *, igen,rveca
-      enddo
-      stop
-
-
-      allocate(hvec1(3,npts),hvec2(3,npts))
-
-      ra1 = 0
-      rb1 = 0
-      ra2 = 0
-      rb2 = 0
-      do i=1,npts
-        rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
-        hvec1(1:3,i) = srcvals(4:6,i)/rr1
-        call cross_prod3d(srcvals(10,i),hvec1(1,i),hvec2(1,i))
-      enddo
-
-      allocate(hinterp1a(3,na),hinterp2a(3,na))
-      allocate(hinterp1aex(3,na),hinterp2aex(3,na))
-
-      allocate(hinterp1b(3,nb),hinterp2b(3,nb))
-      allocate(hinterp1bex(3,nb),hinterp2bex(3,nb))
-
-
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,hvec1,
-     1   na,apatches,auv,hinterp1a)
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,hvec2,
-     1   na,apatches,auv,hinterp2a)
-
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,hvec1,
-     1   nb,bpatches,buv,hinterp1b) 
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,hvec2,
-     1   nb,bpatches,buv,hinterp2b)
-
-      allocate(srcinterpa(12,na),srcinterpb(12,nb))
-      call geom_coefs_interp(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,na,apatches,auv,srcinterpa)
-
-c
-c  test normals
-c
-      ra = 0
-      erra = 0
-      do i=1,na
-        ra = ra + srcinterpa(10,i)**2*awts(i)
-        ra = ra + srcinterpa(11,i)**2*awts(i)
-        ra = ra + srcinterpa(12,i)**2*awts(i)
-        erra = erra + (srcinterpa(10,i)-avals(7,i))**2*awts(i)
-        erra = erra + (srcinterpa(11,i)-avals(8,i))**2*awts(i)
-        erra = erra + (srcinterpa(12,i)-avals(9,i))**2*awts(i)
       enddo
 
 
-      erra = sqrt(erra/ra)
-      call prin2('error in normals on acycles=*',erra,1)
+      allocate(hvecs(3,npts,4))
+ 1312 format(a,i1,a,i1,a)
+      do igen=1,2*ngenus
+        write(fname,1312) 'genus_2_o08_r0',iref,'_hvec',igen,'.dat'
+        open(unit=33,file=trim(fname))
+        call prinf('npts=*',npts,1)
+        print *, trim(fname)
+        do j=1,npts
+          read(33,*) hvecs(1,j,igen),hvecs(2,j,igen),hvecs(3,j,igen)
+        enddo
+        close(33)
+      enddo
 
-cc      call prin2('srcinterpa=*',srcinterpa(1:3,1:12),36)
-cc      call prin2('avals=*',avals(1:3,1:12),36)
+      call prinf('apatches=*',apatches,30)
+      call prin2('auv=*',auv,24)
       
-      call geom_coefs_interp(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,nb,bpatches,buv,srcinterpb) 
-c
-c  test normals
-c
-      ra = 0
-      erra = 0
-      do i=1,nb
-        ra = ra + srcinterpb(10,i)**2*bwts(i)
-        ra = ra + srcinterpb(11,i)**2*bwts(i)
-        ra = ra + srcinterpb(12,i)**2*bwts(i)
-        erra = erra + (srcinterpb(10,i)-bvals(7,i))**2*bwts(i)
-        erra = erra + (srcinterpb(11,i)-bvals(8,i))**2*bwts(i)
-        erra = erra + (srcinterpb(12,i)-bvals(9,i))**2*bwts(i)
-      enddo
-
-      erra = sqrt(erra/ra)
-      call prin2('error in normals on bcycles=*',erra,1)
-      
-c
-c  compute exact values of the interpolant
-c
-
-      ra1 = 0
-      erra1 = 0
-      ra2 = 0
-      erra2 = 0
-      do i=1,na 
-        rr1 = srcinterpa(1,i)**2 + srcinterpa(2,i)**2 
-        hinterp1aex(1:3,i) = srcinterpa(4:6,i)/rr1
-        call cross_prod3d(srcinterpa(10,i),hinterp1aex(1,i),
-     1     hinterp2aex(1,i))
-        ds = sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)
-        ra1 = ra1 + (hinterp1aex(1,i)**2 + hinterp1aex(2,i)**2 + 
-     1      hinterp1aex(3,i)**2)*awts(i)*ds
-        erra1 = erra1 + (hinterp1aex(1,i)-hinterp1a(1,i))**2*awts(i)*ds
-        erra1 = erra1 + (hinterp1aex(2,i)-hinterp1a(2,i))**2*awts(i)*ds
-        erra1 = erra1 + (hinterp1aex(3,i)-hinterp1a(3,i))**2*awts(i)*ds
-
-        ra2 = ra2 + (hinterp2aex(1,i)**2 + hinterp2aex(2,i)**2 + 
-     1      hinterp2aex(3,i)**2)*awts(i)*ds
-        erra2 = erra2 + (hinterp2aex(1,i)-hinterp2a(1,i))**2*awts(i)*ds
-        erra2 = erra2 + (hinterp2aex(2,i)-hinterp2a(2,i))**2*awts(i)*ds
-        erra2 = erra2 + (hinterp2aex(3,i)-hinterp2a(3,i))**2*awts(i)*ds
-      enddo
-
-      erra1 = sqrt(erra1/ra1)
-      erra2 = sqrt(erra2/ra2)
-      call prin2('error in interpolated density on acycle=*',erra1,1)
-      call prin2('error in interpolated density2 on acycle=*',erra2,1)
-
-      stop
-
-
-      ra1 = 0
-      erra1 = 0
-      ra2 = 0
-      erra2 = 0
-      do i=1,nb 
-        rr1 = srcinterpb(1,i)**2 + srcinterpb(2,i)**2 
-        hinterp1bex(1:3,i) = srcinterpb(4:6,i)/rr1
-        call cross_prod3d(srcinterpb(10,i),hinterp1bex(1,i),
-     1     hinterp2bex(1,i))
-        ds = sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)
-        ra1 = ra1 + (hinterp1bex(1,i)**2 + hinterp1bex(2,i)**2 + 
-     1      hinterp1bex(3,i)**2)*bwts(i)*ds
-        erra1 = erra1 + (hinterp1bex(1,i)-hinterp1b(1,i))**2*bwts(i)*ds
-        erra1 = erra1 + (hinterp1bex(2,i)-hinterp1b(2,i))**2*bwts(i)*ds
-        erra1 = erra1 + (hinterp1bex(3,i)-hinterp1b(3,i))**2*bwts(i)*ds
-
-        ra2 = ra2 + (hinterp2bex(1,i)**2 + hinterp2bex(2,i)**2 + 
-     1      hinterp2bex(3,i)**2)*bwts(i)*ds
-        erra2 = erra2 + (hinterp2bex(1,i)-hinterp2b(1,i))**2*bwts(i)*ds
-        erra2 = erra2 + (hinterp2bex(2,i)-hinterp2b(2,i))**2*bwts(i)*ds
-        erra2 = erra2 + (hinterp2bex(3,i)-hinterp2b(3,i))**2*bwts(i)*ds
-      enddo
-
-      erra1 = sqrt(erra1/ra1)
-      erra2 = sqrt(erra2/ra2)
-      call prin2('error in interpolated density on bcycle=*',erra1,1)
-      call prin2('error in interpolated density2 on bcycle=*',erra2,1)
-
-c
-c
-c   compute all 4 integrals
-c
-
-      ra1 = 0
-      ra2 = 0
-      do i=1,na
-        ra1 = ra1 + (hinterp1aex(1,i)*avals(4,i) +
-     1     hinterp1aex(2,i)*avals(5,i) + hinterp1aex(3,i)*avals(6,i))*
-     2     awts(i)
-        ra2 = ra2 + (hinterp2aex(1,i)*avals(4,i) +
-     1     hinterp2aex(2,i)*avals(5,i) + hinterp2aex(3,i)*avals(6,i))*
-     2     awts(i)
-      enddo
-
-      call prin2('ra1=*',ra1,1)
-      call prin2('ra2=*',ra2,1)
-
-      rb1 = 0
-      rb2 = 0
-      do i=1,nb
-        rb1 = rb1 + (hinterp1bex(1,i)*bvals(4,i) +
-     1     hinterp1bex(2,i)*bvals(5,i) + hinterp1bex(3,i)*bvals(6,i))*
-     2     bwts(i)
-        rb2 = rb2 + (hinterp2bex(1,i)*bvals(4,i) +
-     1     hinterp2bex(2,i)*bvals(5,i) + hinterp2bex(3,i)*bvals(6,i))*
-     2     bwts(i)      
-      enddo
-
-      call prin2('rb1=*',rb1,1)
-      call prin2('rb2=*',rb2,1)
-
-c
-c  compute integral of n\times first density on a cycle
-c
-c  
-      ra = 0
-      do i=1,na
-        call cross_prod3d(srcinterpa(10,i),hinterp1aex(1,i),wtmp1)
-        ra = ra + (wtmp1(1)*avals(4,i) +
-     1     wtmp1(2)*avals(5,i)+wtmp1(3)*avals(6,i))*awts(i)
-      enddo
-      call prin2('integral of n cross density in vplus=*',ra,1)
+      call prinf('bpatches=*',bpatches,30)
+      call prin2('buv=*',buv,24)
       
 
-      allocate(rrhs1(npts),rrhs2(npts))
+      allocate(hinterpa(3,na,4))
+      allocate(hinterpb(3,nb,4))
 
-      call surf_div(npatches,norders,ixyzs,iptype,npts,srccoefs,
-     1  srcvals,hvec1,rrhs1)
-
-      ra = 0
-      erra = 0
-      do i=1,npts
-        ra = ra + abs(hvec1(1,i)**2 + hvec1(2,i)**2 +
-     1     hvec1(3,i)**2)*wts(i)
-        erra = erra + rrhs1(i)**2*wts(i)
+      do igen=1,2*ngenus
+        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
+     1   hvecs(1,1,igen),na,apatches,auv,hinterpa(1,1,igen))
+        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
+     2   hvecs(1,1,igen),nb,bpatches,buv,hinterpb(1,1,igen)) 
       enddo
-      erra = sqrt(erra/ra)
-      ra = sqrt(ra)
-      call prin2('error in surf div=*',erra,1)
-      call prin2('integral of first harmonic field=*',ra,1)
 
-      call surf_div(npatches,norders,ixyzs,iptype,npts,srccoefs,
-     1  srcvals,hvec1,rrhs2)
-      
-      ra = 0
-      erra = 0
-      do i=1,npts
-        ra = ra + abs(hvec2(1,i)**2 + hvec2(2,i)**2 +
-     1     hvec2(3,i)**2)*wts(i)
-        erra = erra + rrhs2(i)**2*wts(i)
+      do igen=1,2*ngenus
+        do jagen=1,ngenus
+          xmat(igen,jagen) = 0
+          do i=iaxyzs(jagen),iaxyzs(jagen+1)-1
+            xmat(igen,jagen) = xmat(igen,jagen) + 
+     1          (hinterpa(1,i,igen)*avals(4,i) + 
+     1          hinterpa(2,i,igen)*avals(5,i) + 
+     1          hinterpa(3,i,igen)*avals(6,i))*awts(i) 
+          enddo
+        enddo
+
+        do jbgen=1,ngenus
+          xmat(igen,jbgen+2) = 0
+          do i=ibxyzs(jbgen),ibxyzs(jbgen+1)-1
+            xmat(igen,jbgen+2) = xmat(igen,jbgen+2) + 
+     1          (hinterpb(1,i,igen)*bvals(4,i) + 
+     1          hinterpb(2,i,igen)*bvals(5,i) + 
+     1          hinterpb(3,i,igen)*bvals(6,i))*bwts(i) 
+          enddo
+        enddo
       enddo
-      erra = sqrt(erra/ra)
-      ra = sqrt(ra)
-      call prin2('error in n cross surf div=*',erra,1)
-      call prin2('integral of second harmonic field=*',ra,1)
+      call prin2('xmat=*',xmat,16)
 
 
       return

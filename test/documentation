@@ -23,6 +23,15 @@ test_solver.f/test_solver_sph.f - tests the solver using the final code
 test_ab_cycle.f - test generation of ab cycles and the computation
    of harmonic vector fields on a standard 2 torus
 
+test_ab2surf.f - test conversion of integrals over a,b cycles to surface
+   integrals
+
+test_genus2_harm_vec.f - get harmonic vector fields for genus 2 domain
+
+test_genus2_smooth_ab_cycle.f - test data files for getting
+  ab cycles of genus 2 domain and get linear combination of
+  harmonic vector fields such that they integrate to 1 on one
+  of the cycles and 0 on the rest
 
 
 ------
