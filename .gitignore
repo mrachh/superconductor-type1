@@ -4,3 +4,5 @@ int2*
 *.dat
 *.vtk*
 *.save*
+*.go3
+*.txt

@@ -212,16 +212,21 @@
 
       iquadtype = 1
       wnear = 0
-
+      call cpu_time(ttt1)
+!$      ttt1 = omp_get_wtime()      
       call getnearquad_lap_bel2fast(npatches,norders, &
            ixyzs,iptype,npts,srccoefs,srcvals, &
            ipatch_id,uvs_targ,eps,iquadtype,nnz,row_ptr,col_ind, &
            iquad,rfac0,nquad,wnear)
       call prinf('finished generating near quadrature correction*',i,0)
+      call cpu_time(ttt2)
+!$      ttt2 = omp_get_wtime()      
+      print *, "Quadrature generation time=",ttt2-ttt1
+      call prin2('Quadrature generation time=*',ttt2-ttt1,1)
 
      
       call prin2('starting FAST iterative solve*',i,0)
-      numit = 100
+      numit = 300
       allocate(errs(numit+1))
      
       Wg = 0 
@@ -268,12 +273,12 @@
         enddo
       enddo
 
-      xyz0(1) = 10.1d0
-      xyz0(2) = 11.2d0
-      xyz0(3) = -9.1d0
-      dvec(1) = 1.1d0
-      dvec(2) = -0.3d0
-      dvec(3) = 0.7d0
+      xyz0(1) = 0.2d0
+      xyz0(2) = 0.2d0
+      xyz0(3) = 0.2d0
+      dvec(1) = 0
+      dvec(2) = 1.0d0
+      dvec(3) = 1.0d0
       do i=1,npts
         xx = (srcvals(1,i) - xc)/xsize
         yy = (srcvals(2,i) - yc)/ysize
@@ -282,16 +287,16 @@
           V(j,i) = rpars(1,j) + (rpars(2,j)*xx**2 + rpars(3,j)*yy*(1-yy) + &
            rpars(4,j)*zz)**2/2
         enddo
-        V(1:3,i) = srcvals(1:3,i)
-        rr1 = (srcvals(2,i)-2)**2 + (srcvals(1,i)-2)**2
+!        V(1:3,i) = srcvals(1:3,i)
+        rr1 = (srcvals(2,i))**2 + (srcvals(1,i))**2
         V(1:3,i) = 0
-        V(1,i) = -(srcvals(2,i)-2)/rr1
-        V(2,i) = (srcvals(1,i)-2)/rr1
+        V(1,i) = -(srcvals(2,i))/rr1
+        V(2,i) = (srcvals(1,i))/rr1
         V(3,i) = 0
-!!        vtmp1(1:3) = srcvals(1:3,i) - xyz0(1:3)  
-!!        call cross_prod3d(dvec,vtmp1,vtmp2)
-!!        rr = sqrt(vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)
-!!        V(1:3,i) = vtmp2/rr**3
+!        vtmp1(1:3) = srcvals(1:3,i) - xyz0(1:3)  
+!        call cross_prod3d(dvec,vtmp1,vtmp2)
+!        rr = sqrt(vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)
+!        V(1:3,i) = vtmp2/rr**3
       enddo
 
       do i=1,npts
@@ -355,7 +360,11 @@
 
 
 
-      eps_gmres = 1.0d-7
+      eps_gmres = 1.0d-11
+      eps_gmres = eps
+
+      print *, "eps=",eps/10
+      print *, "eps_gmres=",eps_gmres
 
       call lap_bel_solver2fast(npatches,norders,ixyzs,iptype, &
        npts,srccoefs,srcvals,eps,numit,rrhs1,eps_gmres,niter, &
@@ -387,7 +396,8 @@
 
       sigma = 0
       niter  = 0
-      eps_gmres = 1.0d-7
+      eps_gmres = 1.0d-11
+      eps_gmres = eps/10
       call lap_bel_solver2fast(npatches,norders,ixyzs,iptype, &
         npts,srccoefs,srcvals,eps,numit,rrhs2,eps_gmres,niter, &
         errs,rres,sigma) 
@@ -430,6 +440,8 @@
       enddo
 
 
+
+
       ra = 0
 !$OMP PARALLEL DO DEFAULT(SHARED) reduction(+:ra)     
       do i=1,npts 
@@ -441,6 +453,18 @@
 !$OMP END PARALLEL DO     
       ra = sqrt(ra)
       call prin2('ra=*',ra,1)
+
+      open(unit=35,file='resall_tmp1.dat',form='unformatted')
+      write(35) H
+      write(35) F
+      write(35) rrhs1
+      write(35) rrhs2
+      write(35) alpha
+      write(35) beta
+      write(35) sgalpha
+      write(35) sgbeta
+      write(35) nsgbeta
+      close(35)
 
       do i=1,npts
         H(1,i) = H(1,i)/ra
@@ -455,12 +479,15 @@
 
       erra = 0
       rsurf = 0
+      rmax1 = 0
       do i=1,npts
         erra=  erra + ((rrhs1(i))**2)*wts(i)
+        if(abs(rrhs1(i)).ge.rmax1) rmax1 = rrhs1(i)
       enddo
       erra = sqrt(erra)
       errest = erra
       call prin2('harmonic comp error in div =*',erra,1)
+      call prin2('max val  =*',rmax1,1)
 
       do i=1,npts
         call cross_prod3d(srcvals(10,i),H(1,i),nsgbeta(1,i))
@@ -472,12 +499,16 @@
       call prin2('rrhs2=*',rrhs2,24)
 
       erra = 0
+      rmax2 = 0
       do i=1,npts
         erra=  erra + ((rrhs2(i))**2)*wts(i)
+        if(abs(rrhs2(i)).ge.rmax2) rmax2 = rrhs2(i)
       enddo
       erra = sqrt(erra)
       if(erra.gt.errest) errest = erra
       call prin2('harmonic comp error in curl =*',erra,1)
+      call prin2('max val  =*',rmax2,1)
+
 
 
       end subroutine get_harm_vec_field

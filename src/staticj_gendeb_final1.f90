@@ -933,8 +933,6 @@
           pot(6*npts+(igen-1)*4 + 4) =  pot(6*npts+(igen-1)*4 + 4) + &
             (vtmp1(1)*bvals(4,j,igen) + vtmp1(2)*bvals(5,j,igen) + &
             vtmp1(3)*bvals(6,j,igen))*bwts(j,igen)
-           if(j.lt.10) call prin2('bvals vtmp1=*',vtmp1,3)
-           if(j.lt.10) call prin2('pot=*',pot(6*npts+4),1)
         enddo
       enddo
 

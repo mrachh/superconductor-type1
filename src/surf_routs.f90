@@ -99,7 +99,7 @@ subroutine get_mean_curvature(npatches,norders,ixyzs,iptype, &
 !  
 !  .. math::
 !    
-!    0.5*Trace(II \cdot I^{-1}) \\
+!    -0.5*Trace(II \cdot I^{-1}) \\
 !    
 !
 !  Input arguments:
@@ -405,7 +405,6 @@ subroutine surf_div(npatches,norders,ixyzs,iptype,npts, &
   integer i,istart,npols,j,l
 
   allocate(ffform(2,2,npts))
-
 
 
   call get_first_fundamental_form(npatches,norders,ixyzs,iptype, &

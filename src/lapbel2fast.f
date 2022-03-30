@@ -609,7 +609,7 @@ c
       real *8 rr,rmin,rint,rsurf
       integer nss,ii,l,npover
 
-      integer nd,ntarg0
+      integer nd,ntarg0,nmax
       integer ier,iper
 
       real *8 ttot,done,pi,over4pi
@@ -623,9 +623,11 @@ c       first compute \nabla_{\Gamma} S_{0}
 c
 
       ns = nptso
-      done = 1
+      done = 1.0d0
       pi = atan(done)*4
       over4pi = 1.0d0/4/pi
+
+
 
            
       ifpgh = 0
@@ -646,6 +648,10 @@ c
 
       call oversample_fun_surf(1,npatches,norders,ixyzs,iptype, 
      1    npts,sigma,novers,ixyzso,ns,sigmaover)
+      nmax = 0
+      call get_near_corr_max(ntarg,row_ptr,nnz,col_ind,npatches,
+     1   ixyzso,nmax)
+      allocate(srctmp2(3,nmax),ctmp2(nmax),dtmp2(3,nmax))
 
       ra = 0
 
@@ -674,6 +680,8 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
         targvals(1,i) = srcvals(1,i)
         targvals(2,i) = srcvals(2,i)
         targvals(3,i) = srcvals(3,i)
+
+        pot1(i) = 0
 
         grad1(1,i) = 0
         grad1(2,i) = 0
@@ -778,14 +786,8 @@ c      print *, "Near quad addition done"
 c
 
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2)
-C$OMP$PRIVATE(dtmp2,nss,l,jstart,ii,val,npover,vgrad)
+C$OMP$PRIVATE(dtmp2,nss,l,jstart,ii,val,npover)
       do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          nss = nss + ixyzso(jpatch+1)-ixyzso(jpatch)
-        enddo
-        allocate(srctmp2(3,nss),dtmp2(3,nss))
 
         ii = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -801,19 +803,15 @@ C$OMP$PRIVATE(dtmp2,nss,l,jstart,ii,val,npover,vgrad)
             dtmp2(1,ii) = dipvec(1,jstart+l)
             dtmp2(2,ii) = dipvec(2,jstart+l)
             dtmp2(3,ii) = dipvec(3,jstart+l)
- 
           enddo
         enddo
+        nss = ii
 
         val = 0
-        vgrad(1) = 0
-        vgrad(2) = 0
-        vgrad(3) = 0
 
         call l3ddirectdp(nd,srctmp2,dtmp2,
      1        nss,targvals(1,i),ntarg0,val,thresh)
         pot1(i) = pot1(i) - val
-        deallocate(srctmp2,dtmp2)
       enddo
 
 c      print *, "Subtraction done"
@@ -900,14 +898,8 @@ c      print *, "Near quad addition done"
 c
 
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2)
-C$OMP$PRIVATE(dtmp2,nss,l,jstart,ii,val,npover,vgrad)
+C$OMP$PRIVATE(dtmp2,nss,l,jstart,ii,val,npover)
       do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          nss = nss + ixyzso(jpatch+1)-ixyzso(jpatch)
-        enddo
-        allocate(srctmp2(3,nss),dtmp2(3,nss))
 
         ii = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -926,16 +918,13 @@ C$OMP$PRIVATE(dtmp2,nss,l,jstart,ii,val,npover,vgrad)
  
           enddo
         enddo
+        nss = ii
 
         val = 0
-        vgrad(1) = 0
-        vgrad(2) = 0
-        vgrad(3) = 0
 
         call l3ddirectdp(nd,srctmp2,dtmp2,
      1        nss,targvals(1,i),ntarg0,val,thresh)
         pot2(i) = pot2(i) - val
-        deallocate(srctmp2,dtmp2)
       enddo
 
 c      print *, "Subtraction done"
@@ -947,9 +936,6 @@ c     Now calculate S'
       call oversample_fun_surf(1,npatches,norders,ixyzs,iptype, 
      1    npts,sigma,novers,ixyzso,ns,sigmaover)
 
-      ra = 0
-
-c      print *, "oversampling done"
 
 
 c
@@ -1000,7 +986,7 @@ c      print *, "Calling FMM"
 
       call lfmm3d(nd,eps,ns,sources,ifcharge,charges,
      1  ifdipole,dipvec,iper,ifpgh,tmp,tmp,tmp,npts,targvals,ifpghtarg,
-     1  pot1,grad2,hess1)
+     1  pot1,grad2,hess1,ier)
 
 c      print *, "FMM call done"
 
@@ -1063,12 +1049,6 @@ c
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2)
 C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad,nvgrad)
       do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          nss = nss + ixyzso(jpatch+1)-ixyzso(jpatch)
-        enddo
-        allocate(srctmp2(3,nss),ctmp2(nss))
 
         ii = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -1085,6 +1065,7 @@ C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad,nvgrad)
  
           enddo
         enddo
+        nss = ii
 
         val = 0
         vgrad(1) = 0
@@ -1099,7 +1080,6 @@ C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad,nvgrad)
      1           vgrad(3)*srcvals(12,i)
 
         pot3(i) = normalgrad2(i) - nvgrad
-        deallocate(srctmp2,ctmp2)
       enddo
 
 c      print *, "Subtraction done"
@@ -1145,14 +1125,8 @@ c      print *, "Near quad addition done"
 c
 
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2)
-C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad)
+C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover)
       do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          nss = nss + ixyzso(jpatch+1)-ixyzso(jpatch)
-        enddo
-        allocate(srctmp2(3,nss),ctmp2(nss))
 
         ii = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -1170,16 +1144,13 @@ C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad)
  
           enddo
         enddo
+        nss = ii
 
         val = 0
-        vgrad(1) = 0
-        vgrad(2) = 0
-        vgrad(3) = 0
 
         call l3ddirectcp(nd,srctmp2,ctmp2,
      1        nss,targvals(1,i),ntarg0,val,thresh)
         pot1(i) = pot1(i) - val
-        deallocate(srctmp2,ctmp2)
       enddo
 
 c      print *, "Subtraction done"
@@ -1240,12 +1211,6 @@ C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2)
 C$OMP$PRIVATE(ctmp2,dtmp2,nss,l,jstart,ii,val,npover,vgrad,vhess)
 C$OMP$PRIVATE(nvgrad,nvhess) 
       do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          nss = nss + ixyzso(jpatch+1)-ixyzso(jpatch)
-        enddo
-        allocate(srctmp2(3,nss),ctmp2(nss),dtmp2(3,nss))
 
         ii = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -1265,18 +1230,13 @@ C$OMP$PRIVATE(nvgrad,nvhess)
  
           enddo
         enddo
+        nss = ii
 
         val = 0
         vgrad(1) = 0
         vgrad(2) = 0
         vgrad(3) = 0
 
-        vhess(1) = 0
-        vhess(2) = 0
-        vhess(3) = 0
-        vhess(4) = 0
-        vhess(5) = 0
-        vhess(6) = 0
 
         nvgrad = 0
         nvhess = 0
@@ -1289,6 +1249,18 @@ C$OMP$PRIVATE(nvgrad,nvhess)
      1           vgrad(2)*srcvals(11,i) +
      1           vgrad(3)*srcvals(12,i)
  
+        val = 0
+        vgrad(1) = 0
+        vgrad(2) = 0
+        vgrad(3) = 0
+
+        vhess(1) = 0
+        vhess(2) = 0
+        vhess(3) = 0
+        vhess(4) = 0
+        vhess(5) = 0
+        vhess(6) = 0
+
         call l3ddirectch(nd,srctmp2,ctmp2,
      1        nss,targvals(1,i),ntarg0,val,vgrad,vhess,thresh)
 
@@ -1308,7 +1280,6 @@ C$OMP$PRIVATE(nvgrad,nvhess)
 
 
         pot5(i) = ngradphess(i) - nvgrad - nvhess
-        deallocate(srctmp2,ctmp2,dtmp2)
       enddo
 
 c      call prin2('pot5=*',pot1,24)
@@ -1413,12 +1384,6 @@ c
 C$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2)
 C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad)
       do i=1,npts
-        nss = 0
-        do j=row_ptr(i),row_ptr(i+1)-1
-          jpatch = col_ind(j)
-          nss = nss + ixyzso(jpatch+1)-ixyzso(jpatch)
-        enddo
-        allocate(srctmp2(3,nss),ctmp2(nss))
 
         ii = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -1436,6 +1401,8 @@ C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad)
           enddo
         enddo
 
+        nss = ii
+
         val = 0
         vgrad(1) = 0
         vgrad(2) = 0
@@ -1445,7 +1412,6 @@ C$OMP$PRIVATE(ctmp2,nss,l,jstart,ii,val,npover,vgrad)
      1        nss,targvals(1,i),ntarg0,val,thresh)
 
         pot6(i) = pot6(i) - val
-        deallocate(srctmp2,ctmp2)
       enddo
 
 c      print *, "Subtraction done"
