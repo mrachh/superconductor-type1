@@ -478,7 +478,7 @@ c
         rhstmp(i) = 1
       enddo
 
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_targ,eps,dpars,
      2  rhstmp,ptmp)
       call prin2('ptmp=*',ptmp,24)

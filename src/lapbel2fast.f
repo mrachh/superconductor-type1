@@ -1567,6 +1567,9 @@ c
       real *8, allocatable :: svec(:),yvec(:),wtmp(:)
       real *8, allocatable :: wts(:)
 
+      integer ndd, ndz, ndi, nker, lwork, ndim
+      real *8 work(1)
+
       complex *16 ztmp
 
 
@@ -1710,13 +1713,22 @@ c
 c     compute the right hand side S_{0}[f], note that
 c     quadrature is precomputed in wnear[2*nquad+1:3*nquad]   
 c
+      ndd = 2
+      ndi = 0
+      ndz = 0
       dpars(1) = 1.0d0
       dpars(2) = 0
-      call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs,
-     1  iptype,npts,srccoefs,srcvals,ndtarg,npts,targs,eps,
-     2  dpars,nnz,row_ptr,col_ind,iquad,nquad,wnear(0*nquad+1),
-     3  rhs,novers,npts_over,ixyzso,srcover,wover,rhs2)
+      nker = 1
+      ndim = 1
+      lwork = 0
+ 
 
+      call lpcomp_lap_comb_dir_addsub(npatches, norders, ixyzs, 
+     1  iptype, npts, srccoefs, srcvals, eps, ndd, dpars, ndz, zpars, 
+     1  ndi, ipars, nnz, row_ptr, col_ind, iquad, nquad, nker, 
+     1  wnear(0*nquad+1), novers, npts_over, ixyzso, srcover, wover, 
+     1  lwork, work, ndim, rhs, rhs2)
+ 
       
       print *, "done generating near quadrature, now starting gmres"
 

@@ -68,7 +68,7 @@
       xyz_out(3) = 20.1d0
 
       igeomtype = 1
-      ipars(1) = 0 
+      ipars(1) = 1 
       npatches=12*(4**ipars(1))
 
       norder = 5 
@@ -145,7 +145,7 @@ c
       enddo
 
 
-      eps = 0.51d-2
+      eps = 0.51d-4
 
 
       allocate(sigma0(npts),pot0(npts))
@@ -163,7 +163,7 @@ c
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
      1  ipatch_id,uvs_targ)
       
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_targ,eps,
      2  dpars,sigma0,pot0)
       call prin2('pot0=*',pot0,24)

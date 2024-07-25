@@ -447,7 +447,7 @@
       integer ifder,njh,n
 
       integer nd,ntarg0,nmax
-      integer ndd,ndz,ndi
+      integer ndd,ndz,ndi,ier
 
       real *8 ttot,done,pi
       data ima/(0.0d0,1.0d0)/
@@ -577,7 +577,7 @@
       abc1 = 0
 
       call lfmm3d_t_d_g_vec(nd,eps,ns,sources,dipvec0,npts,srctmp, &
-        abc1,grad_aux)
+        abc1,grad_aux,ier)
 
 !      print *, "done with first fmm"
 
@@ -595,7 +595,7 @@
       grad_aux = 0
       hess_aux = 0
       call lfmm3d_t_c_h_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
-        pot_aux,grad_aux,hess_aux)
+        pot_aux,grad_aux,hess_aux,ier)
 
 !      print *, "done with second fmm"
 
@@ -793,7 +793,7 @@
       abc0 = 0
 
       call lfmm3d_t_d_p_vec(nd,eps,ns,sources,dipvec0,npts,srctmp, &
-        abc0)
+        abc0,ier)
 !
 !  Add near quadrature correction
 !
@@ -899,7 +899,7 @@
       grad_aux = 0
 
       call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
-        pot_aux,grad_aux)
+        pot_aux,grad_aux,ier)
 
 !
 !
@@ -1028,7 +1028,7 @@
 !      print *, "before fmm"
 
       call hfmm3d_t_c_g_vec(nd,eps,zk0,ns,sources,zcharges0,npts,srctmp, &
-        zpot_aux,zgrad_aux)
+        zpot_aux,zgrad_aux,ier)
 
 !      print *, "after fmm"
 
@@ -1324,6 +1324,7 @@
 
       integer nd,ntarg0,nmax
       integer ndd,ndz,ndi
+      integer ier
 
       real *8 ttot,done,pi
       data ima/(0.0d0,1.0d0)/
@@ -1403,7 +1404,7 @@
 !      print *, "before fmm"
 
       call lfmm3d_t_c_g_vec(nd,eps,ns,sources,charges0,npts,srctmp, &
-        pot_aux,grad_aux)
+        pot_aux,grad_aux,ier)
 
 !$OMP PARALLEL DO DEFAULT(SHARED)         
       do i=1,npts

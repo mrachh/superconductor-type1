@@ -90,7 +90,7 @@ c  but for idzk =3, penetration depth is 1/30
 c
 c  idzk = 4:10, 2^(4-idzk)
 c
-      idzk = 10
+      idzk = 4
 
 c
 c  Note for this code, igeomtype can only be 1,2,3,4 
@@ -100,7 +100,7 @@ c  igeomtype = 2 => stellartor
 c  igeomtype = 3 => wiggly torus
 c  igeomtype = 4 => torus
 c
-      igeomtype = 2
+      igeomtype = 1
       iref = 2
       if(igeomtype.eq.1) then
         ipars(1) = iref
@@ -1088,7 +1088,7 @@ cc      call prin2('uvs_targ=*',uvs_targ,2*ntarg)
       call prin2('dpars2=*',dpars2,2)
       ndtarg = 3
       
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,ndtarg,ntarg,targs,ipatch_id_targ,uvs_targ,eps,
      2  dpars2,rsigma,rpot)
       do i=1,ntarg

@@ -1778,6 +1778,9 @@
       complex *16 ima
       data ima/(0.0d0,1.0d0)/
 
+      integer ndd, ndz, ndi, nker, lwork, ndim
+      real *8 work(1)
+
 !
 !       gmres variables
 !
@@ -1792,6 +1795,7 @@
       real *8, allocatable :: svec(:),yvec(:),wtmp(:)
       real *8 rint1,rint2
       real *8 errt,errn,rt,rn
+      
 
 !
 !   n_var is the number of unknowns in the linear system.
@@ -1966,15 +1970,22 @@
 
         call prin2('rint1=*',rint1/rint2,1)
 
-      
+        ndd = 2
+        ndi = 0
+        ndz = 0
         dpars0(1) = 1.0d0
-        dpars0(2) = 0.0d0
+        dpars0(2) = 0
+        nker = 1
+        ndim = 1
+        lwork = 0
+ 
 
-        call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs,&
-          iptype,npts,srccoefs,srcvals,12,npts,srcvals,eps,dpars0, &
-          nnz,row_ptr,col_ind, &
-          iquad,nquad,wnear,surfdivtanrhstmp,novers,npts_over,ixyzso, &
-          srcover,wover,abc0)
+        call lpcomp_lap_comb_dir_addsub(npatches, norders, ixyzs, &
+         iptype, npts, srccoefs, srcvals, eps, ndd, dpars0, ndz, zpars, &
+         ndi, ipars, nnz, row_ptr, col_ind, iquad, nquad, nker, &
+         wnear, novers, npts_over, ixyzso, srcover, wover, &
+         lwork, work, ndim, surfdivtanrhstmp, abc0)
+      
       endif
 
 

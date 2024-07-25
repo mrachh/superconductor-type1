@@ -95,6 +95,9 @@
       character *300 fname,fname1,fname2,fname3,fname4,fname5
 
       real *8, allocatable :: w(:,:),rsc(:)
+      integer ndd, ndz, ndi, nker, lwork, ndim
+      real *8 work(1)
+
 
       logical isout0,isout1
 
@@ -293,10 +296,6 @@
         V(1,i) = -(srcvals(2,i))/rr1
         V(2,i) = (srcvals(1,i))/rr1
         V(3,i) = 0
-!        vtmp1(1:3) = srcvals(1:3,i) - xyz0(1:3)  
-!        call cross_prod3d(dvec,vtmp1,vtmp2)
-!        rr = sqrt(vtmp1(1)**2 + vtmp1(2)**2 + vtmp1(3)**2)
-!        V(1:3,i) = vtmp2/rr**3
       enddo
 
       do i=1,npts
@@ -371,14 +370,21 @@
        errs,rres,sigma) 
 
 
+      ndd = 2
+      ndi = 0
+      ndz = 0
       dpars(1) = 1.0d0
       dpars(2) = 0
+      nker = 1
+      ndim = 1
+      lwork = 0
  
 
-      call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs, &
-       iptype,npts,srccoefs,srcvals,ndtarg,npts,targs,eps, &
-       dpars,nnz,row_ptr,col_ind,iquad,nquad,wnear(0*nquad+1), &
-       sigma,novers,npts_over,ixyzso,srcover,wover,alpha)
+      call lpcomp_lap_comb_dir_addsub(npatches, norders, ixyzs, &
+       iptype, npts, srccoefs, srcvals, eps, ndd, dpars, ndz, zpars, &
+       ndi, ipars, nnz, row_ptr, col_ind, iquad, nquad, nker, &
+       wnear(0*nquad+1), novers, npts_over, ixyzso, srcover, wover, &
+       lwork, work, ndim, sigma, alpha)
  
 !    Surface integral should be zero
       Wu = 0 
@@ -407,10 +413,11 @@
       dpars(2) = 0
  
 
-      call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs, &
-       iptype,npts,srccoefs,srcvals,ndtarg,npts,targs,eps, &
-       dpars,nnz,row_ptr,col_ind,iquad,nquad,wnear(0*nquad+1), &
-       sigma,novers,npts_over,ixyzso,srcover,wover,beta)
+      call lpcomp_lap_comb_dir_addsub(npatches, norders, ixyzs, &
+       iptype, npts, srccoefs, srcvals, eps, ndd, dpars, ndz, zpars, &
+       ndi, ipars, nnz, row_ptr, col_ind, iquad, nquad, nker, &
+       wnear(0*nquad+1), novers, npts_over, ixyzso, srcover, wover, &
+       lwork, work, ndim, sigma, beta)
  
 !    Surface integral should be zero
       Wu = 0 
@@ -454,17 +461,6 @@
       ra = sqrt(ra)
       call prin2('ra=*',ra,1)
 
-      open(unit=35,file='resall_tmp1.dat',form='unformatted')
-      write(35) H
-      write(35) F
-      write(35) rrhs1
-      write(35) rrhs2
-      write(35) alpha
-      write(35) beta
-      write(35) sgalpha
-      write(35) sgbeta
-      write(35) nsgbeta
-      close(35)
 
       do i=1,npts
         H(1,i) = H(1,i)/ra
@@ -475,7 +471,6 @@
       rrhs1 = 0
       call surf_div(npatches,norders,ixyzs,iptype,npts, &
         srccoefs,srcvals,H,rrhs1)
-      call prin2('rrhs1=*',rrhs1,24)
 
       erra = 0
       rsurf = 0

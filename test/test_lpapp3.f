@@ -80,7 +80,7 @@
 
       igeomtype = 1
       ipars(1) = 1 
-      npatches=12*(4**ipars(1))
+      npatches12*(4**ipars(1))
 
       norder = 5 
       npols = (norder+1)*(norder+2)/2

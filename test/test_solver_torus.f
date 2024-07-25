@@ -530,13 +530,8 @@ c
       call prin2('dpars=*',dpars,2)
       call prin2('eps=*',eps,1)
 
-cc      call lpcomp_lap_comb_dir_addsub(npatches,norders,ixyzs,iptype,
-cc     1    npts,srccoefs,srcvals,12,npts,srcvals,eps,dpars,nnz,row_ptr,
-cc     2    col_ind,iquad,nquad,wnear,soln(2*npts+1),
-cc     3    novers,npts_over,ixyzso,srcover,wover,ptmp)
-
       call prin2('soln=*',soln(2*npts+1),24)
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
      2  soln(2*npts+1),ptmp)
       call prin2('ptmp=*',ptmp,24)
@@ -549,7 +544,7 @@ cc     3    novers,npts_over,ixyzso,srcover,wover,ptmp)
        
 
       call prin2('soln=*',soln(2*npts+1),24)
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
      2  soln(npts+1),ptmp)
       call prin2('ptmp=*',ptmp,24)
@@ -567,7 +562,7 @@ cc     3    novers,npts_over,ixyzso,srcover,wover,ptmp)
 
       ptmp = 0
       call prin2('soln=*',soln,24)
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,12,npts,srcvals,ipatch_id,uvs_Targ,eps,dpars,
      2  soln,ptmp)
       call prin2('ptmp=*',ptmp,24)
