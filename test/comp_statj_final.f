@@ -75,7 +75,7 @@
 
 
       ibg = 0
-      idzk = 10
+      idzk = 9
       igeomtype = 2 
       if(igeomtype.eq.4) then
         ipars(1) = 4*4
@@ -506,7 +506,9 @@ C$OMP END PARALLEL DO
       dpars(3) = rgamma
       wnear = 0
 
-c      goto 1111
+      ifreadsol = 1
+
+c      if(ifreadsol.eq.1) goto 1111
       call getnearquad_statj_gendeb(npatches,norders,
      1      ixyzs,iptype,npts,srccoefs,srcvals,
      1      eps,dzk,iquadtype,nnz,row_ptr,col_ind,
@@ -556,10 +558,9 @@ c
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
       eps_gmres = 1.0d-8
-      ifreadsol = 0
  1233 format(3(2x,e22.16))
 
-      write(fname,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
+      write(fname,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i1.1,a)') 
      1    trim(dirname),'statj_soln_',ipars(1),'_',ipars(2),
      2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'.dat'
 
@@ -613,6 +614,7 @@ c
 
         close(80)
       else
+        print *, "here2"
         open(unit=80,file=fname,form='unformatted')
         read(80) niter
         read(80) rres
@@ -624,6 +626,7 @@ c
 
       endif
       call prin2('errs=*',errs,niter)
+      call prinf('niter=*',niter,1)
       
      
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,
@@ -727,7 +730,7 @@ c
       call prin2('dpars2=*',dpars2,2)
       ndtarg = 3
       
-      call lpcomp_lap_comb_dir(npatches,norders,ixyzs,iptype,npts,
+      call lap_comb_dir_eval(npatches,norders,ixyzs,iptype,npts,
      1  srccoefs,srcvals,ndtarg,ntarg,targs,ipatch_id_targ,uvs_targ,eps,
      2  dpars2,rsigma,rpot)
       do i=1,ntarg

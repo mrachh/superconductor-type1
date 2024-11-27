@@ -48,7 +48,7 @@ SRC=../src
 .PHONY: all clean 
 
 OBJECTS =  comp_statj_final.o \
-    $(SRC)/staticj_gendeb_final1.o $(SRC)/surf_routs.o
+    $(SRC)/staticj_gendeb_final_paper.o $(SRC)/surf_routs.o
 
 
 #

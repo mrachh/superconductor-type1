@@ -1056,11 +1056,8 @@ c
         endif
 
         allocate(uvs_targ(2,ntarg),ipatch_id_targ(ntarg))
-        allocate(rsigma(npts),rpot(ntarg),isout(ntarg))
+        allocate(rpot(ntarg),isout(ntarg))
 
-        do i=1,npts
-          rsigma(i) = 1.0d0
-        enddo
 
         do ipt=1,ntarg
           isout(ipt) = 0.0d0
@@ -1070,6 +1067,18 @@ c
         enddo
 
 
+      endif
+
+      allocate(rsigma(npts))
+
+      do i=1,npts
+        rsigma(i) = 1.0d0
+      enddo
+
+      if(ntarg.eq.0) then
+         allocate(targs(3,1), uvs_targ(2,1))
+         allocate(ipatch_id_targ(1),rpot(1))
+         allocate(isout(1))
       endif
 
       dpars2(1) = 0.0d0
