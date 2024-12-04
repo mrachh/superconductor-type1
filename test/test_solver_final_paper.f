@@ -93,20 +93,21 @@ c
       idzk = 4
 
 c
-c  Note for this code, igeomtype can only be 1,2,3,4 
+c  Note for this code, igeomtype can only be 1,2,3,4,6 
 c
 c  igeomtype = 1 => sphere
 c  igeomtype = 2 => stellartor
 c  igeomtype = 3 => wiggly torus
 c  igeomtype = 4 => torus
+c  igeomtype = 6 => thin shell tori
 c
-      igeomtype = 1
+      igeomtype = 6
       iref = 2
       if(igeomtype.eq.1) then
         ipars(1) = iref
         npatches = 12*(4**(ipars(1)))
         fname = 'sphere.vtk'
-        dirname = '/mnt/home/mrachh/ceph/' // 
+        dirname = '/Users/mrachh/git/' // 
      1     'superconductor-type1-data/sphere-data/'
         ngenus = 0
         xyz_in_src(1) = 0.201d0
@@ -166,9 +167,32 @@ c        ipars(2) = 90
         ipars(1) = 4*2**(iref)
         ipars(2) = 2*2**(iref)
         npatches = 2*ipars(1)*ipars(2)
-        dirname = '/mnt/home/mrachh/ceph/' // 
+
+        dirname = '/Users/mrachh/git/' // 
      1     'superconductor-type1-data/torus-data/'
         fname = 'torus.vtk'
+        ngenus = 1
+
+        xyz_in_src(1) = 2.001d0
+        xyz_in_src(2) = 0.002d0
+        xyz_in_src(3) = 0.001d0
+
+        uu = 0.75d0*2*pi
+        vv = 0.22d0*2*pi
+        rr = 1.37d0 
+        xyz_out_src(1) = (rr*cos(uu) + 2)*cos(vv)
+        xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
+        xyz_out_src(3) = rr*sin(uu)
+      endif
+
+      if(igeomtype.eq.6) then
+        ipars(1) = 4*2**(iref)
+        ipars(2) = 2*2**(iref)
+        npatches = 4*ipars(1)*ipars(2)
+
+        dirname = '/Users/mrachh/git/' // 
+     1     'superconductor-type1-data/thin-shell-torus-data/'
+        fname = 'thin-torus.vtk'
         ngenus = 1
 
         xyz_in_src(1) = 2.001d0
@@ -192,6 +216,7 @@ c        ipars(2) = 90
       allocate(srcvals(12,npts),srccoefs(9,npts))
       ifplot = 1
 
+
       call setup_geom(igeomtype,norder,npatches,ipars, 
      1       srcvals,srccoefs,ifplot,fname)
 cc      call prin2('srcvals=*',srcvals,12*npts)
@@ -206,6 +231,17 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
       enddo
 
       ixyzs(npatches+1) = 1+npols*npatches
+
+      print *, "npatches=",npatches
+      print *, "npts=",npts
+      call prin2('srcvals=*',srcvals(1,npts/2+1), 24)
+      call prin2('srccoefs=*',srccoefs(1,npts/2+1), 24)
+
+      call surf_vtk_plot_vec(npatches, norders, ixyzs, iptype, 
+     1  npts, srccoefs, srcvals, srcvals(10:12,:),
+     2   'thin-shell-normals.vtk','a')
+
+      stop
       allocate(wts(npts))
 
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
@@ -266,12 +302,14 @@ c
       write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
      1     'hvecs_',ipars(1),
      1    '_',ipars(2),'_',norder,'_1.dat'
-        open(unit=78,file=trim(fname),form='unformatted')
+      if(igeomtype.ge.2)
+     1   open(unit=78,file=trim(fname),form='unformatted')
       write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
      1     'hvecs_',ipars(1),
      1     '_',ipars(2),'_',norder,'_2.dat'
       print *, fname 
-      open(unit=79,file=trim(fname),form='unformatted')
+      if(igeomtype.ge.2) 
+     1   open(unit=79,file=trim(fname),form='unformatted')
 
 c
 c   set a and b cycle params
@@ -1242,6 +1280,7 @@ c
       implicit real *8 (a-h,o-z)
       integer igeomtype,norder,npatches,ipars(*),ifplot
       character (len=*) fname
+      character (len=1000) fname2
       real *8 srcvals(12,*), srccoefs(9,*)
       real *8, allocatable :: uvs(:,:),umatr(:,:),vmatr(:,:),wts(:)
 
@@ -1471,6 +1510,103 @@ c
      1     npols,uvs,umatr,srcvals,srccoefs)
       endif
       
+      if(igeomtype.eq.6) then
+        npatches0 = npatches/2
+        npatchestmp = 0 
+        done = 1
+        pi = atan(done)*4
+        allocate(triaskel(3,3,npatches0))
+
+
+        umin = 0
+        umax = 2*pi
+        vmin = 0
+        vmax = 2*pi
+        nover = 0
+        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
+     1     nover,npatches0,npatchestmp,triaskel)
+        call prinf('npatches=*',npatches,1)
+
+        ll = len(trim(fname))
+        fname2 = trim(fname(1:ll-4)//'-1.vtk')        
+         
+        p1(1) = 1.0d0
+        p1(2) = 1.75d0
+        p1(3) = 0.25d0
+
+        p2(1) = 1.0d0
+        p2(2) = 1.0d0
+        p2(3) = 1.0d0
+
+c
+c         number of oscillations
+c
+        p4(1) = 0.0d0
+
+
+        ptr1 => triaskel(1,1,1)
+        ptr2 => p1(1)
+        ptr3 => p2(1)
+        ptr4 => p4(1)
+        xtri_geometry => xtri_wtorus_eval
+        if(ifplot.eq.1) then
+           call xtri_vtk_surf(fname2,npatches0,xtri_geometry,
+     1         ptr1,ptr2,ptr3,ptr4,norder,
+     2         'Triangulated surface of the torus')
+        endif
+
+        call getgeominfo(npatches0,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
+     1     npols,uvs,umatr,srcvals,srccoefs)
+
+
+        umin = 0
+        umax = 2*pi
+        vmin = 2*pi
+        vmax = 0
+        nover = 0
+        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
+     1     nover,npatches0,npatchestmp,triaskel)
+        call prinf('npatches=*',npatches,1)
+
+        ll = len(trim(fname))
+        fname2 = trim(fname(1:ll-4)//'-2.vtk')        
+         
+        p1(1) = 0.5d0
+        p1(2) = 1.75d0
+        p1(3) = 0.25d0
+
+        p2(1) = 1.0d0
+        p2(2) = 1.0d0
+        p2(3) = 1.0d0
+
+c
+c         number of oscillations
+c
+        p4(1) = 0.0d0
+
+
+        ptr1 => triaskel(1,1,1)
+        ptr2 => p1(1)
+        ptr3 => p2(1)
+        ptr4 => p4(1)
+        xtri_geometry => xtri_wtorus_eval
+        if(ifplot.eq.1) then
+           call xtri_vtk_surf(fname2,npatches0,xtri_geometry,
+     1         ptr1,ptr2,ptr3,ptr4,norder,
+     2         'Triangulated surface of the torus')
+        endif
+
+        npts0 = npatches0*npols
+        print *, "npts0=*",npts0
+        print *, "npatches0=*",npatches0
+        
+
+        call getgeominfo(npatches0,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
+     1     npols,uvs,umatr,srcvals(1,npts0+1),srccoefs(1,npts0+1))
+
+
+      endif
+
       
       return  
       end
