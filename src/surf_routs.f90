@@ -453,6 +453,64 @@ end subroutine surf_div
 subroutine get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype, &
   npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,nb,bvals, &
   bwts,bpatches,buv)
+!
+!  This subroutine computes ab-cycle info
+!
+!  Input arguments:
+!    - npatches: integer
+!        number of patches
+!    - norders: integer(npatches)
+!        order of discretization of each patch
+!    - ixyzs: integer(npatches+1)
+!        starting location of points on patch i
+!    - iptype: integer(npatches)
+!        type of patch
+!        iptype = 1, triangle discretized using RV nodes
+!    - npts: integer
+!        total number of points on the surface
+!    - srccoefs: double precision (9,npts)
+!        koornwinder expansion coefs of geometry info
+!    - srcvals: double precision (12,npts)
+!        xyz, dxyz/du,dxyz/dv, normals at all nodes
+!    - m: integer 
+!        number of points per panel
+!    - na: integer
+!        total number of points on a cycles
+!    - nb: integer
+!        total number if points on b cycles
+!
+!  Output arguments:
+!    - apatches: integer(na)
+!        apatches(i) is the 
+!        patch id of the ith node
+!    - auv : real *8 (2,na)
+!        auv(1:2,i) are the local uv coordinates of
+!        the ith node
+!    - avals : real *8 (9,na)
+!        avals(1:9,i) are the xyz coordinates, the
+!        derivative info, and the normal info
+!        for the ith node
+!    - awts: real *8 (na)
+!        quadrature weights for integrating smooth functions on the
+!        acycles
+!    - bpatches: integer(nb)
+!        bpatches(i) is the 
+!        patch id of the ith node
+!    - buv : real *8 (2,nb)
+!        buv(1:2,i) are the local uv coordinates of
+!        the ith node
+!    - bvals : real *8 (9,nb)
+!        bvals(1:9,i) are the xyz coordinates, the
+!        derivative info, and the normal info for the ith node 
+!    - bwts: real *8 (nb)
+!        quadrature weights for integrating smooth functions on the
+!        bcycles
+!    
+!
+! 
+!
+!
+  
 
   implicit none
   integer npatches,norders(npatches),ixyzs(npatches+1),iptype(npatches)
