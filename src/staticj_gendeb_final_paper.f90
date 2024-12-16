@@ -13,14 +13,11 @@
 !  This subroutine generates the near field quadrature
 !  for the representations:
 !
-!  wdnear: 
+!  wnear: 
 !    S_{0}, D_{0}, \nabla_{1} S_{0}, \nabla_{2} S_{0}, \nabla_{3} S_{0},
-!    S_{0}'' + D_{0}'', S_{ik}, \nabla_{x} S_{ik}, \nabla_{y} S_{ik},
+!    S_{0}'' + D_{0}', S_{ik}, \nabla_{x} S_{ik}, \nabla_{y} S_{ik},
 !    \nabla_{z} S_{ik}
 !
-!
-!  wznear:
-!    S_{k}, \nabla_{1} S_{k}, \nabla_{2} S_{k}, \nabla_{3} S_{k}
 !
 !  The quadrature is computed by the following strategy
 !  targets within a sphere of radius rfac0*rs

@@ -35,7 +35,7 @@
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
-      integer iaxyzs(2),ibxyzs(2)
+      integer iaxyzs(3),ibxyzs(3)
       real *8 vf2(3,2),dpars(3),cf2(2),rzf2(3),dpars2(2)
       real *8 xyz_start(3), dxyz(3)
       complex *16 zf2(3),zk
@@ -397,6 +397,64 @@ c
       print *, "starting harmonic vector field computation"
 
 
+c
+c   hvecs, bbphvecs need to be of size (3,npts,2,2)
+c   hvecs_div(npts,2,2) (can be ignored)
+c     hvecs(:,:,:,1) -> corresponds to outer torus
+c     hvecs(:,:,:,2) -> inner torus
+c
+c     hvecs(1:3,:,1,:) -> first harmonic vector field (-y/r^2, x/r^2, 0)
+c     hvecs(1:3,:,2,:) -> second harmonic vector field
+c                         n\times hvecs(:,:,1,:)
+c     
+c     v_{1}^{+} = hvecs(:,:,1,1)
+c     v_{2}^{+} = hvecs(:,:,2,1)
+c     
+c     v_{1}^{-} = hvecs(:,:,1,2)
+c     v_{2}^{-} = hvecs(:,:,2,2)
+c
+c     bbphvecs = \nabla \times S_{0} [hvecs]
+c
+c     hvecs_div = \nabla \times S_{0}[n \times n\times hvecs]
+c     
+c
+c     \nabla \times S[j] = S[\nabla_{\Gamma} \cdot j] for 
+c      j tangential
+c
+      allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
+      allocate(hvecs_div2(npts))
+      allocate(rhstmp(npts*3),outtmp(npts*3))
+      bbphvecs = 0
+
+c
+c  start computing harmonic vector fields
+c
+      if(igeomtype.eq.4.or.igeomtype.eq.5) then
+        do i=1,npts
+          rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
+          hvecs(1,i,1) = -srcvals(2,i)/rr1
+          hvecs(2,i,1) = srcvals(1,i)/rr1
+          hvecs(3,i,1) = 0 
+          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
+     1       hvecs(1:3,i,2))
+        enddo
+        call surf_div(npatches,norders,ixyzs,iptype,npts, 
+     1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
+        errest = 0
+        do i=1,npts
+          errest = errest + hvecs_div2(i)**2*wts(i)
+        enddo
+        errest = sqrt(errest)
+        call prin2('errest=*',errest,1)
+      endif
+
+      if(igeomtype.eq.2.or.igeomtype.eq.3) then
+
+        ifread = 1
+        ifwrite = 0 
+        if(ifread.eq.0) then
+          eps = 0.51d-7
+c
       allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
       allocate(hvecs_div2(npts))
       allocate(rhstmp(npts*3),outtmp(npts*3))
@@ -491,12 +549,18 @@ C$         tt2 = omp_get_wtime()
         endif
       endif
 
+c
+c  end computing harmonic vector fields
+c 
 
       iaxyzs(1) = 1
-      iaxyzs(2) = na+1
+      iaxyzs(2) = na1+1
+      iaxyzs(3) = na + 1
 
       ibxyzs(1) = 1
-      ibxyzs(2) = nb+1
+      ibxyzs(2) = nb1+1
+      ibxyzs(3) = nb + 1
+      
 
 c
 c
