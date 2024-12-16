@@ -1,3 +1,5 @@
+CC  test if updated       
+      
       implicit real *8 (a-h,o-z) 
       real *8, allocatable :: srcvals(:,:),srccoefs(:,:)
       real *8, allocatable :: wts(:),rsigma(:),rpot(:)
