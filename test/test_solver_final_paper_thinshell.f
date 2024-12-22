@@ -880,6 +880,29 @@ c
 c       precompute near quadrature correction
 c
 c
+c
+c  findnearmem + findnear determines which pairs of sources
+c  (thought of as patches) and targets require special
+c  quadrature. It's job is to populate row_ptr, col_ind,
+c  and nnz (number of non-zero entries).
+c
+c  Input: surface info: npatches, npts, ixyzs, iptype, norders,
+c          srcvals, srccoefs, wts
+c
+c  Output: row_ptr, col_ind, iquad, nnz, novers, ixyzso, srcover
+c          wover (intermediate quantities: rad_near)
+c
+c
+c  Currently these things are computed for \Omega^{+} \cup \Omega^{-}
+c
+c  We need versions of these quantities for just i) \Omega^{+}, ii) \Omega^{-}
+c  and iii) \Omega^{+} \cup \Omega^{-}
+c
+c  Todo Yuguan: 
+c    create versions of row_ptr1, col_ind1, nnz1, novers1, 
+c              ixyzso1, srcover1, wover1
+c              row_ptr2, col_ind2, nnz2, novers2, 
+c              ixyzso2, srcover2, wover2
       iptype_avg = floor(sum(iptype)/(npatches+0.0d0))
       norder_avg = floor(sum(norders)/(npatches+0.0d0))
 
@@ -896,7 +919,7 @@ C$OMP END PARALLEL DO
       call prin2('rad_near=*',rad_near,12)
 c
 c    find near quadrature correction interactions
-c
+c 
       call findnearmem(cms,npatches,rad_near,3,sources,npts,nnz)
 
       allocate(row_ptr(npts+1),col_ind(nnz))
@@ -904,6 +927,10 @@ c
       call findnear(cms,npatches,rad_near,3,sources,npts,row_ptr, 
      1        col_ind)
 
+c
+c  iquad is indexing array for quadrature corrections
+c  sources as points and targets as points
+c
       allocate(iquad(nnz+1)) 
       call get_iquad_rsc(npatches,ixyzs,ntarg,nnz,row_ptr,col_ind,
      1         iquad)
@@ -976,6 +1003,12 @@ C$OMP END PARALLEL DO
       dpars(3) = rgamma
       wnear = 0
 
+c  Todo: Yuguan
+c  call getnearquad routine which returns 3 kernels
+c  with i) \Omega^{+}, and ii) \Omega^{-}
+c
+c
+
 c      goto 1111
       epsquad = 0.51d-7
       call cpu_time(t1)
@@ -997,6 +1030,12 @@ c
 c
 c  compute bbphvecs
 c
+c  hvecs(:,:,:,1) use info for \Omega^{+} and compute
+c  bbphevcs(:,:,:,1)
+c
+c  hvecs(:,:,:,2) use info for \Omega^{-} and compute
+c  bbphvecs(:,:,:,2)
+c
       hvecs_div = 0
       do igen=1,2*ngenus
         do i=1,npts
@@ -1016,11 +1055,6 @@ c
           bbphvecs(2,i,igen) = outtmp(i+npts)
           bbphvecs(3,i,igen) = outtmp(i+2*npts)
         enddo
-        hvecs_div = 0
-        call lpcomp_divs0tan_addsub(npatches,norders,ixyzs,iptype,
-     1   npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
-     2   wnear(2*nquad+1),rhstmp,novers,npts_over,ixyzso,
-     3   srcover,wover,hvecs_div(1:npts,igen))
         do j=1,npts
           call cross_prod3d(srcvals(10,j),hvecs(1,j,igen),vtmp1)
           bbphvecs(1:3,j,igen) = bbphvecs(1:3,j,igen) - vtmp1(1:3)/2

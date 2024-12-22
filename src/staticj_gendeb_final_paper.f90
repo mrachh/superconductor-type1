@@ -5,6 +5,13 @@
 !
 !
 
+!
+!
+!
+!
+!
+
+
       subroutine getnearquad_statj_gendeb(npatches,norders,&
        ixyzs,iptype,npts,srccoefs,srcvals, &
        eps,dpars,iquadtype,nnz,row_ptr,col_ind,&
@@ -102,7 +109,7 @@
 !        per source target pair
 !
 !  Output arguments
-!    - wnear: complex *16(4*nquad)
+!    - wnear: complex *16(10*nquad)
 !        The desired near field quadrature
 !               
 !
