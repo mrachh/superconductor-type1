@@ -45,9 +45,9 @@
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
-      integer iaxyzs(3),ibxyzs(3)
       integer, allocatable :: apatches1(:),bpatches1(:)
       integer, allocatable :: apatches2(:),bpatches2(:)
+      integer iaxyzs(2),ibxyzs(2)
       real *8 vf2(3,2),dpars(3),cf2(2),rzf2(3),dpars2(2)
       real *8 xyz_start(3), dxyz(3)
       complex *16 zf2(3),zk
@@ -76,6 +76,16 @@
       real *8, allocatable :: wtmp1(:,:),wtmp2(:,:),wtmp3(:,:)
       real *8, allocatable :: wtmp4(:,:)
       real *8 rinttmp(6)
+
+
+CCC     for thin shell only 
+      real *8, allocatable :: hvecs_shell(:,:,:,:)
+      real *8, allocatable :: bbphvecs_shell(:,:,:,:)
+      real *8, allocatable :: hvecs_div_shell(:,:,:)
+      real *8, allocatable :: hvecs_div2_shell(:,:)
+      real *8, allocatable :: wts1(:),wts2(:)
+      
+CCC 
 
       logical isout0,isout1
 
@@ -317,9 +327,8 @@ c  1  npts, srccoefs, srcvals, srcvals(10:12,:),
 c  2   'thin-shell-normals.vtk','a')
 
     
-c   allocate(wts(npts))
-
-c   call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
+C        allocate(wts(npts))
+C        call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
 
 c   allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
@@ -512,7 +521,7 @@ C            call prin2('srccoefs=*',srccoefs(1:9,10),10)
         endif 
 
 
-        stop 
+        
 
 
 
@@ -540,7 +549,6 @@ c
      
       print *, "starting harmonic vector field computation"
 
-
 c
 c   hvecs, bbphvecs need to be of size (3,npts,2,2)
 c   hvecs_div(npts,2,2) (can be ignored)
@@ -565,44 +573,96 @@ c
 c     \nabla \times S[j] = S[\nabla_{\Gamma} \cdot j] for 
 c      j tangential
 c
+
+        call prinf('npts1=*',npts1,1)
+        call prinf('npts2=*',npts2,1)
+
+
+        if (igeomtype.eq.6) then
+            allocate(hvecs_shell(3,npts1,2,2))
+            allocate(bbphvecs_shell(3,npts1,2,2))
+            allocate(hvecs_div_shell(npts1,2,2))
+            allocate(hvecs_div2_shell(npts1,2))
+
+            hvecs_shell = 0 
+            bbphvecs_shell = 0 
+            hvecs_div_shell = 0 
+            hvecs_div2_shell = 0
+
+
+CCC         surface 1     CCCC 
+            do i=1,npts1
+                rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
+                hvecs_shell(1,i,1,1) = -srcvals1(2,i)/rr1
+                hvecs_shell(2,i,1,1) = srcvals1(1,i)/rr1
+                hvecs_shell(3,i,1,1) = 0 
+                call cross_prod3d(srcvals1(10,i),hvecs_shell(1:3,i,1,1),
+     1       hvecs_shell(1:3,i,2,1))
+            enddo 
+
+            allocate(wts1(npts1))
+            call get_qwts(npatches1,norders1,ixyzs1,
+     1                         iptype1,npts1,srcvals1,wts1)
+
+            call surf_div(npatches1,norders1,ixyzs1,iptype1,npts1, 
+     1   srccoefs1,srcvals1,hvecs_shell(1,1,1,1),hvecs_div2_shell(1,1))
+
+            errest = 0
+            do i=1,npts1
+                errest = errest + hvecs_div2_shell(i,1)**2*wts1(i)
+            enddo
+            errest = sqrt(errest)
+            call prin2('errest1=*',errest,1)
+
+
+
+CCC         surface 2     CCCC
+
+
+            do i=1,npts2
+                rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
+                hvecs_shell(1,i,1,2) = -srcvals2(2,i)/rr1
+                hvecs_shell(2,i,1,2) = srcvals2(1,i)/rr1
+                hvecs_shell(3,i,1,2) = 0 
+                call cross_prod3d(srcvals2(10,i),hvecs_shell(1:3,i,1,2),
+     1       hvecs_shell(1:3,i,2,2))
+            enddo 
+
+
+            allocate(wts2(npts2))
+            call get_qwts(npatches2,norders2,ixyzs2,
+     1                         iptype2,npts2,srcvals2,wts2)
+
+    
+            call surf_div(npatches2,norders2,ixyzs2,iptype2,npts2, 
+     1   srccoefs2,srcvals2,hvecs_shell(1,1,1,2),hvecs_div2_shell(1,2))
+
+            errest = 0
+            do i=1,npts2
+                errest = errest + hvecs_div2_shell(i,2)**2*wts2(i)
+            enddo
+            errest = sqrt(errest)
+            call prin2('errest2=*',errest,1)
+        endif 
+
+
+        stop 
+        
+
+
+        
+
+
       allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
       allocate(hvecs_div2(npts))
       allocate(rhstmp(npts*3),outtmp(npts*3))
       bbphvecs = 0
 
-c
-c  start computing harmonic vector fields
-c
-      if(igeomtype.eq.4.or.igeomtype.eq.5) then
-        do i=1,npts
-          rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
-          hvecs(1,i,1) = -srcvals(2,i)/rr1
-          hvecs(2,i,1) = srcvals(1,i)/rr1
-          hvecs(3,i,1) = 0 
-          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
-     1       hvecs(1:3,i,2))
-        enddo
-        call surf_div(npatches,norders,ixyzs,iptype,npts, 
-     1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
-        errest = 0
-        do i=1,npts
-          errest = errest + hvecs_div2(i)**2*wts(i)
-        enddo
-        errest = sqrt(errest)
-        call prin2('errest=*',errest,1)
-      endif
 
-      if(igeomtype.eq.2.or.igeomtype.eq.3) then
+      
 
-        ifread = 1
-        ifwrite = 0 
-        if(ifread.eq.0) then
-          eps = 0.51d-7
-c
-      allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
-      allocate(hvecs_div2(npts))
-      allocate(rhstmp(npts*3),outtmp(npts*3))
-      bbphvecs = 0
+
+      
 
       if(igeomtype.eq.4.or.igeomtype.eq.5) then
         do i=1,npts
@@ -693,18 +753,12 @@ C$         tt2 = omp_get_wtime()
         endif
       endif
 
-c
-c  end computing harmonic vector fields
-c 
 
       iaxyzs(1) = 1
-      iaxyzs(2) = na1+1
-      iaxyzs(3) = na + 1
+      iaxyzs(2) = na+1
 
       ibxyzs(1) = 1
-      ibxyzs(2) = nb1+1
-      ibxyzs(3) = nb + 1
-      
+      ibxyzs(2) = nb+1
 
 c
 c
