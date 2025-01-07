@@ -1,11 +1,12 @@
       implicit real *8 (a-h,o-z) 
       real *8, allocatable :: srcvals(:,:),srccoefs(:,:)
-      real *8, allocatable :: srcvals1(:,:),srccoefs1(:,:)
-      real *8, allocatable :: srcvals2(:,:),srccoefs2(:,:)
       real *8, allocatable :: wts(:),rsigma(:),rpot(:)
       integer ipars(2)
-
       integer, allocatable :: norders(:),ixyzs(:),iptype(:)
+
+CCC   for thin shell only 
+      real *8, allocatable :: srcvals1(:,:),srccoefs1(:,:)
+      real *8, allocatable :: srcvals2(:,:),srccoefs2(:,:)
       integer, allocatable :: norders1(:),ixyzs1(:),iptype1(:)
       integer, allocatable :: norders2(:),ixyzs2(:),iptype2(:)
       
@@ -33,20 +34,12 @@
       real *8, allocatable :: avals(:,:),bvals(:,:)
       real *8, allocatable :: awts(:),bwts(:)
       real *8, allocatable :: auv(:,:),buv(:,:)
-      real *8, allocatable :: avals1(:,:),bvals1(:,:)
-      real *8, allocatable :: awts1(:),bwts1(:)
-      real *8, allocatable :: auv1(:,:),buv1(:,:)
-      real *8, allocatable :: avals2(:,:),bvals2(:,:)
-      real *8, allocatable :: awts2(:),bwts2(:)
-      real *8, allocatable :: auv2(:,:),buv2(:,:)
       real *8, allocatable :: hvecs(:,:,:),bbphvecs(:,:,:)
       real *8, allocatable :: rhstmp(:),outtmp(:)
       real *8, allocatable :: hvecs_div(:,:),hvecs_div2(:)
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
-      integer, allocatable :: apatches1(:),bpatches1(:)
-      integer, allocatable :: apatches2(:),bpatches2(:)
       integer iaxyzs(2),ibxyzs(2)
       real *8 vf2(3,2),dpars(3),cf2(2),rzf2(3),dpars2(2)
       real *8 xyz_start(3), dxyz(3)
@@ -55,6 +48,19 @@
       integer numit,niter,ndims(3)
       character *100 title,dirname
       character *1000 fname,fname1
+
+CCC   for thin shell only 
+      real *8, allocatable :: avals1(:,:),bvals1(:,:)
+      real *8, allocatable :: awts1(:),bwts1(:)
+      real *8, allocatable :: auv1(:,:),buv1(:,:)
+      real *8, allocatable :: avals2(:,:),bvals2(:,:)
+      real *8, allocatable :: awts2(:),bwts2(:)
+      real *8, allocatable :: auv2(:,:),buv2(:,:)
+      integer, allocatable :: apatches1(:),bpatches1(:)
+      integer, allocatable :: apatches2(:),bpatches2(:)
+      complex * 16 zpars1(3), zpars2(3)
+
+
 
       integer, allocatable :: ipatch_id(:),ipatch_id_targ(:)
       real *8, allocatable :: uvs_targ(:,:),uvs_src(:,:)
@@ -77,6 +83,21 @@
       real *8, allocatable :: wtmp4(:,:)
       real *8 rinttmp(6)
 
+CCC     for thin-shell only 
+      real *8, allocatable :: cms1(:,:),rads1(:),rad_near1(:)
+      real *8, allocatable :: cms2(:,:),rads2(:),rad_near2(:)
+      real *8, allocatable :: sources1(:,:),targs1(:,:)
+      real *8, allocatable :: sources2(:,:),targs2(:,:)
+      real *8, allocatable :: wnear1(:),wnear2(:)
+
+CCC     for thin shell only 
+      integer, allocatable :: iquad1(:),row_ptr1(:),col_ind1(:)
+      integer, allocatable :: iquad2(:),row_ptr2(:),col_ind2(:)
+      integer, allocatable :: novers1(:),ixyzso1(:)
+      integer, allocatable :: novers2(:),ixyzso2(:)
+      real *8, allocatable :: srcover1(:,:),wover1(:)
+      real *8, allocatable :: srcover2(:,:),wover2(:)
+      
 
 CCC     for thin shell only 
       real *8, allocatable :: hvecs_shell(:,:,:,:)
@@ -264,56 +285,56 @@ c            for surface2
 c   try plotting them
 c
 c       
-        if(igeomtype.eq.6) then
-            npatches1 = npatches/2 
-            npatches2 = npatches-npatches1
-            npts1 =  npatches1*npols
-            npts2 = npts-npts1 
+      if(igeomtype.eq.6) then
+        npatches1 = npatches/2 
+        npatches2 = npatches-npatches1
+        npts1 =  npatches1*npols
+        npts2 = npts-npts1 
 
-            allocate(srcvals1(12,npts1),srccoefs1(9,npts1))
-            allocate(srcvals2(12,npts2),srccoefs2(9,npts2))
+        allocate(srcvals1(12,npts1),srccoefs1(9,npts1))
+        allocate(srcvals2(12,npts2),srccoefs2(9,npts2))
 
-            srcvals1 = srcvals(1:12,1:npts1)
-            srccoefs1 = srccoefs(1:9,1:npts1)
-            srcvals2 = srcvals(1:12,(npts1+1):npts)
-            srccoefs2 = srccoefs(1:9,(npts1+1):npts)
+        srcvals1 = srcvals(1:12,1:npts1)
+        srccoefs1 = srccoefs(1:9,1:npts1)
+        srcvals2 = srcvals(1:12,(npts1+1):npts)
+        srccoefs2 = srccoefs(1:9,(npts1+1):npts)
 C            call prinf('npts1=*',npts1,1)
 C            call prin2('srcvals2=*',srcvals2(1:12,20),5)
 
-            allocate(norders1(npatches1),ixyzs1(npatches1+1),
+        allocate(norders1(npatches1),ixyzs1(npatches1+1),
      1            iptype1(npatches1))
 
-            do i=1,npatches1
-                norders1(i) = norder
-                ixyzs1(i) = 1 +(i-1)*npols
-                iptype1(i) = 1
-            enddo
+        do i=1,npatches1
+            norders1(i) = norder
+            ixyzs1(i) = 1 +(i-1)*npols
+            iptype1(i) = 1
+        enddo
 
-            ixyzs1(npatches1+1) = 1+npols*npatches1
+        ixyzs1(npatches1+1) = 1+npols*npatches1
 
 
-            call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,
+        call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,
      1        iptype1,npts1,srccoefs1,srcvals1,srcvals1(10:12,:),
      2        'surface1-normals.vtk','a')
 
 
             
-            allocate(norders2(npatches2),ixyzs2(npatches2+1),
+        allocate(norders2(npatches2),ixyzs2(npatches2+1),
      1          iptype2(npatches2))
         
-            do i=1,npatches2
-                norders2(i) = norder
-                ixyzs2(i) = 1 +(i-1)*npols
-                iptype2(i) = 1
-            enddo 
+        do i=1,npatches2
+            norders2(i) = norder
+            ixyzs2(i) = 1 +(i-1)*npols
+            iptype2(i) = 1
+        enddo 
 
-            ixyzs2(npatches2+1) = 1+npols*npatches2
+        ixyzs2(npatches2+1) = 1+npols*npatches2
 
-            call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,
+        call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,
      1        iptype2,npts2,srccoefs2,srcvals2,srcvals2(10:12,:),
      2        'surface2-normals.vtk','a')
            
-        endif 
+      endif 
 
 
 
@@ -327,11 +348,11 @@ c  1  npts, srccoefs, srcvals, srcvals(10:12,:),
 c  2   'thin-shell-normals.vtk','a')
 
     
-C        allocate(wts(npts))
-C        call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
+      allocate(wts(npts))
+      call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
 
-c   allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
+      allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
 
 c
 c
@@ -348,10 +369,10 @@ c  2   'thin-shell-normals.vtk','a')
 
 
 
-c   call get_centroid_rads(npatches,norders,ixyzs,iptype,npts, 
-c  1     srccoefs,cms,rads)
-c   call prin2('cms=*',cms,24)
-c   call prin2('rads=*',rads,12)
+      call get_centroid_rads(npatches,norders,ixyzs,iptype,npts, 
+     1     srccoefs,cms,rads)
+      call prin2('cms=*',cms,24)
+      call prin2('rads=*',rads,12)
 
 c   if(igeomtype.eq.1) then
 c     call get_sphere_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
@@ -439,27 +460,27 @@ c
 c  create iaxyzs(3)
         
 
-        if (igeomtype.eq.6) then
+      if (igeomtype.eq.6) then
 
 
-            npatches1 = npatches/2
-            call prinf('npatches1=*',npatches1,1)
+        npatches1 = npatches/2
+        call prinf('npatches1=*',npatches1,1)
 
-            m = 40
-            na = 2*ipars(2)*m
-            nb = 2*ipars(1)*m
-            npts1 = npatches1*npols
-            npts2 = npts-npts1
+        m = 40
+        na = 2*ipars(2)*m
+        nb = 2*ipars(1)*m
+        npts1 = npatches1*npols
+        npts2 = npts-npts1
 
 c     call prinf('na=*',na,1)
 c     call prinf('nb=*',nb,1)
 c     call prinf('npts0=*',npts0,1)
 
-            na1 = na/2 
-            na2 = na-na1 
+        na1 = na/2 
+        na2 = na-na1 
 
-            nb1 = nb/2 
-            nb2 = nb-nb1
+        nb1 = nb/2 
+        nb2 = nb-nb1
 
 c     call prinf('na1=*',na1,1)
 c     call prinf('na2=*',na2,1)
@@ -467,58 +488,58 @@ c     call prinf('nb1=*',nb1,1)
 c     call prinf('nb2=*',nb2,1)
 
 
-            allocate(avals1(9,na1),awts1(na1),auv1(2,na1),
+        allocate(avals1(9,na1),awts1(na1),auv1(2,na1),
      1               apatches1(na1))
-            allocate(bvals1(9,nb1),bwts1(nb1),buv1(2,nb1),
+        allocate(bvals1(9,nb1),bwts1(nb1),buv1(2,nb1),
      1               bpatches1(nb1))
 
-            call get_ab_cycles_torusparam(npatches1,norders1,
+        call get_ab_cycles_torusparam(npatches1,norders1,
      1           ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
      2           ipars,m,na1,avals1,awts1,apatches1,auv1,
      3           nb1,bvals1,bwts1,bpatches1,buv1) 
-            call vtk_curv_plot(na1,9,avals1,'acycle1.vtk','a1')
-            call vtk_curv_plot(nb1,9,bvals1,'bcycle1.vtk','b1')
+        call vtk_curv_plot(na1,9,avals1,'acycle1.vtk','a1')
+        call vtk_curv_plot(nb1,9,bvals1,'bcycle1.vtk','b1')
 
 C            call prin2('srccoefs=*',srccoefs(1:9,10),10)
 
 
-            allocate(avals2(9,na2),awts2(na2),auv2(2,na2),
+        allocate(avals2(9,na2),awts2(na2),auv2(2,na2),
      1               apatches2(na2))
-            allocate(bvals2(9,nb2),bwts2(nb2),buv2(2,nb2),
+        allocate(bvals2(9,nb2),bwts2(nb2),buv2(2,nb2),
      1               bpatches2(nb2))
 
-            call get_ab_cycles_torusparam(npatches2,norders2,
+        call get_ab_cycles_torusparam(npatches2,norders2,
      1           ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
      2           ipars,m,na2,avals2,awts2,apatches2,auv2,
      3           nb2,bvals2,bwts2,bpatches2,buv2) 
-            call vtk_curv_plot(na2,9,avals2,'acycle2.vtk','a2')
-            call vtk_curv_plot(nb2,9,bvals2,'bcycle2.vtk','b2')
+        call vtk_curv_plot(na2,9,avals2,'acycle2.vtk','a2')
+        call vtk_curv_plot(nb2,9,bvals2,'bcycle2.vtk','b2')
 
 
-            allocate(avals(9,na),awts(na),auv(2,na),
+        allocate(avals(9,na),awts(na),auv(2,na),
      1             apatches(na))
-            allocate(bvals(9,nb),bwts(nb),buv(2,nb),
+        allocate(bvals(9,nb),bwts(nb),buv(2,nb),
      1             bpatches(nb))
-            avals(1:9,1:na1) = avals1
-            awts(1:na1) = awts1
-            auv(1:2,1:na1) = auv1 
-            apatches(1:na1) = apatches1
-            avals(1:9,(na1+1):na) = avals2
-            awts((na1+1):na) = awts2
-            auv(1:2,(na1+1):na) = auv2 
-            apatches((na1+1):na) = apatches2
+        avals(1:9,1:na1) = avals1
+        awts(1:na1) = awts1
+        auv(1:2,1:na1) = auv1 
+        apatches(1:na1) = apatches1
+        avals(1:9,(na1+1):na) = avals2
+        awts((na1+1):na) = awts2
+        auv(1:2,(na1+1):na) = auv2 
+        apatches((na1+1):na) = apatches2
 
-            bvals(1:9,1:nb1) = bvals1
-            bwts(1:nb1) = bwts1
-            buv(1:2,1:nb1) = buv1 
-            bpatches(1:nb1) = bpatches1
-            bvals(1:9,(nb1+1):nb) = bvals2
-            bwts((nb1+1):nb) = bwts2
-            buv(1:2,(nb1+1):nb) = buv2 
-            bpatches((nb1+1):nb) = bpatches2
+        bvals(1:9,1:nb1) = bvals1
+        bwts(1:nb1) = bwts1
+        buv(1:2,1:nb1) = buv1 
+        bpatches(1:nb1) = bpatches1
+        bvals(1:9,(nb1+1):nb) = bvals2
+        bwts((nb1+1):nb) = bwts2
+        buv(1:2,(nb1+1):nb) = buv2 
+        bpatches((nb1+1):nb) = bpatches2
 
 
-        endif 
+      endif 
 
 
         
@@ -574,79 +595,79 @@ c     \nabla \times S[j] = S[\nabla_{\Gamma} \cdot j] for
 c      j tangential
 c
 
-        call prinf('npts1=*',npts1,1)
-        call prinf('npts2=*',npts2,1)
+      call prinf('npts1=*',npts1,1)
+      call prinf('npts2=*',npts2,1)
 
 
-        if (igeomtype.eq.6) then
-            allocate(hvecs_shell(3,npts1,2,2))
-            allocate(bbphvecs_shell(3,npts1,2,2))
-            allocate(hvecs_div_shell(npts1,2,2))
-            allocate(hvecs_div2_shell(npts1,2))
+      if (igeomtype.eq.6) then
+        allocate(hvecs_shell(3,npts1,2,2))
+        allocate(bbphvecs_shell(3,npts1,2,2))
+        allocate(hvecs_div_shell(npts1,2,2))
+        allocate(hvecs_div2_shell(npts1,2))
 
-            hvecs_shell = 0 
-            bbphvecs_shell = 0 
-            hvecs_div_shell = 0 
-            hvecs_div2_shell = 0
+        hvecs_shell = 0 
+        bbphvecs_shell = 0 
+        hvecs_div_shell = 0 
+        hvecs_div2_shell = 0
 
 
 CCC         surface 1     CCCC 
-            do i=1,npts1
-                rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
-                hvecs_shell(1,i,1,1) = -srcvals1(2,i)/rr1
-                hvecs_shell(2,i,1,1) = srcvals1(1,i)/rr1
-                hvecs_shell(3,i,1,1) = 0 
-                call cross_prod3d(srcvals1(10,i),hvecs_shell(1:3,i,1,1),
+        do i=1,npts1
+            rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
+            hvecs_shell(1,i,1,1) = -srcvals1(2,i)/rr1
+            hvecs_shell(2,i,1,1) = srcvals1(1,i)/rr1
+            hvecs_shell(3,i,1,1) = 0 
+            call cross_prod3d(srcvals1(10,i),hvecs_shell(1:3,i,1,1),
      1       hvecs_shell(1:3,i,2,1))
-            enddo 
+        enddo 
 
-            allocate(wts1(npts1))
-            call get_qwts(npatches1,norders1,ixyzs1,
-     1                         iptype1,npts1,srcvals1,wts1)
+        allocate(wts1(npts1))
+        call get_qwts(npatches1,norders1,ixyzs1,
+     1           iptype1,npts1,srcvals1,wts1)
 
-            call surf_div(npatches1,norders1,ixyzs1,iptype1,npts1, 
+        call surf_div(npatches1,norders1,ixyzs1,iptype1,npts1, 
      1   srccoefs1,srcvals1,hvecs_shell(1,1,1,1),hvecs_div2_shell(1,1))
 
-            errest = 0
-            do i=1,npts1
-                errest = errest + hvecs_div2_shell(i,1)**2*wts1(i)
-            enddo
-            errest = sqrt(errest)
-            call prin2('errest1=*',errest,1)
+        errest = 0
+        do i=1,npts1
+            errest = errest + hvecs_div2_shell(i,1)**2*wts1(i)
+        enddo
+        errest = sqrt(errest)
+        call prin2('errest1=*',errest,1)
 
 
 
 CCC         surface 2     CCCC
 
 
-            do i=1,npts2
-                rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
-                hvecs_shell(1,i,1,2) = -srcvals2(2,i)/rr1
-                hvecs_shell(2,i,1,2) = srcvals2(1,i)/rr1
-                hvecs_shell(3,i,1,2) = 0 
-                call cross_prod3d(srcvals2(10,i),hvecs_shell(1:3,i,1,2),
+        do i=1,npts2
+          rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
+          hvecs_shell(1,i,1,2) = -srcvals2(2,i)/rr1
+          hvecs_shell(2,i,1,2) = srcvals2(1,i)/rr1
+          hvecs_shell(3,i,1,2) = 0 
+          call cross_prod3d(srcvals2(10,i),hvecs_shell(1:3,i,1,2),
      1       hvecs_shell(1:3,i,2,2))
-            enddo 
+        enddo 
 
 
-            allocate(wts2(npts2))
-            call get_qwts(npatches2,norders2,ixyzs2,
-     1                         iptype2,npts2,srcvals2,wts2)
+        allocate(wts2(npts2))
+        call get_qwts(npatches2,norders2,ixyzs2,
+     1     iptype2,npts2,srcvals2,wts2)
 
     
-            call surf_div(npatches2,norders2,ixyzs2,iptype2,npts2, 
+        call surf_div(npatches2,norders2,ixyzs2,iptype2,npts2, 
      1   srccoefs2,srcvals2,hvecs_shell(1,1,1,2),hvecs_div2_shell(1,2))
 
-            errest = 0
-            do i=1,npts2
-                errest = errest + hvecs_div2_shell(i,2)**2*wts2(i)
-            enddo
-            errest = sqrt(errest)
-            call prin2('errest2=*',errest,1)
-        endif 
+        errest = 0
+        do i=1,npts2
+            errest = errest + hvecs_div2_shell(i,2)**2*wts2(i)
+        enddo
+        errest = sqrt(errest)
+        call prin2('errest2=*',errest,1)
+      endif 
 
 
-        stop 
+        
         
 
 
@@ -785,6 +806,7 @@ c
       bbp = 0
       bjm = 0
       bbm = 0
+      call prin2('bbp=*',bbp,24)
 
       ntarg = npts
       allocate(sources(3,npts))
@@ -800,9 +822,12 @@ C$OMP END PARALLEL DO
       call prin2('xyz_in_src=*',xyz_in_src,3)
       call prin2('cf2=*',cf2,1)
       call prin2('vf2=*',vf2,3)
+C      call prin2('bbp=*',bbp,24)
+
       call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,sources,npts,
-     1 ptmp,bbp,thresh)
+     1     ptmp,bbp,thresh)
       call prin2('bbp=*',bbp,24)
+      
       dzk = 10**(idzk)
 
       if(idzk.eq.3) dzk = 30.0d0
@@ -830,6 +855,8 @@ C$OMP END PARALLEL DO
         rhs(i+4*npts) = bjm(2,i)
         rhs(i+5*npts) = bjm(3,i)
       enddo
+
+
 
       if(igeomtype.ge.2) then
 
@@ -875,6 +902,9 @@ C$OMP END PARALLEL DO
      1  ipatch_id,uvs_src)
       call prinf('ipatch_id=*',ipatch_id,20)
       call prin2('uvs_src=*',uvs_src,48)
+
+
+      
       
 c
 c       precompute near quadrature correction
@@ -903,105 +933,299 @@ c    create versions of row_ptr1, col_ind1, nnz1, novers1,
 c              ixyzso1, srcover1, wover1
 c              row_ptr2, col_ind2, nnz2, novers2, 
 c              ixyzso2, srcover2, wover2
-      iptype_avg = floor(sum(iptype)/(npatches+0.0d0))
-      norder_avg = floor(sum(norders)/(npatches+0.0d0))
 
-      call get_rfacs(norder_avg,iptype_avg,rfac,rfac0)
-      call prin2('rfac=*',rfac,1)
-      call prin2('rfac0=*',rfac0,1)
+      
+        iptype_avg = floor(sum(iptype)/(npatches+0.0d0))
+        norder_avg = floor(sum(norders)/(npatches+0.0d0))
+
+        call get_rfacs(norder_avg,iptype_avg,rfac,rfac0)
+        call prin2('rfac=*',rfac,1)
+        call prin2('rfac0=*',rfac0,1)
 
 C$OMP PARALLEL DO DEFAULT(SHARED) 
-      do i=1,npatches
-        rad_near(i) = rads(i)*rfac
-      enddo
+        do i=1,npatches
+         rad_near(i) = rads(i)*rfac
+        enddo
 C$OMP END PARALLEL DO     
 
-      call prin2('rad_near=*',rad_near,12)
+        call prin2('rad_near=*',rad_near,12)
 c
 c    find near quadrature correction interactions
 c 
-      call findnearmem(cms,npatches,rad_near,3,sources,npts,nnz)
+        call findnearmem(cms,npatches,rad_near,3,sources,npts,nnz)
 
-      allocate(row_ptr(npts+1),col_ind(nnz))
+       allocate(row_ptr(npts+1),col_ind(nnz))
       
-      call findnear(cms,npatches,rad_near,3,sources,npts,row_ptr, 
+        call findnear(cms,npatches,rad_near,3,sources,npts,row_ptr, 
      1        col_ind)
 
 c
 c  iquad is indexing array for quadrature corrections
 c  sources as points and targets as points
 c
-      allocate(iquad(nnz+1)) 
-      call get_iquad_rsc(npatches,ixyzs,ntarg,nnz,row_ptr,col_ind,
+        allocate(iquad(nnz+1)) 
+        call get_iquad_rsc(npatches,ixyzs,ntarg,nnz,row_ptr,col_ind,
      1         iquad)
 
 c
 c    estimate oversampling for far-field, and oversample geometry
 c
 
-      ikerorder = 0
-      allocate(novers(npatches),ixyzso(npatches+1))
+        ikerorder = 0
+        allocate(novers(npatches),ixyzso(npatches+1))
 
-      zpars = 0
-      ndtarg = 3
-      call get_far_order(eps,npatches,norders,ixyzs,iptype,cms,
+        zpars = 0
+        ndtarg = 3
+        call get_far_order(eps,npatches,norders,ixyzs,iptype,cms,
      1    rads,npts,srccoefs,ndtarg,npts,sources,ikerorder,zpars,
      2    nnz,row_ptr,col_ind,rfac,novers,ixyzso)
 
-      npts_over = ixyzso(npatches+1)-1
+        npts_over = ixyzso(npatches+1)-1
 
-      allocate(srcover(12,npts_over),wover(npts_over))
+        allocate(srcover(12,npts_over),wover(npts_over))
 
-      call oversample_geom(npatches,norders,ixyzs,iptype,npts, 
+        call oversample_geom(npatches,norders,ixyzs,iptype,npts, 
      1   srccoefs,srcvals,novers,ixyzso,npts_over,srcover)
 
-      call get_qwts(npatches,novers,ixyzso,iptype,npts_over,
+       call get_qwts(npatches,novers,ixyzso,iptype,npts_over,
      1        srcover,wover)
 
 
 c
 c   compute near quadrature correction
 c
-      nquad = iquad(nnz+1)-1
-      allocate(wnear(10*nquad))
+        nquad = iquad(nnz+1)-1
+        allocate(wnear(10*nquad))
       
 C$OMP PARALLEL DO DEFAULT(SHARED)      
-      do i=1,10*nquad
-        wnear(i) = 0
-      enddo
+       do i=1,10*nquad
+          wnear(i) = 0
+       enddo
 C$OMP END PARALLEL DO    
 
-      call prinf('finished generating near field info*',i,0)
-      call prinf('finished generating far field orders*',i,0)
-      call prinf('npts_over=*',npts_over,1)
-      call prin2('eps=*',eps,1)
+       call prinf('finished generating near field info*',i,0)
+       call prinf('finished generating far field orders*',i,0)
+       call prinf('npts_over=*',npts_over,1)
+       call prin2('eps=*',eps,1)
 
-      iquadtype = 1
+       iquadtype = 1
 
-      if(ibg.eq.1) then
-        rbeta = 0.0d0
-        rgamma = 0.0d0
-      endif
+        if(ibg.eq.1) then
+          rbeta = 0.0d0
+          rgamma = 0.0d0
+        endif
 
-      if(ibg.eq.2) then
-        rbeta = 1.0d0
-        rgamma = 0.0d0
-      endif
+       if(ibg.eq.2) then
+         rbeta = 1.0d0
+         rgamma = 0.0d0
+       endif
 
-      if(ibg.eq.3) then
-        rbeta = 0.0d0
-        rgamma = -1.0d0*dzk
-      endif
+        if(ibg.eq.3) then
+         rbeta = 0.0d0
+         rgamma = -1.0d0*dzk
+         endif
 
-      if(ibg.eq.4) then
-        rbeta = 1.0d0
-        rgamma = 1.0d0
-      endif
+        if(ibg.eq.4) then
+         rbeta = 1.0d0
+         rgamma = 1.0d0
+        endif
 
-      dpars(1) = dzk
-      dpars(2) = rbeta
-      dpars(3) = rgamma
-      wnear = 0
+        dpars(1) = dzk
+        dpars(2) = rbeta
+        dpars(3) = rgamma
+        wnear = 0
+
+
+        if (igeomtype.eq.6) then 
+CCC     thin shell 
+
+CCC     for surface 1 
+        iptype_avg1 = floor(sum(iptype1)/(npatches1+0.0d0))
+        norder_avg1 = floor(sum(norders1)/(npatches1+0.0d0))
+
+        call get_rfacs(norder_avg1,iptype_avg1,rfac1,rfac01)
+        call prin2('rfac1=*',rfac1,1)
+        call prin2('rfac01=*',rfac01,1)
+
+
+        allocate(cms1(3,npatches1),rads1(npatches1),
+     1       rad_near1(npatches1))
+        call get_centroid_rads(npatches1,norders1,ixyzs1,iptype1,npts1, 
+     1     srccoefs1,cms1,rads1)
+        call prin2('cms1=*',cms1,24)
+        call prin2('rads1=*',rads1,12)
+
+
+        do i=1,npatches1
+          rad_near1(i) = rads1(i)*rfac1
+        enddo
+        call prin2('rad_near1=*',rad_near1,12)
+c
+c    find near quadrature correction interactions
+        allocate(sources1(3,npts1))
+        do i=1,npts1 
+          sources1(1,i) = srcvals1(1,i)
+          sources1(2,i) = srcvals1(2,i)
+          sources1(3,i) = srcvals1(3,i)
+        enddo
+c 
+        call findnearmem(cms1,npatches1,rad_near1,3,
+     1             sources1,npts1,nnz1)
+        call prinf('nnz1=*',nnz1,1)
+
+        allocate(row_ptr1(npts1+1),col_ind1(nnz1))
+
+        call findnear(cms1,npatches1,rad_near1,3,sources1,
+     1        npts1,row_ptr1,col_ind1)
+
+c
+c  iquad is indexing array for quadrature corrections
+c  sources as points and targets as points
+c
+
+        allocate(iquad1(nnz1+1)) 
+C       ASK Manas if this is correct 
+        ntarg1 = npts1
+        call get_iquad_rsc(npatches1,ixyzs1,ntarg1,nnz1,
+     1         row_ptr1,col_ind1,iquad1)
+        call prinf('iquad1=*',iquad1,24)
+
+c
+c    estimate oversampling for far-field, and oversample geometry
+c
+
+        ikerorder = 0
+        allocate(novers1(npatches1),ixyzso1(npatches1+1))
+
+        zpars1 = 0
+        ndtarg = 3
+        call get_far_order(eps,npatches1,norders1,ixyzs1,iptype1,cms1,
+     1    rads1,npts1,srccoefs1,ndtarg,npts1,sources1,ikerorder,zpars1,
+     2    nnz1,row_ptr1,col_ind1,rfac1,novers1,ixyzso1)
+
+        npts_over1 = ixyzso1(npatches1+1)-1
+        call prinf('npts_over1=*',npts_over1,1)
+
+        allocate(srcover1(12,npts_over1),wover1(npts_over1))
+
+        call oversample_geom(npatches1,norders1,ixyzs1,
+     1   iptype1,npts1,srccoefs1,srcvals1,novers1,ixyzso1,
+     2   npts_over1,srcover1)
+
+        call prin2('srcover1=*',srcover1,24)
+
+        call get_qwts(npatches1,novers1,ixyzso1,iptype1,
+     1        npts_over1,srcover1,wover1)
+        call prin2('wover1=*',wover1,24)
+
+c
+c   compute near quadrature correction
+c
+        nquad1 = iquad1(nnz1+1)-1
+        allocate(wnear1(10*nquad1))
+        do i=1,10*nquad1
+            wnear1(i) = 0
+        enddo
+
+       call prinf('finished generating near field info*',i,0)
+       call prinf('finished generating far field orders*',i,0)
+       call prinf('npts_over1=*',npts_over1,1)
+       call prin2('eps=*',eps,1)
+
+CCC     for surface 2 
+        iptype_avg2 = floor(sum(iptype2)/(npatches2+0.0d0))
+        norder_avg2 = floor(sum(norders2)/(npatches2+0.0d0))
+
+        call get_rfacs(norder_avg2,iptype_avg2,rfac2,rfac02)
+        call prin2('rfac2=*',rfac2,1)
+        call prin2('rfac02=*',rfac02,1)
+
+
+        allocate(cms2(3,npatches2),rads2(npatches2),
+     1       rad_near2(npatches2))
+        call get_centroid_rads(npatches2,norders2,ixyzs2,iptype2,npts2, 
+     1     srccoefs2,cms2,rads2)
+        call prin2('cms2=*',cms2,24)
+        call prin2('rads2=*',rads2,12)
+
+
+        do i=1,npatches2
+          rad_near2(i) = rads2(i)*rfac2
+        enddo
+        call prin2('rad_near2=*',rad_near2,12)
+c
+c    find near quadrature correction interactions
+        allocate(sources2(3,npts2))
+        do i=1,npts2 
+          sources2(1,i) = srcvals2(1,i)
+          sources2(2,i) = srcvals2(2,i)
+          sources2(3,i) = srcvals2(3,i)
+        enddo
+c 
+        call findnearmem(cms2,npatches2,rad_near2,3,
+     1             sources2,npts2,nnz2)
+        call prinf('nnz2=*',nnz2,1)
+
+        allocate(row_ptr2(npts2+1),col_ind2(nnz2))
+
+        call findnear(cms2,npatches2,rad_near2,3,sources2,
+     1        npts2,row_ptr2,col_ind2)
+
+c
+c  iquad is indexing array for quadrature corrections
+c  sources as points and targets as points
+c
+
+        allocate(iquad2(nnz2+1)) 
+C       ASK Manas if this is correct 
+        ntarg2 = npts2
+        call get_iquad_rsc(npatches2,ixyzs2,ntarg2,nnz2,
+     1         row_ptr2,col_ind2,iquad2)
+        call prinf('iquad2=*',iquad2,24)
+
+c
+c    estimate oversampling for far-field, and oversample geometry
+c
+
+        ikerorder = 0
+        allocate(novers2(npatches2),ixyzso2(npatches2+1))
+
+        zpars2 = 0
+        ndtarg = 3
+        call get_far_order(eps,npatches2,norders2,ixyzs2,iptype2,cms2,
+     1    rads2,npts2,srccoefs2,ndtarg,npts2,sources2,ikerorder,zpars2,
+     2    nnz2,row_ptr2,col_ind2,rfac2,novers2,ixyzso2)
+
+        npts_over2 = ixyzso2(npatches2+1)-1
+        call prinf('npts_over2=*',npts_over2,1)
+
+        allocate(srcover2(12,npts_over2),wover2(npts_over2))
+
+        call oversample_geom(npatches2,norders2,ixyzs2,
+     1   iptype2,npts2,srccoefs2,srcvals2,novers2,ixyzso2,
+     2   npts_over2,srcover2)
+
+        call prin2('srcover2=*',srcover2,24)
+
+        call get_qwts(npatches2,novers2,ixyzso2,iptype2,
+     1        npts_over2,srcover2,wover2)
+        call prin2('wover2=*',wover2,24)
+
+c
+c   compute near quadrature correction
+c
+        nquad2 = iquad2(nnz2+1)-1
+        allocate(wnear2(10*nquad2))
+        do i=1,10*nquad2
+            wnear2(i) = 0
+        enddo
+       endif 
+
+
+      
+
+
+
 
 c  Todo: Yuguan
 c  call getnearquad routine which returns 3 kernels
@@ -1025,6 +1249,35 @@ C$      t2 = omp_get_wtime()
 
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
+
+      call prin2('wnear=*',wnear,24)
+
+      if (igeomtype.eq.6) then 
+C
+C     surface 1 
+C
+        call getnearquad_statj_gendeb(npatches1,norders1,
+     1      ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
+     2      epsquad,dzk,iquadtype,nnz1,row_ptr1,col_ind1,
+     3      iquad1,rfac01,nquad1,wnear1)
+
+        call prin2('wnear1=*',wnear1,24)
+
+C
+C     surface 2 
+C
+
+        call getnearquad_statj_gendeb(npatches2,norders2,
+     1      ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
+     2      epsquad,dzk,iquadtype,nnz2,row_ptr2,col_ind2,
+     3      iquad2,rfac02,nquad2,wnear2)
+
+        call prin2('wnear2=*',wnear2,24)
+
+      endif 
+
+
+      stop 
 
 c
 c
