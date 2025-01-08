@@ -59,6 +59,8 @@ CCC   for thin shell only
       integer, allocatable :: apatches1(:),bpatches1(:)
       integer, allocatable :: apatches2(:),bpatches2(:)
       complex * 16 zpars1(3), zpars2(3)
+      real *8, allocatable :: rhstmp1(:),outtmp1(:)
+      real *8, allocatable :: rhstmp2(:),outtmp2(:)
 
 
 
@@ -1277,7 +1279,7 @@ C
       endif 
 
 
-      stop 
+      
 
 c
 c
@@ -1289,6 +1291,70 @@ c
 c  hvecs(:,:,:,2) use info for \Omega^{-} and compute
 c  bbphvecs(:,:,:,2)
 c
+
+
+      if (igeomtype.eq.6) then 
+        allocate(rhstmp1(npts1*3),outtmp1(npts1*3))
+        allocate(rhstmp2(npts2*3),outtmp2(npts2*3))
+
+        hvecs_div_shell = 0 
+        do igen=1,2*ngenus
+          do i=1,npts1 
+            rhstmp1(i) = hvecs_shell(1,i,igen,1) 
+            rhstmp1(i+npts1) = hvecs_shell(2,i,igen,1) 
+            rhstmp1(i+2*npts1) = hvecs_shell(3,i,igen,1) 
+          enddo 
+        enddo 
+        call prin2('rhstmp1=*',rhstmp1,24)
+
+
+        
+
+        do igen=1,2*ngenus
+          do i=1,npts2 
+            rhstmp2(i) = hvecs_shell(1,i,igen,2) 
+            rhstmp2(i+npts2) = hvecs_shell(2,i,igen,2) 
+            rhstmp2(i+2*npts2) = hvecs_shell(3,i,igen,2) 
+          enddo 
+        enddo 
+        call prin2('rhstmp2=*',rhstmp2,24)
+
+
+        
+c C
+     
+        outtmp1 = 0
+        call lpcomp_s0curl_addsub(npatches1,norders1,ixyzs1,
+     1    iptype1,npts1,srccoefs1,srcvals1,eps,nnz1,row_ptr1,
+     2    col_ind1,iquad1,nquad1,wnear1(2*nquad1+1),rhstmp1,
+     3    novers1,npts_over1,ixyzso1,srcover1,wover1,outtmp1)
+        call prin2('outtmp1=*',outtmp1,24)
+
+        
+        
+
+        outtmp2 = 0
+        call lpcomp_s0curl_addsub(npatches2,norders2,ixyzs2,iptype2,npts2,
+     1    srccoefs2,srcvals2,eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,
+     2    wnear2(2*nquad2+1),rhstmp2,novers2,npts_over2,ixyzso2,
+     2    srcover2,wover2,outtmp2)
+        call prin2('outtmp2=*',outtmp2,24)
+
+      endif 
+
+
+
+      stop
+
+
+      
+
+
+
+      
+
+
+
       hvecs_div = 0
       do igen=1,2*ngenus
         do i=1,npts
