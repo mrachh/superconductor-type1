@@ -40,7 +40,7 @@ CCC   for thin shell only
       real *8, allocatable :: hvecs_a(:,:,:),bbphvecs_a(:,:,:)
       real *8, allocatable :: hvecs_b(:,:,:),bbphvecs_b(:,:,:)
       integer, allocatable :: apatches(:),bpatches(:)
-      integer iaxyzs(2),ibxyzs(2)
+      integer iaxyzs(3),ibxyzs(3)
       real *8 vf2(3,2),dpars(3),cf2(2),rzf2(3),dpars2(2)
       real *8 xyz_start(3), dxyz(3)
       complex *16 zf2(3),zk
@@ -141,124 +141,42 @@ c
 c  idzk = 4:10, 2^(4-idzk)
 c
       idzk = 4
+      dzk = 10**(idzk)
+      if(idzk.eq.3) dzk = 30.0d0
+      if(idzk.ge.4) dzk = 2**(idzk-4)
+      zk = ima*dzk
 
 c
-c  Note for this code, igeomtype can only be 1,2,3,4,6 
+c  Note for this code, igeomtype can only be 6 
 c
-c  igeomtype = 1 => sphere
-c  igeomtype = 2 => stellartor
-c  igeomtype = 3 => wiggly torus
-c  igeomtype = 4 => torus
 c  igeomtype = 6 => thin shell tori
 c
-      igeomtype = 4
-      call prinf('igeomtype=*',igeomtype,1)
-      iref = 2
-      if(igeomtype.eq.1) then
-        ipars(1) = iref
-        npatches = 12*(4**(ipars(1)))
-        fname = 'sphere.vtk'
-        dirname = '/Users/mrachh/git/' // 
-     1     'superconductor-type1-data/sphere-data/'
-        ngenus = 0
-        xyz_in_src(1) = 0.201d0
-        xyz_in_src(2) = 0.102d0
-        xyz_in_src(3) = 0.011d0
+      igeomtype = 6
+cc      iref = 2
+      iref = 0
 
-        xyz_out_src(1) = -1.2d0
-        xyz_out_src(2) = 1.1d0
-        xyz_out_src(3) = 1.7d0
-      endif
+      ipars(1) = 4*2**(iref)
+      ipars(2) = 2*2**(iref)
+      npatches = 4*ipars(1)*ipars(2)
 
-      if(igeomtype.eq.2) then
-        ipars(1) = 5*2**(iref)
-        ipars(2) = 15*2**(iref)
-        dirname = '/mnt/home/mrachh/ceph/' // 
-     1     'superconductor-type1-data/stell-data/'
-c        ipars(1) = 30
-c        ipars(2) = 90
-        npatches = 2*ipars(1)*ipars(2)
+      dirname = '/Users/mrachh/git/' // 
+     1   'superconductor-type1-data/thin-shell-torus-data/'
+      fname = 'thin-torus.vtk'
+      ngenus = 1
 
-        xyz_in_src(1) = -4.503d0
-        xyz_in_src(2) = -0.01d0
-        xyz_in_src(3) = 0.001d0
+      xyz_in_src(1) = 2.001d0
+      xyz_in_src(2) = 0.002d0
+      xyz_in_src(3) = 0.001d0
 
-        xyz_out_src(1) = -3.5d0
-        xyz_out_src(2) = 7.7d0
-        xyz_out_src(3) = 5.7d0
+      uu = 0.75d0*2*pi
+      vv = 0.22d0*2*pi
+      rr = 1.37d0 
+      xyz_out_src(1) = (rr*cos(uu) + 2)*cos(vv)
+      xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
+      xyz_out_src(3) = rr*sin(uu)
 
-
-        fname = 'stell.vtk'
-        ngenus = 1
-      endif
-
-      if(igeomtype.eq.3) then
-        ipars(1) = 8*2**(iref)
-        ipars(2) = 4*2**(iref)
-        npatches = 2*ipars(1)*ipars(2)
-        ngenus = 1
-        
-        fname = 'wtorus.vtk'
-        dirname = '/mnt/home/mrachh/ceph/' // 
-     1     'superconductor-type1-data/wtorus-data/'
-        xyz_in_src(1) = -2.001d0
-        xyz_in_src(2) = 0.002d0
-        xyz_in_src(3) = 0.001d0
-
-        uu = 0.91d0*pi
-        vv = 0.17d0*2*pi
-        rr = 1.33d0 
-        xyz_out_src(1) = (rr*cos(uu) + 2+0.25d0*cos(3*vv))*cos(vv)
-        xyz_out_src(2) = (rr*cos(uu) + 2+0.25d0*cos(3*vv))*sin(vv)
-        xyz_out_src(3) = rr*sin(uu)
-
-      endif
-
-      if(igeomtype.eq.4) then
-        ipars(1) = 4*2**(iref)
-        ipars(2) = 2*2**(iref)
-        npatches = 2*ipars(1)*ipars(2)
-
-        dirname = '/Users/mrachh/git/' // 
-     1     'superconductor-type1-data/torus-data/'
-        fname = 'torus.vtk'
-        ngenus = 1
-
-        xyz_in_src(1) = 2.001d0
-        xyz_in_src(2) = 0.002d0
-        xyz_in_src(3) = 0.001d0
-
-        uu = 0.75d0*2*pi
-        vv = 0.22d0*2*pi
-        rr = 1.37d0 
-        xyz_out_src(1) = (rr*cos(uu) + 2)*cos(vv)
-        xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
-        xyz_out_src(3) = rr*sin(uu)
-      endif
-
-      if(igeomtype.eq.6) then
-        ipars(1) = 4*2**(iref)
-        ipars(2) = 2*2**(iref)
-        npatches = 4*ipars(1)*ipars(2)
-
-        dirname = '/Users/mrachh/git/' // 
-     1     'superconductor-type1-data/thin-shell-torus-data/'
-        fname = 'thin-torus.vtk'
-        ngenus = 1
-
-        xyz_in_src(1) = 2.001d0
-        xyz_in_src(2) = 0.002d0
-        xyz_in_src(3) = 0.001d0
-
-        uu = 0.75d0*2*pi
-        vv = 0.22d0*2*pi
-        rr = 1.37d0 
-        xyz_out_src(1) = (rr*cos(uu) + 2)*cos(vv)
-        xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
-        xyz_out_src(3) = rr*sin(uu)
-      endif
-
-      norder = 8
+cc      norder = 8
+      norder = 4
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -286,298 +204,131 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
 
       ixyzs(npatches+1) = 1+npols*npatches
 
-c
-c   create: norders1, ixyzs1, iptype1, srcvals1, srccoefs1 
-c            for surface1
-c   create: norders2, ixyzs2, iptype2, srcvals2, srccoefs2 
-c            for surface2
-c   try plotting them
-c
 c       
-      if(igeomtype.eq.6) then
-        npatches1 = npatches/2 
-        npatches2 = npatches-npatches1
-        npts1 =  npatches1*npols
-        npts2 = npts-npts1 
+      npatches1 = npatches/2 
+      npatches2 = npatches-npatches1
+      npts1 =  npatches1*npols
+      npts2 = npts-npts1 
 
-        allocate(srcvals1(12,npts1),srccoefs1(9,npts1))
-        allocate(srcvals2(12,npts2),srccoefs2(9,npts2))
+      allocate(srcvals1(12,npts1),srccoefs1(9,npts1))
+      allocate(srcvals2(12,npts2),srccoefs2(9,npts2))
 
-        srcvals1 = srcvals(1:12,1:npts1)
-        srccoefs1 = srccoefs(1:9,1:npts1)
-        srcvals2 = srcvals(1:12,(npts1+1):npts)
-        srccoefs2 = srccoefs(1:9,(npts1+1):npts)
-C            call prinf('npts1=*',npts1,1)
-C            call prin2('srcvals2=*',srcvals2(1:12,20),5)
+      srcvals1 = srcvals(1:12,1:npts1)
+      srccoefs1 = srccoefs(1:9,1:npts1)
+      srcvals2 = srcvals(1:12,(npts1+1):npts)
+      srccoefs2 = srccoefs(1:9,(npts1+1):npts)
 
-        allocate(norders1(npatches1),ixyzs1(npatches1+1),
-     1            iptype1(npatches1))
+      allocate(norders1(npatches1),ixyzs1(npatches1+1),
+     1          iptype1(npatches1))
 
-        do i=1,npatches1
-            norders1(i) = norder
-            ixyzs1(i) = 1 +(i-1)*npols
-            iptype1(i) = 1
-        enddo
+      do i=1,npatches1
+        norders1(i) = norder
+        ixyzs1(i) = 1 +(i-1)*npols
+        iptype1(i) = 1
+      enddo
 
-        ixyzs1(npatches1+1) = 1+npols*npatches1
+      ixyzs1(npatches1+1) = 1+npols*npatches1
 
 
-        call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,
-     1        iptype1,npts1,srccoefs1,srcvals1,srcvals1(10:12,:),
-     2        'surface1-normals.vtk','a')
+      call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,
+     1       iptype1,npts1,srccoefs1,srcvals1,srcvals1(10:12,:),
+     2      'surface1-normals.vtk','a')
 
 
             
-        allocate(norders2(npatches2),ixyzs2(npatches2+1),
-     1          iptype2(npatches2))
+      allocate(norders2(npatches2),ixyzs2(npatches2+1),
+     1        iptype2(npatches2))
         
-        do i=1,npatches2
-            norders2(i) = norder
-            ixyzs2(i) = 1 +(i-1)*npols
-            iptype2(i) = 1
-        enddo 
+      do i=1,npatches2
+        norders2(i) = norder
+        ixyzs2(i) = 1 +(i-1)*npols
+        iptype2(i) = 1
+      enddo 
 
-        ixyzs2(npatches2+1) = 1+npols*npatches2
+      ixyzs2(npatches2+1) = 1+npols*npatches2
 
-        call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,
-     1        iptype2,npts2,srccoefs2,srcvals2,srcvals2(10:12,:),
-     2        'surface2-normals.vtk','a')
+      call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,
+     1      iptype2,npts2,srccoefs2,srcvals2,srcvals2(10:12,:),
+     2     'surface2-normals.vtk','a')
            
-      endif 
-
-
-
-c   print *, "npatches=",npatches
-c   print *, "npts=",npts
-c   call prin2('srcvals=*',srcvals(1,npts/2+1), 24)
-c   call prin2('srccoefs=*',srccoefs(1,npts/2+1), 24)
-
-c   call surf_vtk_plot_vec(npatches, norders, ixyzs, iptype, 
-c  1  npts, srccoefs, srcvals, srcvals(10:12,:),
-c  2   'thin-shell-normals.vtk','a')
-
     
       allocate(wts(npts))
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
 
-      allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
-
-c
-c
-
-
-c   print *, "npatches=",npatches
-c   print *, "npts=",npts
-c   call prin2('srcvals=*',srcvals(1,npts/2+1), 24)
-c   call prin2('srccoefs=*',srccoefs(1,npts/2+1), 24)
-
-c   call surf_vtk_plot_vec(npatches, norders, ixyzs, iptype, 
-c  1  npts, srccoefs, srcvals, srcvals(10:12,:),
-c  2   'thin-shell-normals.vtk','a')
-
-
-
-      call get_centroid_rads(npatches,norders,ixyzs,iptype,npts, 
-     1     srccoefs,cms,rads)
-      call prin2('cms=*',cms,24)
-      call prin2('rads=*',rads,12)
-
-c   if(igeomtype.eq.1) then
-c     call get_sphere_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
-c   endif
-
-c   if(igeomtype.eq.2) then
-c    htest = 0.5d0*2**(iref) 
-c    call get_stell_testtarg(ntargtest,xyz_in_targ,xyz_out_targ,
-c  1    npatches,npts,cms,rads,srcvals,wts,htest)
-c   endif
-
-c   if(igeomtype.eq.3) then
-c     call get_wtorus_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
-c   endif
-
-c   if(igeomtype.eq.4) then
-c     call get_torus_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
-c   endif
-
-c   call prin2('xyz_in_targ=*',xyz_in_targ,3*ntargtest)
-c   call prin2('xyz_out_targ=*',xyz_out_targ,3*ntargtest)
-
-
-c   print *, " "
-c   print *, " "
-c   print *, "Testing interior targets"
-c   do i=1,ntargtest
-c     isout0 = .false.
-c     call test_exterior_pt(npts,srcvals,wts,xyz_in_targ(1,i),isout0)
-c       print *, i,isout0
-c   enddo
-c   print *, "=============="
-c   print *, " "
-c   print *, " "
-c   print *, "Testing exterior targets"
-
-c   do i=1,ntargtest
-c     isout0 = .false.
-c     call test_exterior_pt(npts,srcvals,wts,xyz_out_targ(1,i),isout0)
-c       print *, i,isout0
-c   enddo
-c   print *, "=============="
-c
-c  set file names for reading or writing harmonic vector fields
-c
-c
-C      write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
-C     1     'hvecs_',ipars(1),
-C     1    '_',ipars(2),'_',norder,'_1.dat'
-C      if(igeomtype.ge.2)
-C     1   open(unit=78,file=trim(fname),form='unformatted')
-C      write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
-C     1     'hvecs_',ipars(1),
-C     1     '_',ipars(2),'_',norder,'_2.dat'
-C      print *, fname 
-C      if(igeomtype.ge.2) 
-C     1   open(unit=79,file=trim(fname),form='unformatted')
-
 c
 c   set a and b cycle params
 c
 
-      if(igeomtype.ge.2.and.igeomtype.lt.6) then
-        m = 40
-        na = ipars(2)*m
-        nb = ipars(1)*m
-        allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
-        allocate(bvals(9,nb),bwts(nb),buv(2,nb),bpatches(nb))
-        allocate(bbphvecs_a(3,na,2),bbphvecs_b(3,nb,2))
-        allocate(hvecs_a(3,na,2),hvecs_b(3,nb,2))
-        call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
-     1     npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,
-     2     nb,bvals,bwts,bpatches,buv)
-      endif
-c
-c  For yuguan:
-c  step 1: call get_ab_cycles_torusparam twice for surface1, and surface2
-c  step 2: look at test_ab_cycles.f and plot a,b cycles for
-c     both tori
-c
-c
-c  merge avals1(9,na1), avals2(9,na2) -> avals(9,na1+na2)
-c  make sure to update apatches and bpatches correctly
-c
-c  create iaxyzs(3)
-        
+      npatches1 = npatches/2
+      call prinf('npatches1=*',npatches1,1)
 
-      if (igeomtype.eq.6) then
+      m = 40
+      na = 2*ipars(2)*m
+      nb = 2*ipars(1)*m
+      npts1 = npatches1*npols
+      npts2 = npts-npts1
 
+      na1 = na/2 
+      na2 = na-na1 
 
-        npatches1 = npatches/2
-        call prinf('npatches1=*',npatches1,1)
+      nb1 = nb/2 
+      nb2 = nb-nb1
 
-        m = 40
-        na = 2*ipars(2)*m
-        nb = 2*ipars(1)*m
-        npts1 = npatches1*npols
-        npts2 = npts-npts1
+      allocate(avals1(9,na1),awts1(na1),auv1(2,na1),
+     1            apatches1(na1))
+      allocate(bvals1(9,nb1),bwts1(nb1),buv1(2,nb1),
+     1             bpatches1(nb1))
 
-c     call prinf('na=*',na,1)
-c     call prinf('nb=*',nb,1)
-c     call prinf('npts0=*',npts0,1)
-
-        na1 = na/2 
-        na2 = na-na1 
-
-        nb1 = nb/2 
-        nb2 = nb-nb1
-
-c     call prinf('na1=*',na1,1)
-c     call prinf('na2=*',na2,1)
-c     call prinf('nb1=*',nb1,1)
-c     call prinf('nb2=*',nb2,1)
-
-
-        allocate(avals1(9,na1),awts1(na1),auv1(2,na1),
-     1               apatches1(na1))
-        allocate(bvals1(9,nb1),bwts1(nb1),buv1(2,nb1),
-     1               bpatches1(nb1))
-
-        call get_ab_cycles_torusparam(npatches1,norders1,
-     1           ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
-     2           ipars,m,na1,avals1,awts1,apatches1,auv1,
-     3           nb1,bvals1,bwts1,bpatches1,buv1) 
-        call vtk_curv_plot(na1,9,avals1,'acycle1.vtk','a1')
-        call vtk_curv_plot(nb1,9,bvals1,'bcycle1.vtk','b1')
-
-C            call prin2('srccoefs=*',srccoefs(1:9,10),10)
-
-
-        allocate(avals2(9,na2),awts2(na2),auv2(2,na2),
-     1               apatches2(na2))
-        allocate(bvals2(9,nb2),bwts2(nb2),buv2(2,nb2),
-     1               bpatches2(nb2))
-
-        call get_ab_cycles_torusparam(npatches2,norders2,
-     1           ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
-     2           ipars,m,na2,avals2,awts2,apatches2,auv2,
-     3           nb2,bvals2,bwts2,bpatches2,buv2) 
-        call vtk_curv_plot(na2,9,avals2,'acycle2.vtk','a2')
-        call vtk_curv_plot(nb2,9,bvals2,'bcycle2.vtk','b2')
-
-
-        allocate(avals(9,na),awts(na),auv(2,na),
-     1             apatches(na))
-        allocate(bvals(9,nb),bwts(nb),buv(2,nb),
-     1             bpatches(nb))
-        avals(1:9,1:na1) = avals1
-        awts(1:na1) = awts1
-        auv(1:2,1:na1) = auv1 
-        apatches(1:na1) = apatches1
-        avals(1:9,(na1+1):na) = avals2
-        awts((na1+1):na) = awts2
-        auv(1:2,(na1+1):na) = auv2 
-        apatches((na1+1):na) = apatches2
-
-        bvals(1:9,1:nb1) = bvals1
-        bwts(1:nb1) = bwts1
-        buv(1:2,1:nb1) = buv1 
-        bpatches(1:nb1) = bpatches1
-        bvals(1:9,(nb1+1):nb) = bvals2
-        bwts((nb1+1):nb) = bwts2
-        buv(1:2,(nb1+1):nb) = buv2 
-        bpatches((nb1+1):nb) = bpatches2
-
-
-      endif 
-
-
-        
+      call get_ab_cycles_torusparam(npatches1,norders1,
+     1         ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
+     2         ipars,m,na1,avals1,awts1,apatches1,auv1,
+     3         nb1,bvals1,bwts1,bpatches1,buv1) 
+      call vtk_curv_plot(na1,9,avals1,'acycle1.vtk','a1')
+      call vtk_curv_plot(nb1,9,bvals1,'bcycle1.vtk','b1')
 
 
 
-      if(igeomtype.eq.1) then
-        na = 0
-        nb = 0
-        ntmp = 10
-        allocate(avals(9,ntmp),awts(ntmp),auv(2,ntmp),apatches(ntmp))
-        allocate(bvals(9,ntmp),bwts(ntmp),buv(2,ntmp),bpatches(ntmp))
-        allocate(bbphvecs_a(3,ntmp,2),bbphvecs_b(3,ntmp,2))
-        allocate(hvecs_a(3,ntmp,2),hvecs_b(3,ntmp,2))
-        avals = 0
-        awts = 0
-        auv = 0
-        apatches = 0
-        bvals = 0
-        bwts = 0
-        buv = 0
-        bpatches = 0
-      endif
+      allocate(avals2(9,na2),awts2(na2),auv2(2,na2),
+     1             apatches2(na2))
+      allocate(bvals2(9,nb2),bwts2(nb2),buv2(2,nb2),
+     1             bpatches2(nb2))
+
+      call get_ab_cycles_torusparam(npatches2,norders2,
+     1         ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
+     2         ipars,m,na2,avals2,awts2,apatches2,auv2,
+     3         nb2,bvals2,bwts2,bpatches2,buv2) 
+      call vtk_curv_plot(na2,9,avals2,'acycle2.vtk','a2')
+      call vtk_curv_plot(nb2,9,bvals2,'bcycle2.vtk','b2')
+
+
+      allocate(avals(9,na),awts(na),auv(2,na),
+     1           apatches(na))
+      allocate(bvals(9,nb),bwts(nb),buv(2,nb),
+     1           bpatches(nb))
+      avals(1:9,1:na1) = avals1
+      awts(1:na1) = awts1
+      auv(1:2,1:na1) = auv1 
+      apatches(1:na1) = apatches1
+      avals(1:9,(na1+1):na) = avals2
+      awts((na1+1):na) = awts2
+      auv(1:2,(na1+1):na) = auv2 
+      apatches((na1+1):na) = apatches2
+
+      bvals(1:9,1:nb1) = bvals1
+      bwts(1:nb1) = bwts1
+      buv(1:2,1:nb1) = buv1 
+      bpatches(1:nb1) = bpatches1
+      bvals(1:9,(nb1+1):nb) = bvals2
+      bwts((nb1+1):nb) = bwts2
+      buv(1:2,(nb1+1):nb) = buv2 
+      bpatches((nb1+1):nb) = bpatches2
+
+
 c
 c
 c   compute harmonic vector fields
 c
-     
-      print *, "starting harmonic vector field computation"
 
 c
 c   hvecs, bbphvecs need to be of size (3,npts,2,2)
@@ -600,210 +351,95 @@ c
 c     hvecs_div = \nabla \times S_{0}[n \times n\times hvecs]
 c     
 c
-c     \nabla \times S[j] = S[\nabla_{\Gamma} \cdot j] for 
-c      j tangential
-c
 
       call prinf('npts1=*',npts1,1)
       call prinf('npts2=*',npts2,1)
 
 
-      if (igeomtype.eq.6) then
-        allocate(hvecs_shell(3,npts1,2,2))
-        allocate(bbphvecs_shell(3,npts1,2,2))
-        allocate(hvecs_div_shell(npts1,2,2))
-        allocate(hvecs_div2_shell(npts1,2))
+      allocate(hvecs_shell(3,npts1,2,2))
+      allocate(bbphvecs_shell(3,npts1,2,2))
+      allocate(hvecs_div_shell(npts1,2,2))
+      allocate(hvecs_div2_shell(npts1,2))
 
-        hvecs_shell = 0 
-        bbphvecs_shell = 0 
-        hvecs_div_shell = 0 
-        hvecs_div2_shell = 0
-
+      hvecs_shell = 0 
+      bbphvecs_shell = 0 
+      hvecs_div_shell = 0 
+      hvecs_div2_shell = 0
 
 CCC         surface 1     CCCC 
-        do i=1,npts1
-            rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
-            hvecs_shell(1,i,1,1) = -srcvals1(2,i)/rr1
-            hvecs_shell(2,i,1,1) = srcvals1(1,i)/rr1
-            hvecs_shell(3,i,1,1) = 0 
-            call cross_prod3d(srcvals1(10,i),hvecs_shell(1:3,i,1,1),
+      do i=1,npts1
+        rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
+        hvecs_shell(1,i,1,1) = -srcvals1(2,i)/rr1
+        hvecs_shell(2,i,1,1) = srcvals1(1,i)/rr1
+        hvecs_shell(3,i,1,1) = 0 
+        call cross_prod3d(srcvals1(10,i),hvecs_shell(1:3,i,1,1),
      1       hvecs_shell(1:3,i,2,1))
-        enddo 
+      enddo 
 
-        call prin2('srcvals1=*',srcvals1(1,1),24)
-        call prin2('hvecs1=*',hvecs_shell(1,1,1,1),24)
-        call prin2('hvecs1=*',hvecs_shell(1,1,2,1),24)
+      call prin2('srcvals1=*',srcvals1(1,1),24)
+      call prin2('hvecs1=*',hvecs_shell(1,1,1,1),24)
+      call prin2('hvecs1=*',hvecs_shell(1,1,2,1),24)
 
+      allocate(wts1(npts1))
+      call get_qwts(npatches1,norders1,ixyzs1,
+     1        iptype1,npts1,srcvals1,wts1)
 
-        
+      call surf_div(npatches1,norders1,ixyzs1,iptype1,npts1, 
+     1  srccoefs1,srcvals1,hvecs_shell(1,1,1,1),hvecs_div2_shell(1,1))
 
-        allocate(wts1(npts1))
-        call get_qwts(npatches1,norders1,ixyzs1,
-     1           iptype1,npts1,srcvals1,wts1)
-
-        call surf_div(npatches1,norders1,ixyzs1,iptype1,npts1, 
-     1   srccoefs1,srcvals1,hvecs_shell(1,1,1,1),hvecs_div2_shell(1,1))
-
-        errest = 0
-        do i=1,npts1
-            errest = errest + hvecs_div2_shell(i,1)**2*wts1(i)
-        enddo
-        errest = sqrt(errest)
-        call prin2('errest1=*',errest,1)
+      errest = 0
+      do i=1,npts1
+        errest = errest + hvecs_div2_shell(i,1)**2*wts1(i)
+      enddo
+      errest = sqrt(errest)
+      call prin2('errest1=*',errest,1)
 
 
 
 CCC         surface 2     CCCC
 
 
-        do i=1,npts2
-          rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
-          hvecs_shell(1,i,1,2) = -srcvals2(2,i)/rr1
-          hvecs_shell(2,i,1,2) = srcvals2(1,i)/rr1
-          hvecs_shell(3,i,1,2) = 0 
-          call cross_prod3d(srcvals2(10,i),hvecs_shell(1:3,i,1,2),
-     1       hvecs_shell(1:3,i,2,2))
-        enddo 
+      do i=1,npts2
+        rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
+        hvecs_shell(1,i,1,2) = -srcvals2(2,i)/rr1
+        hvecs_shell(2,i,1,2) = srcvals2(1,i)/rr1
+        hvecs_shell(3,i,1,2) = 0 
+        call cross_prod3d(srcvals2(10,i),hvecs_shell(1:3,i,1,2),
+     1     hvecs_shell(1:3,i,2,2))
+      enddo 
 
 
-        allocate(wts2(npts2))
-        call get_qwts(npatches2,norders2,ixyzs2,
-     1     iptype2,npts2,srcvals2,wts2)
+      allocate(wts2(npts2))
+      call get_qwts(npatches2,norders2,ixyzs2,
+     1   iptype2,npts2,srcvals2,wts2)
 
     
-        call surf_div(npatches2,norders2,ixyzs2,iptype2,npts2, 
-     1   srccoefs2,srcvals2,hvecs_shell(1,1,1,2),hvecs_div2_shell(1,2))
+      call surf_div(npatches2,norders2,ixyzs2,iptype2,npts2, 
+     1  srccoefs2,srcvals2,hvecs_shell(1,1,1,2),hvecs_div2_shell(1,2))
 
-        errest = 0
-        do i=1,npts2
-            errest = errest + hvecs_div2_shell(i,2)**2*wts2(i)
-        enddo
-        errest = sqrt(errest)
-        call prin2('errest2=*',errest,1)
-      endif 
-
-
-        
-        
+      errest = 0
+      do i=1,npts2
+        errest = errest + hvecs_div2_shell(i,2)**2*wts2(i)
+      enddo
+      errest = sqrt(errest)
+      call prin2('errest2=*',errest,1)
 
 
         
-
-
-      allocate(hvecs(3,npts,2),bbphvecs(3,npts,2),hvecs_div(npts,2))
-      allocate(hvecs_div2(npts))
+        
       allocate(rhstmp(npts*3),outtmp(npts*3))
-      bbphvecs = 0
-
-
       
-
-
-      
-
-      if(igeomtype.eq.4.or.igeomtype.eq.5) then
-        do i=1,npts
-          rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
-          hvecs(1,i,1) = -srcvals(2,i)/rr1
-          hvecs(2,i,1) = srcvals(1,i)/rr1
-          hvecs(3,i,1) = 0 
-          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
-     1       hvecs(1:3,i,2))
-        enddo
-
-
-        call prin2('srcvals=*',srcvals(1,1),24)
-        call prin2('hvecs=*',hvecs(1,1,1),24)
-        call prin2('hvecs=*',hvecs(1,1,2),24)
-
-        
-        call surf_div(npatches,norders,ixyzs,iptype,npts, 
-     1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
-        errest = 0
-        do i=1,npts
-          errest = errest + hvecs_div2(i)**2*wts(i)
-        enddo
-        errest = sqrt(errest)
-        call prin2('errest=*',errest,1)
-      endif
-
-      if(igeomtype.eq.2.or.igeomtype.eq.3) then
-
-        ifread = 1
-        ifwrite = 0 
-        if(ifread.eq.0) then
-          eps = 0.51d-7
-          call cpu_time(tt1)
-C$         tt1 = omp_get_wtime()         
-          print *, "Here1"
-          call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
-     1      npts,srccoefs,srcvals,wts,eps,hvecs(1,1,1),errest)
-          call cpu_time(tt2)
-C$         tt2 = omp_get_wtime()          
-          call prin2('errest=*',errest,1)
-          print *, "here2"
-          print *, "time taken = ",tt2-tt1
-          do i=1,npts
-            call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
-          enddo
-        else
-          print *, "here1"
-          read(78) hvecs(1:3,1:npts,1)
-          read(79) hvecs(1:3,1:npts,2)
-
-          ra1 = 0
-          ra2 = 0
-          do i=1,npts
-            ra1 = ra1 + (hvecs(1,i,1)**2 + hvecs(2,i,1)**2 + 
-     1         hvecs(3,i,1)**2)*wts(i)
-            ra2 = ra2 + (hvecs(1,i,2)**2 + hvecs(2,i,2)**2 + 
-     1         hvecs(3,i,2)**2)*wts(i)
-          enddo
-          ra1 = sqrt(ra1)
-          ra2 = sqrt(ra2)
-          do i=1,npts
-            hvecs(1:3,i,1) = hvecs(1:3,i,1)/ra1
-            hvecs(1:3,i,2) = hvecs(1:3,i,2)/ra2
-          enddo
-          ra1 = 0
-          ra2 = 0
-          do i=1,npts
-            ra1 = ra1 + (hvecs(1,i,1)**2 + hvecs(2,i,1)**2 + 
-     1         hvecs(3,i,1)**2)*wts(i)
-            ra2 = ra2 + (hvecs(1,i,2)**2 + hvecs(2,i,2)**2 + 
-     1         hvecs(3,i,2)**2)*wts(i)
-          enddo
-          ra1 = sqrt(ra1)
-          ra2 = sqrt(ra2)
-          call prin2('ra1=*',ra1,1)
-          call prin2('ra2=*',ra2,1)
-          
-          close(78)
-          close(79)
-          call surf_div(npatches,norders,ixyzs,iptype,npts, 
-     1     srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
-          errest = 0
-          do i=1,npts
-            errest = errest + hvecs_div2(i)**2*wts(i)
-          enddo
-          errest = sqrt(errest)
-          call prin2('errest=*',errest,1)
-        endif
-        if(ifwrite.eq.1) then
-          write(78) hvecs(1:3,1:npts,1)
-          write(79) hvecs(1:3,1:npts,2)
-          close(78)
-          close(79)
-        endif
-      endif
 
 
       iaxyzs(1) = 1
-      iaxyzs(2) = na+1
+      iaxyzs(2) = na1 + 1
+      iaxyzs(3) = na + 1
 
       ibxyzs(1) = 1
-      ibxyzs(2) = nb+1
-
+      ibxyzs(2) = nb1 + 1
+      ibxyzs(3) = nb + 1
+c
+c  Compute boundary data for analytic solution test
 c
 c
       vf2(1:3,1) = 1.0d0 
@@ -845,19 +481,11 @@ C$OMP END PARALLEL DO
       call prin2('xyz_in_src=*',xyz_in_src,3)
       call prin2('cf2=*',cf2,1)
       call prin2('vf2=*',vf2,3)
-C      call prin2('bbp=*',bbp,24)
 
       call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,sources,npts,
      1     ptmp,bbp,thresh)
       call prin2('bbp=*',bbp,24)
       
-      dzk = 10**(idzk)
-
-      if(idzk.eq.3) dzk = 30.0d0
-
-      if(idzk.ge.4) dzk = 2**(idzk-4)
-
-      zk = ima*dzk
       init = 0
 
       call fieldsED(zk,xyz_out_src,srcvals,npts,zjm,zbbm,zf2,init)
@@ -865,9 +493,9 @@ C      call prin2('bbp=*',bbp,24)
       bbm = real(zbbm)
       call prin2('bjm=*',bjm,24)
       call prin2('bbm=*',bbm,24)
-      
       call prin2('ptmp=*',ptmp,24)
-      allocate(rhs(6*npts+4*ngenus),soln(6*npts+4*ngenus))
+
+      allocate(rhs(6*npts+8*ngenus),soln(6*npts+8*ngenus))
       rhs = 0
       soln = 0
       do i=1,npts
@@ -879,7 +507,26 @@ C      call prin2('bbp=*',bbp,24)
         rhs(i+5*npts) = bjm(3,i)
       enddo
 
+c
+c
+c  For Yuguan: need to compute integrals of the difference
+c     of incident fields on a and b cycles
+c
 
+c
+c  below: fun_surf_interp takes in function defined on \Omega
+c    takes in a and b cycle info, interpolates 
+c    the function to a and b cycles, and then computes their 
+c    integral, current ordering is interior a, interior b, 
+c    exterior a, exterior b
+c
+c  In our case: 
+c  For interior fields: a_+, a_-, b_+, b_-
+c  For ``exterior fields: a_+, a_-,b_+, b_-
+c
+c  Our ordering: interior a_+, interior a_-, interior b_+, interior b_-
+c                exterior a_+, exterior a_-, exterior b_+, exterior b_-
+c 
 
       if(igeomtype.ge.2) then
 
@@ -926,6 +573,12 @@ C      call prin2('bbp=*',bbp,24)
       call prinf('ipatch_id=*',ipatch_id,20)
       call prin2('uvs_src=*',uvs_src,48)
 
+      allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
+      call get_centroid_rads(npatches,norders,ixyzs,iptype,npts, 
+     1     srccoefs,cms,rads)
+      call prin2('cms=*',cms,24)
+      call prin2('rads=*',rads,12)
+
 
       
       
@@ -951,11 +604,6 @@ c
 c  We need versions of these quantities for just i) \Omega^{+}, ii) \Omega^{-}
 c  and iii) \Omega^{+} \cup \Omega^{-}
 c
-c  Todo Yuguan: 
-c    create versions of row_ptr1, col_ind1, nnz1, novers1, 
-c              ixyzso1, srcover1, wover1
-c              row_ptr2, col_ind2, nnz2, novers2, 
-c              ixyzso2, srcover2, wover2
 
       
         iptype_avg = floor(sum(iptype)/(npatches+0.0d0))
@@ -1033,25 +681,8 @@ C$OMP END PARALLEL DO
 
        iquadtype = 1
 
-        if(ibg.eq.1) then
-          rbeta = 0.0d0
-          rgamma = 0.0d0
-        endif
-
-       if(ibg.eq.2) then
-         rbeta = 1.0d0
-         rgamma = 0.0d0
-       endif
-
-        if(ibg.eq.3) then
-         rbeta = 0.0d0
-         rgamma = -1.0d0*dzk
-         endif
-
-        if(ibg.eq.4) then
-         rbeta = 1.0d0
-         rgamma = 1.0d0
-        endif
+       rbeta = 0.0d0
+       rgamma = 0.0d0
 
         dpars(1) = dzk
         dpars(2) = rbeta
@@ -1248,10 +879,6 @@ c
 
 
 
-c  Todo: Yuguan
-c  call getnearquad routine which returns 3 kernels
-c  with i) \Omega^{+}, and ii) \Omega^{-}
-c
 c
 
 c      goto 1111
@@ -1287,7 +914,6 @@ C
 C
 C     surface 2 
 C
-
         call getnearquad_statj_gendeb(npatches2,norders2,
      1      ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
      2      epsquad,dzk,iquadtype,nnz2,row_ptr2,col_ind2,
@@ -1336,11 +962,17 @@ C
      2    col_ind1,iquad1,nquad1,wnear1(2*nquad1+1),rhstmp1,
      3    novers1,npts_over1,ixyzso1,srcover1,wover1,outtmp1)
           
-          do i=1,npts1 
+          do i=1,npts1
+            if(igen.eq.1) then
+              write(75,'(3(2x,e11.5))') outtmp1(i),
+     1            outtmp1(i+npts1), outtmp1(i+2*npts1)
+            endif
             bbphvecs_shell(1,i,igen,1) = outtmp1(i)
             bbphvecs_shell(2,i,igen,1) = outtmp1(i+npts1)
             bbphvecs_shell(3,i,igen,1) = outtmp1(i+2*npts1)
-          enddo 
+          enddo
+
+         
         
           vtmp1 = 0 
           do j=1,npts1
@@ -1394,7 +1026,9 @@ C
           call prin2('outtmp2=*',outtmp2,24)
           call prin2('rhstmp2=*',rhstmp2,24)
         enddo 
-      endif 
+      endif
+
+      stop
 
 
       
