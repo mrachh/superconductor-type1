@@ -107,6 +107,11 @@ CCC     for thin shell only
       real *8, allocatable :: hvecs_div_shell(:,:,:)
       real *8, allocatable :: hvecs_div2_shell(:,:)
       real *8, allocatable :: wts1(:),wts2(:)
+
+
+      real *8, allocatable :: hvecs1(:,:,:),hvecs2(:,:,:)
+      real *8, allocatable :: bbphvecs1(:,:,:)
+      real *8, allocatable :: bbphvecs2(:,:,:)
       
 CCC 
 
@@ -146,7 +151,8 @@ c  igeomtype = 3 => wiggly torus
 c  igeomtype = 4 => torus
 c  igeomtype = 6 => thin shell tori
 c
-      igeomtype = 6
+      igeomtype = 4
+      call prinf('igeomtype=*',igeomtype,1)
       iref = 2
       if(igeomtype.eq.1) then
         ipars(1) = iref
@@ -264,6 +270,7 @@ c        ipars(2) = 90
 
       call setup_geom(igeomtype,norder,npatches,ipars, 
      1       srcvals,srccoefs,ifplot,fname)
+
 
 c
 cc      call prin2('srcvals=*',srcvals,12*npts)
@@ -623,6 +630,13 @@ CCC         surface 1     CCCC
      1       hvecs_shell(1:3,i,2,1))
         enddo 
 
+        call prin2('srcvals1=*',srcvals1(1,1),24)
+        call prin2('hvecs1=*',hvecs_shell(1,1,1,1),24)
+        call prin2('hvecs1=*',hvecs_shell(1,1,2,1),24)
+
+
+        
+
         allocate(wts1(npts1))
         call get_qwts(npatches1,norders1,ixyzs1,
      1           iptype1,npts1,srcvals1,wts1)
@@ -696,6 +710,13 @@ CCC         surface 2     CCCC
           call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
      1       hvecs(1:3,i,2))
         enddo
+
+
+        call prin2('srcvals=*',srcvals(1,1),24)
+        call prin2('hvecs=*',hvecs(1,1,1),24)
+        call prin2('hvecs=*',hvecs(1,1,2),24)
+
+        
         call surf_div(npatches,norders,ixyzs,iptype,npts, 
      1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
         errest = 0
@@ -1086,7 +1107,6 @@ c  sources as points and targets as points
 c
 
         allocate(iquad1(nnz1+1)) 
-C       ASK Manas if this is correct 
         ntarg1 = npts1
         call get_iquad_rsc(npatches1,ixyzs1,ntarg1,nnz1,
      1         row_ptr1,col_ind1,iquad1)
@@ -1179,7 +1199,6 @@ c  sources as points and targets as points
 c
 
         allocate(iquad2(nnz2+1)) 
-C       ASK Manas if this is correct 
         ntarg2 = npts2
         call get_iquad_rsc(npatches2,ixyzs2,ntarg2,nnz2,
      1         row_ptr2,col_ind2,iquad2)
@@ -1289,80 +1308,105 @@ c  hvecs(:,:,:,1) use info for \Omega^{+} and compute
 c  bbphevcs(:,:,:,1)
 c
 c  hvecs(:,:,:,2) use info for \Omega^{-} and compute
-c  bbphvecs(:,:,:,2)
-c
+c  bbphvecs(:,:,:,2)  
+c   
+      
 
 
       if (igeomtype.eq.6) then 
+
         allocate(rhstmp1(npts1*3),outtmp1(npts1*3))
         allocate(rhstmp2(npts2*3),outtmp2(npts2*3))
 
+C
+CCCC       surface 1 
+C
         hvecs_div_shell = 0 
         do igen=1,2*ngenus
+          call prin2('hvecs1=*',hvecs_shell(1,1,igen,1),24)
           do i=1,npts1 
             rhstmp1(i) = hvecs_shell(1,i,igen,1) 
             rhstmp1(i+npts1) = hvecs_shell(2,i,igen,1) 
             rhstmp1(i+2*npts1) = hvecs_shell(3,i,igen,1) 
           enddo 
-        enddo 
-        call prin2('rhstmp1=*',rhstmp1,24)
-
-
         
+          outtmp1 = 0
+          call lpcomp_s0curl_addsub(npatches1,norders1,ixyzs1,
+     1    iptype1,npts1,srccoefs1,srcvals1,eps,nnz1,row_ptr1,
+     2    col_ind1,iquad1,nquad1,wnear1(2*nquad1+1),rhstmp1,
+     3    novers1,npts_over1,ixyzso1,srcover1,wover1,outtmp1)
+          
+          do i=1,npts1 
+            bbphvecs_shell(1,i,igen,1) = outtmp1(i)
+            bbphvecs_shell(2,i,igen,1) = outtmp1(i+npts1)
+            bbphvecs_shell(3,i,igen,1) = outtmp1(i+2*npts1)
+          enddo 
+        
+          vtmp1 = 0 
+          do j=1,npts1
+            call cross_prod3d(srcvals1(10,j),hvecs_shell(1,j,igen,1),
+     1         vtmp1)
+          bbphvecs_shell(1:3,j,igen,1) = bbphvecs_shell(1:3,j,igen,1) 
+     1                - vtmp1(1:3)/2
+          enddo
 
+
+          call prin2('outtmp1=*',outtmp1,24)
+          call prin2('rhstmp1=*',rhstmp1,24)
+
+        enddo 
+
+
+        call prin2('bbphvecs1=*',bbphvecs_shell(1,1,1,1),24)
+        call prin2('bbphvecs1=*',bbphvecs_shell(1,1,2,1),24)
+
+
+C
+CCCC       surface 2 
+C
         do igen=1,2*ngenus
           do i=1,npts2 
             rhstmp2(i) = hvecs_shell(1,i,igen,2) 
             rhstmp2(i+npts2) = hvecs_shell(2,i,igen,2) 
             rhstmp2(i+2*npts2) = hvecs_shell(3,i,igen,2) 
           enddo 
+        
+          outtmp2 = 0
+          call lpcomp_s0curl_addsub(npatches2,norders2,ixyzs2,
+     1    iptype2,npts2,srccoefs2,srcvals2,eps,nnz2,row_ptr2,
+     2    col_ind2,iquad2,nquad2,wnear2(2*nquad2+1),rhstmp2,
+     3    novers2,npts_over2,ixyzso2,srcover2,wover2,outtmp2)
+          
+          do i=1,npts2
+            bbphvecs_shell(1,i,igen,2) = outtmp2(i)
+            bbphvecs_shell(2,i,igen,2) = outtmp2(i+npts2)
+            bbphvecs_shell(3,i,igen,2) = outtmp2(i+2*npts2)
+          enddo 
+        
+          vtmp1 = 0 
+          do j=1,npts2
+            call cross_prod3d(srcvals2(10,j),hvecs_shell(1,j,igen,2),
+     1         vtmp1)
+          bbphvecs_shell(1:3,j,igen,2) = bbphvecs_shell(1:3,j,igen,2) 
+     1                - vtmp1(1:3)/2
+          enddo
+
+          call prin2('outtmp2=*',outtmp2,24)
+          call prin2('rhstmp2=*',rhstmp2,24)
         enddo 
-        call prin2('rhstmp2=*',rhstmp2,24)
-
-
-        
-c C
-     
-        outtmp1 = 0
-        call lpcomp_s0curl_addsub(npatches1,norders1,ixyzs1,
-     1    iptype1,npts1,srccoefs1,srcvals1,eps,nnz1,row_ptr1,
-     2    col_ind1,iquad1,nquad1,wnear1(2*nquad1+1),rhstmp1,
-     3    novers1,npts_over1,ixyzso1,srcover1,wover1,outtmp1)
-        call prin2('outtmp1=*',outtmp1,24)
-
-        
-        
-
-        outtmp2 = 0
-        call lpcomp_s0curl_addsub(npatches2,norders2,ixyzs2,iptype2,npts2,
-     1    srccoefs2,srcvals2,eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,
-     2    wnear2(2*nquad2+1),rhstmp2,novers2,npts_over2,ixyzso2,
-     2    srcover2,wover2,outtmp2)
-        call prin2('outtmp2=*',outtmp2,24)
-
       endif 
 
 
-
-      stop
-
-
       
-
-
-
-      
-
-
 
       hvecs_div = 0
       do igen=1,2*ngenus
+        call prin2('hvecs=*',hvecs(1,i,1),24)
         do i=1,npts
           rhstmp(i) = hvecs(1,i,igen) 
           rhstmp(i+npts) = hvecs(2,i,igen) 
           rhstmp(i+2*npts) = hvecs(3,i,igen) 
         enddo
-        call prin2('rhstmp=*',rhstmp,24)
         outtmp = 0
 
         call lpcomp_s0curl_addsub(npatches,norders,ixyzs,iptype,npts,
@@ -1378,7 +1422,20 @@ c C
           call cross_prod3d(srcvals(10,j),hvecs(1,j,igen),vtmp1)
           bbphvecs(1:3,j,igen) = bbphvecs(1:3,j,igen) - vtmp1(1:3)/2
         enddo
+
+        call prin2('outtmp=*',outtmp,24)
+        call prin2('rhstmp=*',rhstmp,24)
       enddo
+
+
+      call prin2('bbphvecs=*',bbphvecs(1,1,1),24)
+      call prin2('bbphvecs=*',bbphvecs(1,1,2),24)
+
+
+      stop 
+
+
+
       print *, "here"
 
       numit = 300
