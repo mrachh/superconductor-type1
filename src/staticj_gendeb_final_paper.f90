@@ -1493,14 +1493,14 @@
 !  5. (a-2*b)
 !  6. 2*(n \cdot (-\nabla S_{ik}[r^{-}] - \nabla \times S_{ik} [m^{-}] -k 
 !        S_{ik} [\ell^{-}]) = 0
-!  7. \int_{A_{j}^+} B^{-} \cdot d \ell - cm_{1}
-!  8. \int_{A_{j}^-} B^{-} \cdot d \ell - cm_{2}
-!  9. \int_{B_{j}^+} B^{-} \cdot d \ell - cm_{3}
-!  10. \int_{B_{j}^-} B^{-} \cdot d \ell - cm_{4}
-!  7. \int_{A_{j}^+} B^{+} \cdot d \ell - cm_{5}
-!  8. \int_{A_{j}^-} B^{+} \cdot d \ell - cm_{6}
-!  9. \int_{B_{j}^+} B^{+} \cdot d \ell - cm_{7}
-!  10. \int_{B_{j}^-} B^{+} \cdot d \ell - cm_{8}
+!  7. \int_{A^+} B^{-} \cdot d \ell - cm_{1}
+!  8. \int_{A^-} B^{-} \cdot d \ell - cm_{2}
+!  9. \int_{B^+} B^{-} \cdot d \ell - cm_{3}
+!  10. \int_{B^-} B^{-} \cdot d \ell - cm_{4}
+!  11. \int_{A^+} B^{+} \cdot d \ell - cm_{5}
+!  12. \int_{A^-} B^{+} \cdot d \ell - cm_{6}
+!  13. \int_{B^+} B^{+} \cdot d \ell - cm_{7}
+!  14. \int_{B^-} B^{+} \cdot d \ell - cm_{8}
 !
 !  for the thin shell geometry
 !
@@ -1929,8 +1929,9 @@
 !
 !  Yuguan: write version of gendebproc_qpqm_thinshell
 !   where in the computation of all of the quantities below
-!   spqp = S'[q^{+}], grads0qm = \nabla S_{0} [q^{-}]
-!   s0laps0qp = S_{0} \Delta_{\Gamma} S_0[q^{+}] and 
+!   spqp = S'[q^{+}], 
+!   grads0qm = \nabla S_{0} [q^{-}]
+!   s0laps0qp = S_{0} \Delta_{\Gamma} S_{0}[q^{+}] and 
 !   s0laps0qm = S_{0} \Delta_{\Gamma} S_{0}[q^{-}] 
 !
 !   whereever the mean of integral of q^{-}, q^{+}, r^{-}
@@ -1949,10 +1950,15 @@
 !   laps02rhop = \Delta_{\Gamma} S_{0}^2 [\rho^{+}]
 !   laps02rhom = \Delta_{\Gamma} S_{0}^2 [\rho^{-}]
 !   laps02mum = \Delta_{\Gamma} S_{0}^2 [\mu^{-}]
-!   
-!   currently in the end the integral of those quantities
-!   is subtracted. You instead want to subtract the 
-!   means on the individual surfaces
+!   blm = \ell^{-}
+!   bmm = m^{-}
+!
+!   call routine twice with srcvals1, and everything related to surface1
+!   and evalaute 
+!
+!   call it again with srcvals2 and everything related to surface2
+!
+!   and piece together laps02rhom, laps02rhop, laps02mum, blm, bmm
 !   
 
       call statj_gendebproc_rhomrhopmum(npatches,norders,ixyzs, &
