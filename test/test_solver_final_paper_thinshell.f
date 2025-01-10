@@ -585,6 +585,45 @@ C
       call fun_surf_interp(3,npatches2,norders2,ixyzs2,iptype2,
      1     npts2,bbm(1,npts1+1),nb2,bpatches2,buv2,bbm2_b)
 
+C
+      rra = 0 
+      do i=1,na1
+        rhs(6*npts+1) = rhs(6*npts+1) + (bbm1_a(1,i)*avals1(4,i) + 
+     1  bbm1_a(2,i)*avals1(5,i) + bbm1_a(3,i)*avals1(6,i))*awts1(i)
+        rhs(6*npts+5) = rhs(6*npts+5) + (bbp1_a(1,i)*avals1(4,i) + 
+     1  bbp1_a(2,i)*avals1(5,i) + bbp1_a(3,i)*avals1(6,i))*awts1(i)
+        rra = rra + 
+     1  sqrt(avals1(4,i)**2+avals1(5,i)**2+avals1(6,i)**2)*awts1(i)
+      enddo
+
+      do i=1,na2
+        rhs(6*npts+2) = rhs(6*npts+2) + (bbm1_a(1,i)*avals2(4,i) + 
+     1  bbm2_a(2,i)*avals2(5,i) + bbm2_a(3,i)*avals2(6,i))*awts2(i)
+        rhs(6*npts+6) = rhs(6*npts+6) + (bbp2_a(1,i)*avals1(4,i) + 
+     1  bbp2_a(2,i)*avals2(5,i) + bbp2_a(3,i)*avals2(6,i))*awts2(i)
+        rra = rra + 
+     1  sqrt(avals2(4,i)**2 + avals2(5,i)**2 + avals2(6,i)**2)*awts2(i)
+      enddo
+
+      rrb = 0
+      do i=1,nb1
+        rhs(6*npts+3) = rhs(6*npts+3) + (bbm1_b(1,i)*bvals1(4,i) + 
+     1  bbm1_b(2,i)*bvals1(5,i) + bbm1_b(3,i)*bvals1(6,i))*bwts1(i)
+        rhs(6*npts+7) = rhs(6*npts+7) + (bbp1_b(1,i)*bvals1(4,i) + 
+     1  bbp1_b(2,i)*bvals1(5,i) + bbp1_b(3,i)*bvals1(6,i))*bwts1(i)
+        rrb = rrb + 
+     1  sqrt(bvals1(4,i)**2 + bvals1(5,i)**2 + bvals1(6,i)**2)*bwts1(i)
+      enddo 
+
+      do i=1,nb2
+        rhs(6*npts+4) = rhs(6*npts+4)+(bbm2_b(1,i)*bvals2(4,i)+ 
+     1  bbm2_b(2,i)*bvals2(5,i) + bbm2_b(3,i)*bvals2(6,i))*bwts2(i)
+        rhs(6*npts+8) = rhs(6*npts+8) + (bbp2_b(1,i)*bvals2(4,i) + 
+     1  bbp2_b(2,i)*bvals2(5,i) + bbp2_b(3,i)*bvals2(6,i))*bwts2(i)
+        rrb = rrb + 
+     1  sqrt(bvals2(4,i)**2 + bvals2(5,i)**2 + bvals2(6,i)**2)*bwts2(i)
+      enddo
+
       
       
 c C

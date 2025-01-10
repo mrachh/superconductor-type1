@@ -1435,26 +1435,21 @@ c
       if(igeomtype.eq.4) then
         done = 1
         pi = atan(done)*4
-C        umin = 0
-C        umax = 2*pi
-C        vmin = 0
-C        vmax = 2*pi
         umin = 0
         umax = 2*pi
-        vmin = 2*pi
-        vmax = 0
+        vmin = 0
+        vmax = 2*pi
+
         allocate(triaskel(3,3,npatches))
         nover = 0
         call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
      1     nover,npatches,npatches,triaskel)
         call prinf('npatches=*',npatches,1)
          
-C        p1(1) = 1.0d0
-C        p1(2) = 1.75d0
-C        p1(3) = 0.25d0
-        p1(1) = 0.5d0
+        p1(1) = 1.0d0
         p1(2) = 1.75d0
         p1(3) = 0.25d0
+
 
         p2(1) = 1.0d0
         p2(2) = 1.0d0
