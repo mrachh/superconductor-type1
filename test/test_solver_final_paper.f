@@ -101,7 +101,7 @@ c  igeomtype = 3 => wiggly torus
 c  igeomtype = 4 => torus
 c  igeomtype = 6 => thin shell tori
 c
-      igeomtype = 6
+      igeomtype = 4
       iref = 2
       if(igeomtype.eq.1) then
         ipars(1) = iref
@@ -241,7 +241,7 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
      1  npts, srccoefs, srcvals, srcvals(10:12,:),
      2   'thin-shell-normals.vtk','a')
 
-      stop
+
       allocate(wts(npts))
 
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
@@ -298,18 +298,18 @@ cc      call prin2('srccoefs=*',srccoefs,9*npts)
 c
 c  set file names for reading or writing harmonic vector fields
 c
-c
-      write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
-     1     'hvecs_',ipars(1),
-     1    '_',ipars(2),'_',norder,'_1.dat'
-      if(igeomtype.ge.2)
-     1   open(unit=78,file=trim(fname),form='unformatted')
-      write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
-     1     'hvecs_',ipars(1),
-     1     '_',ipars(2),'_',norder,'_2.dat'
-      print *, fname 
-      if(igeomtype.ge.2) 
-     1   open(unit=79,file=trim(fname),form='unformatted')
+c c
+c       write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
+c      1     'hvecs_',ipars(1),
+c      1    '_',ipars(2),'_',norder,'_1.dat'
+c       if(igeomtype.ge.2)
+c      1   open(unit=78,file=trim(fname),form='unformatted')
+c       write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
+c      1     'hvecs_',ipars(1),
+c      1     '_',ipars(2),'_',norder,'_2.dat'
+c       print *, fname 
+c       if(igeomtype.ge.2) 
+c      1   open(unit=79,file=trim(fname),form='unformatted')
 
 c
 c   set a and b cycle params
@@ -728,6 +728,19 @@ c
       eps_gmres = 1.0d-8
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),4)
       print *, "here"
+
+
+      do i=1,npts 
+        write (776,'(3(2x,e11.5))') bbphvecs(1,i,1),
+     1      bbphvecs(2,i,1), bbphvecs(3,i,1)
+      enddo
+
+      do i=1,npts
+        write (777,'(3(2x,e11.5))') bbphvecs(1,i,2),
+     1      bbphvecs(2,i,2), bbphvecs(3,i,2)
+      enddo
+
+      stop 
 
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
@@ -1422,17 +1435,24 @@ c
       if(igeomtype.eq.4) then
         done = 1
         pi = atan(done)*4
+C        umin = 0
+C        umax = 2*pi
+C        vmin = 0
+C        vmax = 2*pi
         umin = 0
         umax = 2*pi
-        vmin = 0
-        vmax = 2*pi
+        vmin = 2*pi
+        vmax = 0
         allocate(triaskel(3,3,npatches))
         nover = 0
         call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
      1     nover,npatches,npatches,triaskel)
         call prinf('npatches=*',npatches,1)
          
-        p1(1) = 1.0d0
+C        p1(1) = 1.0d0
+C        p1(2) = 1.75d0
+C        p1(3) = 0.25d0
+        p1(1) = 0.5d0
         p1(2) = 1.75d0
         p1(3) = 0.25d0
 

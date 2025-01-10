@@ -62,6 +62,10 @@ CCC   for thin shell only
       real *8, allocatable :: rhstmp1(:),outtmp1(:)
       real *8, allocatable :: rhstmp2(:),outtmp2(:)
 
+      real *8, allocatable :: bbp1_a(:,:),bbp2_a(:,:)
+      real *8, allocatable :: bbp1_b(:,:),bbp2_b(:,:)
+      real *8, allocatable :: bbm1_a(:,:),bbm2_a(:,:)
+      real *8, allocatable :: bbm1_b(:,:),bbm2_b(:,:)
 
 
       integer, allocatable :: ipatch_id(:),ipatch_id_targ(:)
@@ -110,9 +114,9 @@ CCC     for thin shell only
 
 
       real *8, allocatable :: hvecs1(:,:,:),hvecs2(:,:,:)
-      real *8, allocatable :: bbphvecs1(:,:,:)
-      real *8, allocatable :: bbphvecs2(:,:,:)
-      
+      real *8, allocatable :: bbphvecs1(:,:,:),bbphvecs2(:,:,:)
+      real *8, allocatable :: hvecs1_div(:,:),hvecs2_div(:,:)
+      real *8, allocatable :: hvecs1_div2(:),hvecs2_div2(:)
 CCC 
 
       logical isout0,isout1
@@ -152,8 +156,9 @@ c
 c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
-cc      iref = 2
-      iref = 0
+      iref = 2
+C      iref = 0
+
 
       ipars(1) = 4*2**(iref)
       ipars(2) = 2*2**(iref)
@@ -175,8 +180,8 @@ cc      iref = 2
       xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
       xyz_out_src(3) = rr*sin(uu)
 
-cc      norder = 8
-      norder = 4
+      norder = 8
+C      norder = 4
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -356,40 +361,59 @@ c
       call prinf('npts2=*',npts2,1)
 
 
-      allocate(hvecs_shell(3,npts1,2,2))
-      allocate(bbphvecs_shell(3,npts1,2,2))
-      allocate(hvecs_div_shell(npts1,2,2))
-      allocate(hvecs_div2_shell(npts1,2))
+C     allocate(hvecs_shell(3,npts1,2,2))
+C      allocate(bbphvecs_shell(3,npts1,2,2))
+C      allocate(hvecs_div_shell(npts1,2,2))
+C      allocate(hvecs_div2_shell(npts1,2))
 
-      hvecs_shell = 0 
-      bbphvecs_shell = 0 
-      hvecs_div_shell = 0 
-      hvecs_div2_shell = 0
+C      hvecs_shell = 0 
+C      bbphvecs_shell = 0 
+C      hvecs_div_shell = 0 
+C      hvecs_div2_shell = 0
+      allocate(hvecs1(3,npts1,2))
+      allocate(hvecs2(3,npts2,2))
+      allocate(bbphvecs1(3,npts1,2))
+      allocate(bbphvecs2(3,npts2,2))
+      allocate(hvecs1_div(npts1,2))
+      allocate(hvecs2_div(npts2,2))
+      allocate(hvecs1_div2(npts1))
+      allocate(hvecs2_div2(npts2))
+
+
+      hvecs1 = 0
+      hvecs2 = 0 
+      bbphvecs1 = 0 
+      bbphvecs2 = 0 
+      hvecs1_div = 0 
+      hvecs2_div = 0
+      hvecs1_div2 = 0 
+      hvecs2_div2 = 0 
+
 
 CCC         surface 1     CCCC 
       do i=1,npts1
         rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
-        hvecs_shell(1,i,1,1) = -srcvals1(2,i)/rr1
-        hvecs_shell(2,i,1,1) = srcvals1(1,i)/rr1
-        hvecs_shell(3,i,1,1) = 0 
-        call cross_prod3d(srcvals1(10,i),hvecs_shell(1:3,i,1,1),
-     1       hvecs_shell(1:3,i,2,1))
+        hvecs1(1,i,1) = -srcvals1(2,i)/rr1
+        hvecs1(2,i,1) = srcvals1(1,i)/rr1
+        hvecs1(3,i,1) = 0 
+        call cross_prod3d(srcvals1(10,i),hvecs1(1:3,i,1),
+     1       hvecs1(1:3,i,2))
       enddo 
 
       call prin2('srcvals1=*',srcvals1(1,1),24)
-      call prin2('hvecs1=*',hvecs_shell(1,1,1,1),24)
-      call prin2('hvecs1=*',hvecs_shell(1,1,2,1),24)
+      call prin2('hvecs1=*',hvecs1(1,1,1),24)
+  
 
       allocate(wts1(npts1))
       call get_qwts(npatches1,norders1,ixyzs1,
      1        iptype1,npts1,srcvals1,wts1)
 
       call surf_div(npatches1,norders1,ixyzs1,iptype1,npts1, 
-     1  srccoefs1,srcvals1,hvecs_shell(1,1,1,1),hvecs_div2_shell(1,1))
+     1  srccoefs1,srcvals1,hvecs1(1,1,1),hvecs1_div2(1))
 
       errest = 0
       do i=1,npts1
-        errest = errest + hvecs_div2_shell(i,1)**2*wts1(i)
+        errest = errest + hvecs1_div2(i)**2*wts1(i)
       enddo
       errest = sqrt(errest)
       call prin2('errest1=*',errest,1)
@@ -401,11 +425,11 @@ CCC         surface 2     CCCC
 
       do i=1,npts2
         rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
-        hvecs_shell(1,i,1,2) = -srcvals2(2,i)/rr1
-        hvecs_shell(2,i,1,2) = srcvals2(1,i)/rr1
-        hvecs_shell(3,i,1,2) = 0 
-        call cross_prod3d(srcvals2(10,i),hvecs_shell(1:3,i,1,2),
-     1     hvecs_shell(1:3,i,2,2))
+        hvecs2(1,i,1) = -srcvals2(2,i)/rr1
+        hvecs2(2,i,1) = srcvals2(1,i)/rr1
+        hvecs2(3,i,1) = 0 
+        call cross_prod3d(srcvals2(10,i),hvecs2(1:3,i,1),
+     1     hvecs2(1:3,i,2))
       enddo 
 
 
@@ -415,22 +439,18 @@ CCC         surface 2     CCCC
 
     
       call surf_div(npatches2,norders2,ixyzs2,iptype2,npts2, 
-     1  srccoefs2,srcvals2,hvecs_shell(1,1,1,2),hvecs_div2_shell(1,2))
+     1  srccoefs2,srcvals2,hvecs2(1,1,1),hvecs2_div2(1))
 
       errest = 0
       do i=1,npts2
-        errest = errest + hvecs_div2_shell(i,2)**2*wts2(i)
+        errest = errest + hvecs2_div2(i)**2*wts2(i)
       enddo
       errest = sqrt(errest)
       call prin2('errest2=*',errest,1)
 
-
-        
         
       allocate(rhstmp(npts*3),outtmp(npts*3))
       
-
-
       iaxyzs(1) = 1
       iaxyzs(2) = na1 + 1
       iaxyzs(3) = na + 1
@@ -526,41 +546,81 @@ c  For ``exterior fields: a_+, a_-,b_+, b_-
 c
 c  Our ordering: interior a_+, interior a_-, interior b_+, interior b_-
 c                exterior a_+, exterior a_-, exterior b_+, exterior b_-
-c 
+c   
 
-      if(igeomtype.ge.2) then
+      allocate(bbp1_a(3,na1),bbp2_a(3,na2))
+      allocate(bbp1_b(3,nb1),bbp2_b(3,nb2))
+      allocate(bbm1_a(3,na1),bbm2_a(3,na2))
+      allocate(bbm1_b(3,nb1),bbm2_b(3,nb2))
 
-        allocate(bbp_a(3,na),bbp_b(3,nb),bbm_a(3,na),bbm_b(3,nb))
-        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-     1     bbp,na,apatches,auv,bbp_a)
-        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-     1     bbp,nb,bpatches,buv,bbp_b)
+C
+C     ASK MANAS ABOUT rhs and rra, rrb 
+C
 
-        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-     1     bbm,na,apatches,auv,bbm_a)
-        call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-     1     bbm,nb,bpatches,buv,bbm_b)
+C
+CCC     for surface 1 
+C
 
-        rra = 0 
-        do i=1,na
-          rhs(6*npts+1) = rhs(6*npts+1) + (bbm_a(1,i)*avals(4,i) + 
-     1      bbm_a(2,i)*avals(5,i) + bbm_a(3,i)*avals(6,i))*awts(i)
-          rhs(6*npts+3) = rhs(6*npts+3) + (bbp_a(1,i)*avals(4,i) + 
-     1      bbp_a(2,i)*avals(5,i) + bbp_a(3,i)*avals(6,i))*awts(i)
-          rra = rra + 
-     1       sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)*awts(i)
-        enddo
+      call fun_surf_interp(3,npatches1,norders1,ixyzs1,iptype1,
+     1     npts1,bbp,na1,apatches1,auv1,bbp1_a)
+      call fun_surf_interp(3,npatches1,norders1,ixyzs1,iptype1,
+     1     npts1,bbp,nb1,bpatches1,buv1,bbp1_b)
 
-        rrb = 0
-        do i=1,nb
-          rhs(6*npts+2) = rhs(6*npts+2) + (bbm_b(1,i)*bvals(4,i) + 
-     1      bbm_b(2,i)*bvals(5,i) + bbm_b(3,i)*bvals(6,i))*bwts(i)
-          rhs(6*npts+4) = rhs(6*npts+4) + (bbp_b(1,i)*bvals(4,i) + 
-     1      bbp_b(2,i)*bvals(5,i) + bbp_b(3,i)*bvals(6,i))*bwts(i)
-          rrb = rrb + 
-     1      sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)*bwts(i)
-        enddo
-      endif
+      call fun_surf_interp(3,npatches1,norders1,ixyzs1,iptype1,
+     1     npts1,bbm,na1,apatches1,auv1,bbm1_a)
+      call fun_surf_interp(3,npatches1,norders1,ixyzs1,iptype1,
+     1     npts1,bbm,nb1,bpatches1,buv1,bbm1_b)
+
+C
+CCC     for surface 2
+C
+
+      call fun_surf_interp(3,npatches2,norders2,ixyzs2,iptype2,
+     1     npts2,bbp(1,npts1+1),na2,apatches2,auv2,bbp2_a)
+      call fun_surf_interp(3,npatches2,norders2,ixyzs2,iptype2,
+     1     npts2,bbp(1,npts1+1),nb2,bpatches2,buv2,bbp2_b)
+
+      call fun_surf_interp(3,npatches2,norders2,ixyzs2,iptype2,
+     1     npts2,bbm(1,npts1+1),na2,apatches2,auv2,bbm2_a)
+      call fun_surf_interp(3,npatches2,norders2,ixyzs2,iptype2,
+     1     npts2,bbm(1,npts1+1),nb2,bpatches2,buv2,bbm2_b)
+
+      
+      
+c C
+c       if(igeomtype.ge.2) then
+
+c         allocate(bbp_a(3,na),bbp_b(3,nb),bbm_a(3,na),bbm_b(3,nb))
+c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
+c      1     bbp,na,apatches,auv,bbp_a)
+c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
+c      1     bbp,nb,bpatches,buv,bbp_b)
+
+c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
+c      1     bbm,na,apatches,auv,bbm_a)
+c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
+c      1     bbm,nb,bpatches,buv,bbm_b)
+
+c         rra = 0 
+c         do i=1,na
+c           rhs(6*npts+1) = rhs(6*npts+1) + (bbm_a(1,i)*avals(4,i) + 
+c      1      bbm_a(2,i)*avals(5,i) + bbm_a(3,i)*avals(6,i))*awts(i)
+c           rhs(6*npts+3) = rhs(6*npts+3) + (bbp_a(1,i)*avals(4,i) + 
+c      1      bbp_a(2,i)*avals(5,i) + bbp_a(3,i)*avals(6,i))*awts(i)
+c           rra = rra + 
+c      1       sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)*awts(i)
+c         enddo
+
+c         rrb = 0
+c         do i=1,nb
+c           rhs(6*npts+2) = rhs(6*npts+2) + (bbm_b(1,i)*bvals(4,i) + 
+c      1      bbm_b(2,i)*bvals(5,i) + bbm_b(3,i)*bvals(6,i))*bwts(i)
+c           rhs(6*npts+4) = rhs(6*npts+4) + (bbp_b(1,i)*bvals(4,i) + 
+c      1      bbp_b(2,i)*bvals(5,i) + bbp_b(3,i)*bvals(6,i))*bwts(i)
+c           rrb = rrb + 
+c      1      sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)*bwts(i)
+c         enddo
+c       endif
 
 
 
@@ -579,7 +639,7 @@ c
       call prin2('cms=*',cms,24)
       call prin2('rads=*',rads,12)
 
-
+      
       
       
 c
@@ -874,9 +934,6 @@ c
        endif 
 
 
-      
-
-
 
 
 c
@@ -900,28 +957,28 @@ C$      t2 = omp_get_wtime()
 
       call prin2('wnear=*',wnear,24)
 
-      if (igeomtype.eq.6) then 
+
 C
 C     surface 1 
 C
-        call getnearquad_statj_gendeb(npatches1,norders1,
+      call getnearquad_statj_gendeb(npatches1,norders1,
      1      ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
      2      epsquad,dzk,iquadtype,nnz1,row_ptr1,col_ind1,
      3      iquad1,rfac01,nquad1,wnear1)
 
-        call prin2('wnear1=*',wnear1,24)
+      call prin2('wnear1=*',wnear1,24)
 
 C
 C     surface 2 
 C
-        call getnearquad_statj_gendeb(npatches2,norders2,
+      call getnearquad_statj_gendeb(npatches2,norders2,
      1      ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
      2      epsquad,dzk,iquadtype,nnz2,row_ptr2,col_ind2,
      3      iquad2,rfac02,nquad2,wnear2)
 
-        call prin2('wnear2=*',wnear2,24)
+      call prin2('wnear2=*',wnear2,24)
 
-      endif 
+      
 
 
       
@@ -939,101 +996,123 @@ c
       
 
 
-      if (igeomtype.eq.6) then 
 
-        allocate(rhstmp1(npts1*3),outtmp1(npts1*3))
-        allocate(rhstmp2(npts2*3),outtmp2(npts2*3))
+
+      allocate(rhstmp1(npts1*3),outtmp1(npts1*3))
+      allocate(rhstmp2(npts2*3),outtmp2(npts2*3))
 
 C
 CCCC       surface 1 
 C
-        hvecs_div_shell = 0 
-        do igen=1,2*ngenus
-          call prin2('hvecs1=*',hvecs_shell(1,1,igen,1),24)
-          do i=1,npts1 
-            rhstmp1(i) = hvecs_shell(1,i,igen,1) 
-            rhstmp1(i+npts1) = hvecs_shell(2,i,igen,1) 
-            rhstmp1(i+2*npts1) = hvecs_shell(3,i,igen,1) 
-          enddo 
+      hvecs1_div = 0 
+      hvecs2_div = 0 
+      do igen=1,2*ngenus
+        call prin2('hvecs1=*',hvecs1(1,1,igen),24)
+        do i=1,npts1 
+          rhstmp1(i) = hvecs1(1,i,igen) 
+          rhstmp1(i+npts1) = hvecs1(2,i,igen) 
+          rhstmp1(i+2*npts1) = hvecs1(3,i,igen) 
+        enddo 
         
-          outtmp1 = 0
-          call lpcomp_s0curl_addsub(npatches1,norders1,ixyzs1,
+        outtmp1 = 0
+        call lpcomp_s0curl_addsub(npatches1,norders1,ixyzs1,
      1    iptype1,npts1,srccoefs1,srcvals1,eps,nnz1,row_ptr1,
      2    col_ind1,iquad1,nquad1,wnear1(2*nquad1+1),rhstmp1,
      3    novers1,npts_over1,ixyzso1,srcover1,wover1,outtmp1)
           
-          do i=1,npts1
-            if(igen.eq.1) then
-              write(75,'(3(2x,e11.5))') outtmp1(i),
-     1            outtmp1(i+npts1), outtmp1(i+2*npts1)
-            endif
-            bbphvecs_shell(1,i,igen,1) = outtmp1(i)
-            bbphvecs_shell(2,i,igen,1) = outtmp1(i+npts1)
-            bbphvecs_shell(3,i,igen,1) = outtmp1(i+2*npts1)
-          enddo
+        do i=1,npts1
+          if(igen.eq.1) then
+            write(75,'(3(2x,e11.5))') outtmp1(i),
+     1           outtmp1(i+npts1), outtmp1(i+2*npts1)
+          endif
+          bbphvecs1(1,i,igen) = outtmp1(i)
+          bbphvecs1(2,i,igen) = outtmp1(i+npts1)
+          bbphvecs1(3,i,igen) = outtmp1(i+2*npts1)
+        enddo
 
          
         
-          vtmp1 = 0 
-          do j=1,npts1
-            call cross_prod3d(srcvals1(10,j),hvecs_shell(1,j,igen,1),
+        vtmp1 = 0 
+        do j=1,npts1
+          call cross_prod3d(srcvals1(10,j),hvecs1(1,j,igen),
      1         vtmp1)
-          bbphvecs_shell(1:3,j,igen,1) = bbphvecs_shell(1:3,j,igen,1) 
+          bbphvecs1(1:3,j,igen) = bbphvecs1(1:3,j,igen) 
      1                - vtmp1(1:3)/2
-          enddo
+        enddo
 
 
-          call prin2('outtmp1=*',outtmp1,24)
-          call prin2('rhstmp1=*',rhstmp1,24)
+        call prin2('outtmp1=*',outtmp1,24)
+        call prin2('rhstmp1=*',rhstmp1,24)
 
-        enddo 
+      enddo 
 
 
-        call prin2('bbphvecs1=*',bbphvecs_shell(1,1,1,1),24)
-        call prin2('bbphvecs1=*',bbphvecs_shell(1,1,2,1),24)
+      call prin2('bbphvecs1=*',bbphvecs1(1,1,1),24)
+      call prin2('bbphvecs1=*',bbphvecs1(1,1,2),24)
+
+      do i=1,npts1 
+        write (76,'(3(2x,e11.5))') bbphvecs1(1,i,1),
+     1      bbphvecs1(2,i,1), bbphvecs1(3,i,1)
+      enddo
+
+      do i=1,npts1 
+        write (77,'(3(2x,e11.5))') bbphvecs1(1,i,2),
+     1      bbphvecs1(2,i,2), bbphvecs1(3,i,2)
+      enddo
 
 
 C
 CCCC       surface 2 
 C
-        do igen=1,2*ngenus
-          do i=1,npts2 
-            rhstmp2(i) = hvecs_shell(1,i,igen,2) 
-            rhstmp2(i+npts2) = hvecs_shell(2,i,igen,2) 
-            rhstmp2(i+2*npts2) = hvecs_shell(3,i,igen,2) 
-          enddo 
+      do igen=1,2*ngenus
+        do i=1,npts2 
+          rhstmp2(i) = hvecs2(1,i,igen) 
+          rhstmp2(i+npts2) = hvecs2(2,i,igen) 
+          rhstmp2(i+2*npts2) = hvecs2(3,i,igen) 
+        enddo 
         
-          outtmp2 = 0
-          call lpcomp_s0curl_addsub(npatches2,norders2,ixyzs2,
+        outtmp2 = 0
+        call lpcomp_s0curl_addsub(npatches2,norders2,ixyzs2,
      1    iptype2,npts2,srccoefs2,srcvals2,eps,nnz2,row_ptr2,
      2    col_ind2,iquad2,nquad2,wnear2(2*nquad2+1),rhstmp2,
      3    novers2,npts_over2,ixyzso2,srcover2,wover2,outtmp2)
           
-          do i=1,npts2
-            bbphvecs_shell(1,i,igen,2) = outtmp2(i)
-            bbphvecs_shell(2,i,igen,2) = outtmp2(i+npts2)
-            bbphvecs_shell(3,i,igen,2) = outtmp2(i+2*npts2)
-          enddo 
-        
-          vtmp1 = 0 
-          do j=1,npts2
-            call cross_prod3d(srcvals2(10,j),hvecs_shell(1,j,igen,2),
-     1         vtmp1)
-          bbphvecs_shell(1:3,j,igen,2) = bbphvecs_shell(1:3,j,igen,2) 
-     1                - vtmp1(1:3)/2
-          enddo
-
-          call prin2('outtmp2=*',outtmp2,24)
-          call prin2('rhstmp2=*',rhstmp2,24)
+        do i=1,npts2
+          bbphvecs2(1,i,igen) = outtmp2(i)
+          bbphvecs2(2,i,igen) = outtmp2(i+npts2)
+          bbphvecs2(3,i,igen) = outtmp2(i+2*npts2)
         enddo 
-      endif
+        
+        vtmp1 = 0 
+        do j=1,npts2
+          call cross_prod3d(srcvals2(10,j),hvecs2(1,j,igen),
+     1         vtmp1)
+          bbphvecs2(1:3,j,igen) = bbphvecs2(1:3,j,igen) 
+     1                - vtmp1(1:3)/2
+        enddo
+
+        call prin2('outtmp2=*',outtmp2,24)
+        call prin2('rhstmp2=*',rhstmp2,24)
+      enddo 
+
+
+      do i=1,npts2 
+        write (78,'(3(2x,e11.5))') bbphvecs2(1,i,1),
+     1      bbphvecs2(2,i,1), bbphvecs2(3,i,1)
+      enddo
+
+      do i=1,npts2 
+        write (79,'(3(2x,e11.5))') bbphvecs2(1,i,2),
+     1      bbphvecs2(2,i,2), bbphvecs2(3,i,2)
+      enddo
+
 
       stop
 
 
+    
       
 
-      hvecs_div = 0
       do igen=1,2*ngenus
         call prin2('hvecs=*',hvecs(1,i,1),24)
         do i=1,npts
