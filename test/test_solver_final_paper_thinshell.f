@@ -360,16 +360,6 @@ c
       call prinf('npts1=*',npts1,1)
       call prinf('npts2=*',npts2,1)
 
-
-C     allocate(hvecs_shell(3,npts1,2,2))
-C      allocate(bbphvecs_shell(3,npts1,2,2))
-C      allocate(hvecs_div_shell(npts1,2,2))
-C      allocate(hvecs_div2_shell(npts1,2))
-
-C      hvecs_shell = 0 
-C      bbphvecs_shell = 0 
-C      hvecs_div_shell = 0 
-C      hvecs_div2_shell = 0
       allocate(hvecs1(3,npts1,2))
       allocate(hvecs2(3,npts2,2))
       allocate(bbphvecs1(3,npts1,2))
@@ -529,21 +519,6 @@ C$OMP END PARALLEL DO
 
 c
 c
-c  For Yuguan: need to compute integrals of the difference
-c     of incident fields on a and b cycles
-c
-
-c
-c  below: fun_surf_interp takes in function defined on \Omega
-c    takes in a and b cycle info, interpolates 
-c    the function to a and b cycles, and then computes their 
-c    integral, current ordering is interior a, interior b, 
-c    exterior a, exterior b
-c
-c  In our case: 
-c  For interior fields: a_+, a_-, b_+, b_-
-c  For ``exterior fields: a_+, a_-,b_+, b_-
-c
 c  Our ordering: interior a_+, interior a_-, interior b_+, interior b_-
 c                exterior a_+, exterior a_-, exterior b_+, exterior b_-
 c   
@@ -553,9 +528,6 @@ c
       allocate(bbm1_a(3,na1),bbm2_a(3,na2))
       allocate(bbm1_b(3,nb1),bbm2_b(3,nb2))
 
-C
-C     ASK MANAS ABOUT rhs and rra, rrb 
-C
 
 C
 CCC     for surface 1 
@@ -625,44 +597,6 @@ C
       enddo
 
       
-      
-c C
-c       if(igeomtype.ge.2) then
-
-c         allocate(bbp_a(3,na),bbp_b(3,nb),bbm_a(3,na),bbm_b(3,nb))
-c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-c      1     bbp,na,apatches,auv,bbp_a)
-c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-c      1     bbp,nb,bpatches,buv,bbp_b)
-
-c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-c      1     bbm,na,apatches,auv,bbm_a)
-c         call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts,
-c      1     bbm,nb,bpatches,buv,bbm_b)
-
-c         rra = 0 
-c         do i=1,na
-c           rhs(6*npts+1) = rhs(6*npts+1) + (bbm_a(1,i)*avals(4,i) + 
-c      1      bbm_a(2,i)*avals(5,i) + bbm_a(3,i)*avals(6,i))*awts(i)
-c           rhs(6*npts+3) = rhs(6*npts+3) + (bbp_a(1,i)*avals(4,i) + 
-c      1      bbp_a(2,i)*avals(5,i) + bbp_a(3,i)*avals(6,i))*awts(i)
-c           rra = rra + 
-c      1       sqrt(avals(4,i)**2 + avals(5,i)**2 + avals(6,i)**2)*awts(i)
-c         enddo
-
-c         rrb = 0
-c         do i=1,nb
-c           rhs(6*npts+2) = rhs(6*npts+2) + (bbm_b(1,i)*bvals(4,i) + 
-c      1      bbm_b(2,i)*bvals(5,i) + bbm_b(3,i)*bvals(6,i))*bwts(i)
-c           rhs(6*npts+4) = rhs(6*npts+4) + (bbp_b(1,i)*bvals(4,i) + 
-c      1      bbp_b(2,i)*bvals(5,i) + bbp_b(3,i)*bvals(6,i))*bwts(i)
-c           rrb = rrb + 
-c      1      sqrt(bvals(4,i)**2 + bvals(5,i)**2 + bvals(6,i)**2)*bwts(i)
-c         enddo
-c       endif
-
-
-
 
       eps = 0.51d-8
 
@@ -1017,11 +951,6 @@ C
 
       call prin2('wnear2=*',wnear2,24)
 
-      
-
-
-      
-
 c
 c
 c  compute bbphvecs
@@ -1033,9 +962,6 @@ c  hvecs(:,:,:,2) use info for \Omega^{-} and compute
 c  bbphvecs(:,:,:,2)  
 c   
       
-
-
-
 
       allocate(rhstmp1(npts1*3),outtmp1(npts1*3))
       allocate(rhstmp2(npts2*3),outtmp2(npts2*3))
@@ -1089,16 +1015,6 @@ C
       call prin2('bbphvecs1=*',bbphvecs1(1,1,1),24)
       call prin2('bbphvecs1=*',bbphvecs1(1,1,2),24)
 
-      do i=1,npts1 
-        write (76,'(3(2x,e11.5))') bbphvecs1(1,i,1),
-     1      bbphvecs1(2,i,1), bbphvecs1(3,i,1)
-      enddo
-
-      do i=1,npts1 
-        write (77,'(3(2x,e11.5))') bbphvecs1(1,i,2),
-     1      bbphvecs1(2,i,2), bbphvecs1(3,i,2)
-      enddo
-
 
 C
 CCCC       surface 2 
@@ -1135,58 +1051,6 @@ C
       enddo 
 
 
-      do i=1,npts2 
-        write (78,'(3(2x,e11.5))') bbphvecs2(1,i,1),
-     1      bbphvecs2(2,i,1), bbphvecs2(3,i,1)
-      enddo
-
-      do i=1,npts2 
-        write (79,'(3(2x,e11.5))') bbphvecs2(1,i,2),
-     1      bbphvecs2(2,i,2), bbphvecs2(3,i,2)
-      enddo
-
-
-      stop
-
-
-    
-      
-
-      do igen=1,2*ngenus
-        call prin2('hvecs=*',hvecs(1,i,1),24)
-        do i=1,npts
-          rhstmp(i) = hvecs(1,i,igen) 
-          rhstmp(i+npts) = hvecs(2,i,igen) 
-          rhstmp(i+2*npts) = hvecs(3,i,igen) 
-        enddo
-        outtmp = 0
-
-        call lpcomp_s0curl_addsub(npatches,norders,ixyzs,iptype,npts,
-     1    srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad,nquad,
-     2    wnear(2*nquad+1),rhstmp,novers,npts_over,ixyzso,
-     2    srcover,wover,outtmp)
-        do i=1,npts
-          bbphvecs(1,i,igen) = outtmp(i)
-          bbphvecs(2,i,igen) = outtmp(i+npts)
-          bbphvecs(3,i,igen) = outtmp(i+2*npts)
-        enddo
-        do j=1,npts
-          call cross_prod3d(srcvals(10,j),hvecs(1,j,igen),vtmp1)
-          bbphvecs(1:3,j,igen) = bbphvecs(1:3,j,igen) - vtmp1(1:3)/2
-        enddo
-
-        call prin2('outtmp=*',outtmp,24)
-        call prin2('rhstmp=*',rhstmp,24)
-      enddo
-
-
-      call prin2('bbphvecs=*',bbphvecs(1,1,1),24)
-      call prin2('bbphvecs=*',bbphvecs(1,1,2),24)
-
-
-      stop 
-
-
 
       print *, "here"
 
@@ -1194,16 +1058,20 @@ C
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
       eps_gmres = 1.0d-8
-      if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),4)
+      if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
 
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
 
-      call statj_gendeb_solver(npatches,norders,ixyzs,iptype,npts,
-     1  srccoefs,srcvals,eps,dpars,ngenus,hvecs,bbphvecs,na,iaxyzs,
-     2  apatches,auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts,
-     3  numit,rhs,eps_gmres,niter,errs,rres,soln)
+      call statj_gendeb_solver_thinshell_guru(npatches, norders, ixyzs,
+     1  iptype, npts, srccoefs, srcvals, eps, dpars, 
+     2  hvecs, bbphvecs, na, iaxyzs, apatches, auv, avals, awts, 
+     3  nb, ibxyzs, bpatches, buv, bvals, bwts, nnz, row_ptr, 
+     4  col_ind, iquad, nquad, wnear, nnz1, npts1, row_ptr1, col_ind1, 
+     5  iquad1, nquad1, wnear1, nnz2, npts2, row_ptr2, col_ind2, 
+     6  iquad2, nquad2, wnear2, rfac0, numit, rhs, eps_gmres, niter, 
+     7  errs, rres, soln)
       call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
       
