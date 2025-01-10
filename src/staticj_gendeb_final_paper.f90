@@ -1975,16 +1975,16 @@
       enddo
 !$OMP END PARALLEL DO      
 
-      call prinf('ngenus=*',ngenus,1)
 
 !
 !  Add in contribution of harmonic vector fields to l^{-}
-!
+!  
+!  TODO: fix this
 !
       do i=1,npts
-        do igen = 1,2*ngenus
-          blm(1:3,i) = blm(1:3,i) + &
-            sigma(6*npts+igen)*hvecs(1:3,i,igen)
+        do igen = 1,2
+            blm(1:3,i) = blm(1:3,i) + &
+            sigma(6*npts+igen)*hvecs(1:3,i,igen,1)
         enddo
       enddo
 
@@ -2150,9 +2150,9 @@
         call cross_prod3d(srcvals(10,i),blm(1,i),vtmp1)
         bbm(1:3,i) = bbm(1:3,i) + vtmp1(1:3)/2
         bbp(1:3,i) = 0
-        do igen=1,2*ngenus
-          bbp(1:3,i) = bbp(1:3,i) + bbphvecs(1:3,i,igen)* &
-            sigma(6*npts+2*ngenus+igen)
+        do igen=1,4
+          bbp(1:3,i) = bbp(1:3,i) + bbphvecs(1:3,i,igen,1)* &
+            sigma(6*npts+igen)
         enddo
       enddo
 !$OMP END PARALLEL DO
@@ -2210,7 +2210,7 @@
 !$OMP END PARALLEL DO
 
 
-      do igen=1,ngenus
+      do igen=1,2
         do j=1,4
           pot(6*npts + (igen-1)*4 + j)= -sigma(6*npts + (igen-1)*4 + j)
         enddo
@@ -2225,9 +2225,9 @@
       hvecs_a = 0
       hvecs_b = 0
       do i=1,npts
-        do igen=1,2*ngenus
+        do igen=1,2
           hvec_bbp_use(1:3,i) = hvec_bbp_use(1:3,i) + &
-            sigma(6*npts + 2*ngenus+igen)*bbphvecs(1:3,i,igen)
+            sigma(6*npts + igen)*bbphvecs(1:3,i,igen,1)
         enddo
         hvec_bbp_use(1:3,i) = bbp(1:3,i)
       enddo
@@ -2241,7 +2241,7 @@
       call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
          hvec_bbp_use,nb,bpatches,buv,hvecs_b)
 
-      do igen=1,ngenus
+      do igen=1,2
         do j=iaxyzs(igen),iaxyzs(igen+1)-1
           pot(6*npts+(igen-1)*4 + 1) =  pot(6*npts+(igen-1)*4 + 1) + &
             (bbm_a(1,j)*avals(4,j) + &
@@ -2271,7 +2271,7 @@
 
       
       return
-      end subroutine lpcomp_statj_gendeb_addsub
+      end subroutine lpcomp_statj_gendeb_thinshell_addsub
 !
 !
 !
@@ -5799,12 +5799,12 @@
       real *8 awts(na),bwts(nb)
       real *8 hvecs(3,npts,2,2),bbphvecs(3,npts,2,2)
 
-      integer nnz, nnz1, nnz2
+      integer nnz1, nnz2
       integer npts1, npts2
       integer row_ptr(npts+1), row_ptr1(npts1+1), row_ptr2(npts2+1)
       integer col_ind(nnz), col_ind1(nnz1), col_ind2(nnz2)
       integer iquad(nnz+1), iquad1(nnz1+1), iquad2(nnz2+1)
-      integer nquad, nquad1, nquad2
+      integer nquad1, nquad2
       real *8 wnear(10*nquad), wnear1(10*nquad1), wnear2(10*nquad2)
       real *8 rfac0
 
