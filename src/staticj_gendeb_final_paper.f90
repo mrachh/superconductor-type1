@@ -1837,15 +1837,6 @@
 
 
 !
-!  Yuguan: convert rqmint = \int_{\Gamma} q^{-} 
-!    to rqmint1 = \int_{\Gamma^{+}} q^{-} and
-!    rqmint2 = \int_{\Gamma^{-}} q^{-}
-!
-!  Similarly convert rrmint = \int_{\Gamma} r^{-}
-!    into rrmint1 and rrmint2
-!
-!  and rqpint = \int_{\Gamma} q^{+} into
-!    rqpint1 and rqpint2
 !
 ! !
 !       rsurf = 0
@@ -1979,17 +1970,6 @@
       allocate(bmm(3,npts),blm(3,npts))
 
 !
-!  Yuguan: write version of gendebproc_qpqm_thinshell
-!   where in the computation of all of the quantities below
-!   spqp = S'[q^{+}], 
-!   grads0qm = \nabla S_{0} [q^{-}]
-!   s0laps0qp = S_{0} \Delta_{\Gamma} S_{0}[q^{+}] and 
-!   s0laps0qm = S_{0} \Delta_{\Gamma} S_{0}[q^{-}] 
-!
-!   whereever the mean of integral of q^{-}, q^{+}, r^{-}
-!   are subtracted, you instead subtract out the integrals
-!   on the individual components. You might want to pass 
-!   npts1 as an extra variable
 !   
 !
       call statj_gendebproc_qpqm_thinshell(npatches,norders,ixyzs, &
