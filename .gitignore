@@ -6,3 +6,4 @@ int2*
 *.save*
 *.go3
 *.txt
+*DS_Store

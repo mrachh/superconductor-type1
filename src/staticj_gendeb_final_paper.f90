@@ -1973,6 +1973,12 @@
 ! of the output potential
 !
 
+
+!
+!  Yuguan: update this to subtract the means differently 
+!    on the two different surfaces
+!
+
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
       do i=1,npts
         pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint))
@@ -1985,7 +1991,12 @@
 !
 !  Add in contribution of harmonic vector fields to l^{-}
 !  
-!  TODO: fix this
+!  Yuguan: We need to fix this to ad the correct parts of the harmonic
+!    vector fields to blm.
+!
+!  our ordering of the coefficients is
+!  c_{1}^{+} c_{2}^{+} c_{1}^{-} c_{2}^{-} d_{1}^{+} d_{2}^{+} d_{1}^{-} 
+!  d_{2}^{-}. Note that blm only depends on the d coeffs.
 !
       do i=1,npts
         do igen = 1,2
@@ -2014,6 +2025,10 @@
       nd = 8
       allocate(zcharges0(nd,ns),sigmaover(nd,ns),abc0(nd,npts))
 
+! 
+!  Yuguan: fix rqmint and rrmint to instead use rqmint1/2, rrmint1/2
+!
+
 
 !$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
@@ -2040,11 +2055,6 @@
       zgrad_aux = 0
 
       zk0 = dzk*ima
-!      call prin2('zk0=*',zk0,2)
-!      call prinf('ns=*',ns,1)
-!      call prin2('srctmp=*',srctmp,24)
-!      call prin2('sources=*',sources,24)
-!      call prin2('eps=*',eps,1)
 !
 !      print *, "before fmm"
 
@@ -2056,8 +2066,6 @@
 
       pot_aux = real(zpot_aux)
       grad_aux = real(zgrad_aux)
-!      call prin2('pot_aux=*',pot_aux,24)
-!      call prin2('grad_aux=*',grad_aux,72)
 
 
 !
@@ -2156,6 +2164,13 @@
         call cross_prod3d(srcvals(10,i),blm(1,i),vtmp1)
         bbm(1:3,i) = bbm(1:3,i) + vtmp1(1:3)/2
         bbp(1:3,i) = 0
+!
+!  Yuguan: fix this to add the correct components of
+!  bbphvecs. Note that we will be using c_{1,2}^{\pm}
+!  for these coefficients
+!
+!
+
         do igen=1,4
           bbp(1:3,i) = bbp(1:3,i) + bbphvecs(1:3,i,igen,1)* &
             sigma(6*npts+igen)
@@ -2221,7 +2236,10 @@
           pot(6*npts + (igen-1)*4 + j)= -sigma(6*npts + (igen-1)*4 + j)
         enddo
       enddo
-
+!
+!
+!  Todo: figure out how to fix these constraints 
+!
 
       allocate(bbm_a(3,na),bbm_b(3,nb))
       allocate(hvecs_a(3,na),hvecs_b(3,nb))
