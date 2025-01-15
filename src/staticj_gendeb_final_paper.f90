@@ -1465,12 +1465,12 @@
 !
 !
 
-      subroutine lpcomp_statj_gendeb_thinshell_addsub(npatches,norders,&
+      subroutine lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,norders,&
         ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,&
         col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1,iquad1, &
         nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,&
-        wnear2,hvecs,bbphvecs,na,iaxyzs, &
-        apatches,auv,avals,awts,nb,ibxyzs, &
+        wnear2,hvecs1,bbphvecs1,hvecs2,bbphvecs2,na,na1,iaxyzs, &
+        apatches,auv,avals,awts,nb,nb1,ibxyzs, &
         bpatches,buv,bvals,bwts,sigma,novers,nptso,ixyzso, &
         srcover,whtsover,pot)
 
@@ -1743,7 +1743,9 @@
       real *8 auv(2,na),buv(2,nb)
       real *8 avals(9,na),bvals(9,nb)
       real *8 awts(na),bwts(nb)
-      real *8 hvecs(3,npts,2,2),bbphvecs(3,npts,2,2)
+!      real *8 hvecs(3,npts,2,2),bbphvecs(3,npts,2,2)
+      real *8 hvecs1(3,npts1,2),bbphvecs1(3,npts1,2)
+      real *8 hvecs2(3,npts2,2),bbphvecs2(3,npts2,2)
 
       integer novers(npatches)
       integer nover,npolso,nptso
@@ -1815,6 +1817,9 @@
 
       integer nd,ntarg0,nmax,nd2,nd5
       integer ndd,ndz,ndi
+
+      real *8, allocatable :: sigma1(:,:), sigma2(:,:)
+      integer, allocatable :: ixyzs2(:)
 
       real *8 ttot,done,pi
       data ima/(0.0d0,1.0d0)/
@@ -1993,21 +1998,53 @@
 !   and piece together laps02rhom, laps02rhop, laps02mum, blm, bmm
 !  
 
-      npatches1 = npatches/2 
+      allocate(sigma1(6*npts1))
+      do i=1,npts1
+        do j=0,5 
+          sigma1(j*npts1+i) = sigma(j*npts+i)
+        enddo
+      enddo
+      
 
       call statj_gendebproc_rhomrhopmum(npatches1,norders, &
        ixyzs,iptype,npts1,srccoefs,srcvals,eps,nnz1,row_ptr1,col_ind1 &
-       iquad1,nquad1,wnear1,sigma,novers,nptso,ixyzso,srcover,whtsover,&
+       iquad1,nquad1,wnear1,sigma1,novers,nptso,ixyzso,srcover,whtsover,&
        curv,wtmp1,wtmp2,wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,&
        laps02rhop,laps02mum,blm,bmm)
 
-      nstart2 = npatches1+1
-      call statj_gendebproc_rhomrhopmum(npatches1,norders, &
-       ixyzs,iptype(nstart2),npts2,srccoefs(1,npts1+1), &
-       srcvals(1,npts1+1),eps,nnz2,row_ptr2,col_ind2,iquad,nquad,wnear,&
-       sigma,novers,nptso,ixyzso,srcover,whtsover, curv,wtmp1,wtmp2,&
-       wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,laps02rhop,laps02mum,& 
-       blm,bmm)
+
+      allocate(sigma2(6*npts2))
+      do i=1,npts2
+        do j=0,5 
+          sigma2(j*npts2+i) = sigma(j*npts+npts1+i)
+        enddo
+      enddo
+
+!     Ask manas about novers,nptso,ixyzso,srcover,whtsover
+!     ixyzs2(npatches2+1)
+!     ixyzs2(i)=ixyzs(npatches1+i) - npts1
+!     novers2
+!     nptso2,ixyzso2,srcover2,whtsover2
+
+
+      allocatable(ixyzs2(npatches2+1))
+      do i=1,npatches2+1
+        ixyzs2(i)=ixyzs(npatches1+i) - npts1
+      enddo 
+
+      nptso1 = ixyzso(npatches1+1)-1
+      nptso2 = nptso-nptso1
+
+      npatches2 = npatches-npatches1
+      call statj_gendebproc_rhomrhopmum(npatches2,norders(npatches1+1),&
+       ixyzs2,iptype(npatches1+1),npts2,srccoefs(1,npts1+1), &
+       srcvals(1,npts1+1),eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,&
+       wnear2,sigma2,novers(npatches1+1),nptso2,ixyzso(npatches1+1),&
+       srcover(1,nptso1+1),whtsover(nptso1+1),curv(npts1+1),& 
+       wtmp1(1,npts1+1),wtmp2(1,npts1+1),wtmp3(1,npts1+1),&
+       wtmp4(1,npts1+1),dzk,rbeta,rgamma,laps02rhom(npts1+1),&
+       laps02rhop(npts1+1),laps02mum(npts1+1),blm(1,npts1+1),&
+       bmm(1,npts1+1))
 
 
 ! !
@@ -2030,12 +2067,27 @@
 !
 
 !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
-      do i=1,npts
-        pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint))
-        pot(i+npts) = -4*(laps02rhop(i)-(sigma(4*npts+i) - rqpint))
-        pot(i+2*npts) = -4*(laps02mum(i) -(sigma(5*npts+i)- rrmint))
-      enddo
+!      do i=1,npts
+!        pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint))
+!        pot(i+npts) = -4*(laps02rhop(i)-(sigma(4*npts+i) - rqpint))
+!        pot(i+2*npts) = -4*(laps02mum(i) -(sigma(5*npts+i)- rrmint))
+!      enddo
 !$OMP END PARALLEL DO      
+
+      do i=1,npts1 
+        pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint1))
+        pot(i+npts) = -4*(laps02rhop(i)-(sigma(4*npts+i) - rqpint1))
+        pot(i+2*npts) = -4*(laps02mum(i) -(sigma(5*npts+i)- rrmint1))
+      enddo 
+
+      do i=1,npts2 
+        pot(i+npts1) = -4*(laps02rhom(i+npts1) - &
+     1              (sigma(3*npts+i+npts1) - rqmint2))
+        pot(i+npts+npts1) = -4*(laps02rhop(i+npts1)-&
+     1              (sigma(4*npts+i+npts1) - rqpint2))
+        pot(i+2*npts+npts1) = -4*(laps02mum(i+npts1) &
+     1             -(sigma(5*npts+i+npts1)- rrmint2))
+      enddo 
 
 
 !
@@ -2048,12 +2100,52 @@
 !  c_{1}^{+} c_{2}^{+} c_{1}^{-} c_{2}^{-} d_{1}^{+} d_{2}^{+} d_{1}^{-} 
 !  d_{2}^{-}. Note that blm only depends on the d coeffs.
 !
-      do i=1,npts
-        do igen = 1,2
-            blm(1:3,i) = blm(1:3,i) + &
-            sigma(6*npts+igen)*hvecs(1:3,i,igen,1)
-        enddo
-      enddo
+
+!      do i=1,npts
+!        do igen = 1,2
+!            blm(1:3,i) = blm(1:3,i) + &
+!            sigma(6*npts+igen)*hvecs(1:3,i,igen,1)
+!        enddo
+!      enddo
+
+
+!     ask manas about the shape of hvecs and the ordering of sigma ? 
+
+!     sigma(6*npts+1) :  c_{1}^{+} -> v_{1}^{+}
+!     sigma(6*npts+2) :  c_{2}^{+} -> v_{2}^{+}
+!     sigma(6*npts+3) :  c_{1}^{-} -> v_{1}^{-}
+!     sigma(6*npts+4) :  c_{2}^{-} -> v_{2}^{-}
+!     sigma(6*npts+5) :  d_{1}^{+} -> v_{1}^{+}
+!     sigma(6*npts+6) :  d_{2}^{+} -> v_{2}^{+}
+!     sigma(6*npts+7) :  d_{1}^{-} -> v_{1}^{-}
+!     sigma(6*npts+8) :  d_{2}^{-} -> v_{2}^{-}
+
+
+!     v_{1}^{+} = hvecs1(:,:,1)
+!     v_{2}^{+} = hvecs1(:,:,2)
+!     
+!     v_{1}^{-} = hvecs2(:,:,1)
+!     v_{2}^{-} = hvecs2(:,:,2)
+
+!     blm = \ell^- , here we do (A.9)
+
+      do i=1,npts1 
+        do igen = 1,2 
+          blm(1:3,i) = blm(1:3,i) + &
+          sigma(6*npts+igen+4)*hvecs1(1:3,i,igen)
+        enddo 
+      enddo 
+
+!     ask manas if all fields are contributed to blm
+
+      do i=1,npts2
+        do igen = 1,2 
+          blm(1:3,i+npts1) = blm(1:3,i+npts1) + &
+          sigma(6*npts+igen+2+4)*hvecs2(1:3,i,igen)
+        enddo 
+      enddo 
+
+
 
 !
 ! Completed computation of the following quantities
@@ -2084,9 +2176,18 @@
       do i=1,npts
         abc0(1:3,i) = blm(1:3,i)
         abc0(4:6,i) = bmm(1:3,i)
-        abc0(7,i) = sigma(3*npts+i) - rqmint
-        abc0(8,i) = sigma(5*npts+i) - rrmint
       enddo
+
+      do i=1,npts1 
+        abc0(7,i) = sigma(3*npts+i) - rqmint1
+        abc0(8,i) = sigma(5*npts+i) - rrmint1
+      enddo 
+
+      do i=1,npts2 
+        abc0(7,i+npts1) = sigma(3*npts+i+npts1) - rqmint2
+        abc0(8,i+npts1) = sigma(5*npts+i+npts1) - rrmint2
+      enddo 
+
 !$OMP END PARALLEL DO
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
@@ -2220,12 +2321,33 @@
 !  for these coefficients
 !
 !
-
-        do igen=1,4
-          bbp(1:3,i) = bbp(1:3,i) + bbphvecs(1:3,i,igen,1)* &
-            sigma(6*npts+igen)
-        enddo
+!
+!       we do it outside this lopp 
+!
+!
+!       
+!        do igen=1,4
+!          bbp(1:3,i) = bbp(1:3,i) + bbphvecs(1:3,i,igen,1)* &
+!            sigma(6*npts+igen)
+!        enddo
       enddo
+
+!     here we are doing A.7, just for B^+, we use those c_{1,2}^pm
+      do i=1,npts1 
+        do igen=1,2 
+          bbp(1:3,i) = bbp(1:3,i) + bbphvecs1(1:3,i,igen)* &
+            sigma(6*npts+igen)
+        enddo 
+      enddo 
+
+      do i=1,npts2 
+        do igen=1,2 
+          bbp(1:3,i+npts1) = bbp(1:3,i+npts1) + bbphvecs2(1:3,i,igen)*&
+            sigma(6*npts+igen+2)
+        enddo 
+      enddo 
+
+
 !$OMP END PARALLEL DO
 
 !       print *, "done computing bjm,bbm"
@@ -2306,14 +2428,49 @@
         hvec_bbp_use(1:3,i) = bbp(1:3,i)
       enddo
 
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
-         bbm,na,apatches,auv,bbm_a)
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
-         hvec_bbp_use,na,apatches,auv,hvecs_a)
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
-         bbm,nb,bpatches,buv,bbm_b)
-      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
-         hvec_bbp_use,nb,bpatches,buv,hvecs_b)
+!      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+!         bbm,na,apatches,auv,bbm_a)
+!      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+!         hvec_bbp_use,na,apatches,auv,hvecs_a)
+!      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+!         bbm,nb,bpatches,buv,bbm_b)
+!      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+!         hvec_bbp_use,nb,bpatches,buv,hvecs_b)
+!
+!
+!     surface 1 
+!
+!
+      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
+         bbm,na1,apatches,auv,bbm_a)
+      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
+         bbp,na1,apatches,auv,hvecs_a)
+
+      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
+         bbm,nb1,bpatches,buv,bbm_b)
+      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
+         bbp,nb1,bpatches,buv,hvecs_b)
+
+!
+!
+!     surface 2 
+!
+!
+      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
+         iptype(npatches1+1),npts2,bbm(1,npts1+1),na2,apatches(nba+1),&
+         auv(1,na1+1),bbm_a(1,na1+1))
+      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
+         iptype(npatches1+1),npts2,bbp(1,npts1+1),na2,apatches(na1+1),&
+         auv(1,na1+1),hvecs_a(1,na1+1))
+
+      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2,&
+         iptype(npatches1+1),npts2, bbm(1,npts1+1),nb1,&
+         bpatches(nb1+1),buv(1,nb1+1),bbm_b(1,nb1+1))
+      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
+         iptype(npatches1+1),npts2,bbp(1,npts1+1),nb2,bpatches(nb1+1),&
+         buv(1,nb1+1),hvecs_b(1,nb1+1))
+
+
 
       do igen=1,2
         do j=iaxyzs(igen),iaxyzs(igen+1)-1
