@@ -1819,7 +1819,7 @@
       integer ndd,ndz,ndi
 
       real *8, allocatable :: sigma1(:,:), sigma2(:,:)
-      integer, allocatable :: ixyzs2(:)
+      integer, allocatable :: ixyzs2(:), ixyzso2(:)
 
       real *8 ttot,done,pi
       data ima/(0.0d0,1.0d0)/
@@ -2027,19 +2027,28 @@
 !     nptso2,ixyzso2,srcover2,whtsover2
 
 
-      allocatable(ixyzs2(npatches2+1))
+      allocate(ixyzs2(npatches2+1))
       do i=1,npatches2+1
         ixyzs2(i)=ixyzs(npatches1+i) - npts1
       enddo 
 
+!     do similar thing 
+!     ixyzso2(i)=ixyzso(npatches1+i) - nptso1
+
       nptso1 = ixyzso(npatches1+1)-1
       nptso2 = nptso-nptso1
+
+
+      allocate(ixyzso2(npatches2+1))
+      do i=1,npatches2+1
+        ixyzso2(i)=ixyzso(npatches1+i) - nptso1
+      enddo 
 
       npatches2 = npatches-npatches1
       call statj_gendebproc_rhomrhopmum(npatches2,norders(npatches1+1),&
        ixyzs2,iptype(npatches1+1),npts2,srccoefs(1,npts1+1), &
        srcvals(1,npts1+1),eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,&
-       wnear2,sigma2,novers(npatches1+1),nptso2,ixyzso(npatches1+1),&
+       wnear2,sigma2,novers(npatches1+1),nptso2,ixyzso2,&
        srcover(1,nptso1+1),whtsover(nptso1+1),curv(npts1+1),& 
        wtmp1(1,npts1+1),wtmp2(1,npts1+1),wtmp3(1,npts1+1),&
        wtmp4(1,npts1+1),dzk,rbeta,rgamma,laps02rhom(npts1+1),&
@@ -2470,33 +2479,115 @@
          iptype(npatches1+1),npts2,bbp(1,npts1+1),nb2,bpatches(nb1+1),&
          buv(1,nb1+1),hvecs_b(1,nb1+1))
 
+!  7. \int_{A^+} B^{-} \cdot d \ell - cm_{1}, a cycle for surface 1 
+!  8. \int_{A^-} B^{-} \cdot d \ell - cm_{2}, a cycle for surface 2, and so on 
+!  9. \int_{B^+} B^{-} \cdot d \ell - cm_{3}
+!  10. \int_{B^-} B^{-} \cdot d \ell - cm_{4}
+!  11. \int_{A^+} B^{+} \cdot d \ell - cm_{5}
+!  12. \int_{A^-} B^{+} \cdot d \ell - cm_{6}
+!  13. \int_{B^+} B^{+} \cdot d \ell - cm_{7}
+!  14. \int_{B^-} B^{+} \cdot d \ell - cm_{8}
 
 
-      do igen=1,2
-        do j=iaxyzs(igen),iaxyzs(igen+1)-1
-          pot(6*npts+(igen-1)*4 + 1) =  pot(6*npts+(igen-1)*4 + 1) + &
-            (bbm_a(1,j)*avals(4,j) + &
-            bbm_a(2,j)*avals(5,j) + &
-            bbm_a(3,j)*avals(6,j))*awts(j)
-          vtmp1(1:3) = hvecs_a(1:3,j)
-!          call cross_prod3d(avals(7,j,igen),hvecs_a(1,j,igen),vtmp1)  
-          pot(6*npts+(igen-1)*4 + 3) =  pot(6*npts+(igen-1)*4 + 3) + &
-            (vtmp1(1)*avals(4,j) + vtmp1(2)*avals(5,j) + &
-            vtmp1(3)*avals(6,j))*awts(j)
-        enddo
+! we are filling the last 8 entries 
+!
+!     compute integrals on surface 1, a cycle  
+!
+      do j=1,na1 
+!       7. \int_{A^+} B^{-} \cdot d \ell - cm_{1}
+        pot(6*npts+1) =  pot(6*npts+1)+&
+                            (bbm_a(1,j)*avals(4,j) + &
+                            bbm_a(2,j)*avals(5,j) + &
+                            bbm_a(3,j)*avals(6,j))*awts(j)
 
-        do j=ibxyzs(igen),ibxyzs(igen+1)-1
-          pot(6*npts+(igen-1)*4 + 2) =  pot(6*npts+(igen-1)*4 + 2) + &
-            (bbm_b(1,j)*bvals(4,j) + &
-            bbm_b(2,j)*bvals(5,j) + &
-            bbm_b(3,j)*bvals(6,j))*bwts(j)
-!          call cross_prod3d(bvals(7,j,igen),hvecs_b(1,j,igen),vtmp1)  
-          vtmp1(1:3) = hvecs_b(1:3,j)
-          pot(6*npts+(igen-1)*4 + 4) =  pot(6*npts+(igen-1)*4 + 4) + &
+!       11. \int_{A^+} B^{+} \cdot d \ell - cm_{5}
+        vtmp1(1:3) = hvecs_a(1:3,j)
+        pot(6*npts+5) =  pot(6*npts+5) + &
+              (vtmp1(1)*avals(4,j) + vtmp1(2)*avals(5,j) + &
+              vtmp1(3)*avals(6,j))*awts(j)
+      enddo 
+!
+!
+!     compute integrals on surface 1, b cycle  
+!
+      do j=1,nb1 
+!     \int_{B^+} B^{-} \cdot d \ell - cm_{3}
+        pot(6*npts+3) =  pot(6*npts+3) + &
+          (bbm_b(1,j)*bvals(4,j) + &
+          bbm_b(2,j)*bvals(5,j) + &
+          bbm_b(3,j)*bvals(6,j))*bwts(j)
+
+
+!     13. \int_{B^+} B^{+} \cdot d \ell - cm_{7}
+        vtmp1(1:3) = hvecs_b(1:3,j)
+        pot(6*npts+7) =  pot(6*npts+7) + &
             (vtmp1(1)*bvals(4,j) + vtmp1(2)*bvals(5,j) + &
             vtmp1(3)*bvals(6,j))*bwts(j)
-        enddo
-      enddo
+      enddo 
+
+
+!
+!     compute integrals on surface 2 , a cycle 
+!
+      do j=na1+1,na
+!     8. \int_{A^-} B^{-} \cdot d \ell - cm_{2}
+        pot(6*npts+2) =  pot(6*npts+2)+&
+                            (bbm_a(1,j)*avals(4,j) + &
+                            bbm_a(2,j)*avals(5,j) + &
+                            bbm_a(3,j)*avals(6,j))*awts(j)
+
+!     12. \int_{A^-} B^{+} \cdot d \ell - cm_{6}
+        vtmp1(1:3) = hvecs_a(1:3,j)
+        pot(6*npts+6) =  pot(6*npts+6) + &
+              (vtmp1(1)*avals(4,j) + vtmp1(2)*avals(5,j) + &
+              vtmp1(3)*avals(6,j))*awts(j)
+      enddo 
+
+
+!
+!     compute integrals on surface 2 , b cycle 
+!
+      do j=nb1+1,nb 
+!     10. \int_{B^-} B^{-} \cdot d \ell - cm_{4}
+        pot(6*npts+4) =  pot(6*npts+4) + &
+          (bbm_b(1,j)*bvals(4,j) + &
+          bbm_b(2,j)*bvals(5,j) + &
+          bbm_b(3,j)*bvals(6,j))*bwts(j)
+
+!     14. \int_{B^-} B^{+} \cdot d \ell - cm_{8}
+        vtmp1(1:3) = hvecs_b(1:3,j)
+        pot(6*npts+8) =  pot(6*npts+8) + &
+            (vtmp1(1)*bvals(4,j) + vtmp1(2)*bvals(5,j) + &
+            vtmp1(3)*bvals(6,j))*bwts(j)
+      enddo 
+
+
+
+!       do igen=1,2
+!         do j=iaxyzs(igen),iaxyzs(igen+1)-1
+!           pot(6*npts+(igen-1)*4 + 1) =  pot(6*npts+(igen-1)*4 + 1) + &
+!             (bbm_a(1,j)*avals(4,j) + &
+!             bbm_a(2,j)*avals(5,j) + &
+!             bbm_a(3,j)*avals(6,j))*awts(j)
+!           vtmp1(1:3) = hvecs_a(1:3,j)
+! !          call cross_prod3d(avals(7,j,igen),hvecs_a(1,j,igen),vtmp1)  
+!           pot(6*npts+(igen-1)*4 + 3) =  pot(6*npts+(igen-1)*4 + 3) + &
+!             (vtmp1(1)*avals(4,j) + vtmp1(2)*avals(5,j) + &
+!             vtmp1(3)*avals(6,j))*awts(j)
+!         enddo
+
+!         do j=ibxyzs(igen),ibxyzs(igen+1)-1
+!           pot(6*npts+(igen-1)*4 + 2) =  pot(6*npts+(igen-1)*4 + 2) + &
+!             (bbm_b(1,j)*bvals(4,j) + &
+!             bbm_b(2,j)*bvals(5,j) + &
+!             bbm_b(3,j)*bvals(6,j))*bwts(j)
+! !          call cross_prod3d(bvals(7,j,igen),hvecs_b(1,j,igen),vtmp1)  
+!           vtmp1(1:3) = hvecs_b(1:3,j)
+!           pot(6*npts+(igen-1)*4 + 4) =  pot(6*npts+(igen-1)*4 + 4) + &
+!             (vtmp1(1)*bvals(4,j) + vtmp1(2)*bvals(5,j) + &
+!             vtmp1(3)*bvals(6,j))*bwts(j)
+!         enddo
+!       enddo
 
       
 
