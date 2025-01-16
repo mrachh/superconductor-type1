@@ -1061,6 +1061,12 @@ C
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
 
+!
+!
+!  Yuguan: Make sure calling sequence is consistent
+!
+!
+
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
 
@@ -1081,58 +1087,59 @@ C$       t2 = omp_get_wtime()
       call prin2('projs=*',soln(6*npts+1),4)
 
 
+      if(1.eq.0) then
+        allocate(bbpcomp(3,npts),bjmcomp(3,npts),bbmcomp(3,npts))
 
-      allocate(bbpcomp(3,npts),bjmcomp(3,npts),bbmcomp(3,npts))
-
-      print *, "here"
-      call prin2('eps=*',eps,1)
-      call prin2('soln=*',soln,24)
-      call prinf('ngenus=*',ngenus,1)
-      call prin2('dpars=*',dpars,3)
+        print *, "here"
+        call prin2('eps=*',eps,1)
+        call prin2('soln=*',soln,24)
+        call prinf('ngenus=*',ngenus,1)
+        call prin2('dpars=*',dpars,3)
 
 
-      call lpcomp_statj_gendeb_postproc(npatches,norders,ixyzs,
-     1  iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
-     2  iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
-     3  ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
-      call prin2('bjmcomp=*',bjmcomp,24)
-      call prin2('bbmcomp=*',bbmcomp,24)
-      call prin2('bbpcomp=*',bbpcomp,24)
+        call lpcomp_statj_gendeb_postproc(npatches,norders,ixyzs,
+     1    iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
+     2    iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
+     3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
+        call prin2('bjmcomp=*',bjmcomp,24)
+        call prin2('bbmcomp=*',bbmcomp,24)
+        call prin2('bbpcomp=*',bbpcomp,24)
 
-      errj = 0
-      errbm = 0
-      errbp = 0
-      rsurfintl2 = 0
-      ra = 0
-      ra2 = 0
-      do i=1,npts
-        do j=1,3
-          errj  = errj + (bjmcomp(j,i) - bjm(j,i))**2*wts(i)
-          errbm = errbm + (bbmcomp(j,i) - bbm(j,i))**2*wts(i)
-          errbp = errbp + (bbpcomp(j,i) - bbp(j,i))**2*wts(i)
-          ra2 = ra2 + bbp(j,i)**2*wts(i)
-          ra2 = ra2 + bjm(j,i)**2*wts(i)
-          ra2 = ra2 + bbm(j,i)**2*wts(i)
+        errj = 0
+        errbm = 0
+        errbp = 0
+        rsurfintl2 = 0
+        ra = 0
+        ra2 = 0
+        do i=1,npts
+          do j=1,3
+            errj  = errj + (bjmcomp(j,i) - bjm(j,i))**2*wts(i)
+            errbm = errbm + (bbmcomp(j,i) - bbm(j,i))**2*wts(i)
+            errbp = errbp + (bbpcomp(j,i) - bbp(j,i))**2*wts(i)
+            ra2 = ra2 + bbp(j,i)**2*wts(i)
+            ra2 = ra2 + bjm(j,i)**2*wts(i)
+            ra2 = ra2 + bbm(j,i)**2*wts(i)
+          enddo
+          do j=1,6
+              ra = ra + rhs((j-1)*npts+i)**2*wts(i)
+          enddo
+          do j=4,6
+            rsurfintl2 = rsurfintl2 + soln((j-1)*npts+i)**2*wts(i)
+          enddo
         enddo
-        do j=1,6
-          ra = ra + rhs((j-1)*npts+i)**2*wts(i)
-        enddo
-        do j=4,6
-          rsurfintl2 = rsurfintl2 + soln((j-1)*npts+i)**2*wts(i)
-        enddo
-      enddo
-      rsurfintl2 = sqrt(rsurfintl2)
-      errbdry = sqrt((errj + errbm + errbp))/rsurfintl2
+        rsurfintl2 = sqrt(rsurfintl2)
+        errbdry = sqrt((errj + errbm + errbp))/rsurfintl2
 
 
 
-      errj = sqrt(errj)/rsurfintl2
-      errbm = sqrt(errbm)/rsurfintl2
-      errbp = sqrt(errbp)/rsurfintl2
-      call prin2('error in current=*',errj,1)
-      call prin2('error in interior magnetic field=*',errbm,1)
-      call prin2('error in exterior magnetic field=*',errbp,1)
-      call prin2('rsurfintl2 =*',rsurfintl2,1)
+        errj = sqrt(errj)/rsurfintl2
+        errbm = sqrt(errbm)/rsurfintl2
+        errbp = sqrt(errbp)/rsurfintl2
+        call prin2('error in current=*',errj,1)
+        call prin2('error in interior magnetic field=*',errbm,1)
+        call prin2('error in exterior magnetic field=*',errbp,1)
+        call prin2('rsurfintl2 =*',rsurfintl2,1)
+      endif
 
 
 c
@@ -1168,7 +1175,11 @@ c
 
       allocate(laps02rhom(npts),laps02rhop(npts),laps02mum(npts))
       allocate(blm0(3,npts),bmm0(3,npts),bmm(3,npts),blm(3,npts))
-
+!
+!  Yuguna: Mimic whatever is done in the addsub layer potential evaluator
+!  routine to make sure blm = \ell^{-} is correct
+!
+!
       
       call statj_gendebproc_rhomrhopmum(npatches,norders,ixyzs, 
      1  iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad, 
@@ -1209,7 +1220,10 @@ c
           bbpc(1) = bbpc(1) - dx/r**3*sig*wts(i)
           bbpc(2) = bbpc(2) - dy/r**3*sig*wts(i)
           bbpc(3) = bbpc(3) - dz/r**3*sig*wts(i)
-
+c
+c  yuguan: todo fix the c+- contributions correctly
+c
+c
           do igen=1,2*ngenus
         
             bbpc(1) = bbpc(1) +1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
@@ -1312,6 +1326,7 @@ c
      1  errvol,1)
       call prin2('l2 abs error at interior + exterior targets=*',
      1  errvol_abs,1)
+      stop
 
       open(unit=81,file='res_mar17_2022.txt',access='append')
 c
