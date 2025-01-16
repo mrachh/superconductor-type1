@@ -2411,7 +2411,7 @@
       enddo
 !$OMP END PARALLEL DO
 
-
+!     sigma is subtracted here 
       do igen=1,2
         do j=1,4
           pot(6*npts + (igen-1)*4 + j)= -sigma(6*npts + (igen-1)*4 + j)
