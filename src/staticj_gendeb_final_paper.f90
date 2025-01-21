@@ -1738,6 +1738,7 @@
       real *8 wnear1(10*nquad1), wnear2(10*nquad2)
 
       integer na,nb
+      integer na1,nb1,na2,nb2 
       integer iaxyzs(3),ibxyzs(3)
       integer apatches(na),bpatches(nb)
       real *8 auv(2,na),buv(2,nb)
@@ -1749,6 +1750,7 @@
 
       integer novers(npatches)
       integer nover,npolso,nptso
+      integer nptso1,nptso2 
       real *8 srcover(12,nptso),whtsover(nptso)
       real *8 pot(6*npts+8)
       real *8, allocatable :: wts(:)
@@ -1807,6 +1809,8 @@
       complex *16, allocatable :: zctmp0(:,:),zdtmp0(:,:,:)
       real *8 thresh,ra,erra
       real *8 rr,rmin,rqmint,rrmint,rqpint
+      real *8 rqmint1,rqmint2,rqpint1,rqpint2,rrmint1,rrmint2
+      real *8 rsurf1,rsurf2
       real *8 over4pi
       real *8 rbl(3),rbm(3)
       integer nss,ii,l,npover,igen
@@ -1818,7 +1822,7 @@
       integer nd,ntarg0,nmax,nd2,nd5
       integer ndd,ndz,ndi
 
-      real *8, allocatable :: sigma1(:,:), sigma2(:,:)
+      real *8, allocatable :: sigma1(:), sigma2(:)
       integer, allocatable :: ixyzs2(:), ixyzso2(:)
 
       real *8 ttot,done,pi
@@ -2007,7 +2011,7 @@
       
 
       call statj_gendebproc_rhomrhopmum(npatches1,norders, &
-       ixyzs,iptype,npts1,srccoefs,srcvals,eps,nnz1,row_ptr1,col_ind1 &
+       ixyzs,iptype,npts1,srccoefs,srcvals,eps,nnz1,row_ptr1,col_ind1, &
        iquad1,nquad1,wnear1,sigma1,novers,nptso,ixyzso,srcover,whtsover,&
        curv,wtmp1,wtmp2,wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,&
        laps02rhop,laps02mum,blm,bmm)
@@ -2075,13 +2079,12 @@
 !    on the two different surfaces
 !
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
 !      do i=1,npts
 !        pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint))
 !        pot(i+npts) = -4*(laps02rhop(i)-(sigma(4*npts+i) - rqpint))
 !        pot(i+2*npts) = -4*(laps02mum(i) -(sigma(5*npts+i)- rrmint))
 !      enddo
-!$OMP END PARALLEL DO      
+   
 
       do i=1,npts1 
         pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint1))
@@ -2091,11 +2094,11 @@
 
       do i=1,npts2 
         pot(i+npts1) = -4*(laps02rhom(i+npts1) - &
-     1              (sigma(3*npts+i+npts1) - rqmint2))
+                   (sigma(3*npts+i+npts1) - rqmint2))
         pot(i+npts+npts1) = -4*(laps02rhop(i+npts1)-&
-     1              (sigma(4*npts+i+npts1) - rqpint2))
+                   (sigma(4*npts+i+npts1) - rqpint2))
         pot(i+2*npts+npts1) = -4*(laps02mum(i+npts1) &
-     1             -(sigma(5*npts+i+npts1)- rrmint2))
+                  -(sigma(5*npts+i+npts1)- rrmint2))
       enddo 
 
 
@@ -2181,7 +2184,6 @@
 !
 
 
-!$OMP PARALLEL DO DEFAULT(SHARED)
       do i=1,npts
         abc0(1:3,i) = blm(1:3,i)
         abc0(4:6,i) = bmm(1:3,i)
@@ -2197,17 +2199,16 @@
         abc0(8,i+npts1) = sigma(5*npts+i+npts1) - rrmint2
       enddo 
 
-!$OMP END PARALLEL DO
+
 
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
           npts,abc0,novers,ixyzso,ns,sigmaover)
         
-!
-!$OMP PARALLEL DO DEFAULT(SHARED) 
+
       do i=1,ns
         zcharges0(1:8,i) = sigmaover(1:8,i)*whtsover(i)*over4pi
       enddo
-!$OMP END PARALLEL DO      
+    
 
       allocate(zpot_aux(nd,npts),zgrad_aux(nd,3,npts))
       allocate(pot_aux(nd,npts),grad_aux(nd,3,npts))
@@ -2232,8 +2233,7 @@
 !  Add near quadrature correction
 !
 
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,jquadstart) &
-!$OMP PRIVATE(jstart,npols,l,w1,w2,w3,w4)
+
       do i=1,npts
         do j=row_ptr(i),row_ptr(i+1)-1
           jpatch = col_ind(j)
@@ -2252,7 +2252,7 @@
           enddo
         enddo
       enddo
-!$OMP END PARALLEL DO     
+ 
       
       print *, "after helmholtz near correction"
       print *, "nmax=",nmax
@@ -2270,8 +2270,7 @@
       zpottmp = 0
       zgradtmp = 0
       zctmp0 = 0
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,j,jpatch,srctmp2) &
-!$OMP PRIVATE(zctmp0,l,jstart,nss,zpottmp,zgradtmp)
+
       do i=1,npts
         nss = 0
         do j=row_ptr(i),row_ptr(i+1)-1
@@ -2296,13 +2295,12 @@
         grad_aux(1:8,1:3,i) = grad_aux(1:8,1:3,i) - &
           real(zgradtmp(1:8,1:3))
       enddo
-!$OMP END PARALLEL DO      
+    
 
 !      print *, "finished pot eval"
       deallocate(zpottmp,zgradtmp,zpot_aux,zgrad_aux)
 
       allocate(bjm(3,npts),bbm(3,npts),bbp(3,npts))
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(igen,vtmp1)
       do i=1,npts
         bjm(1,i) = -dzk*pot_aux(1,i) & 
             - grad_aux(8,1,i) &
@@ -2357,7 +2355,6 @@
       enddo 
 
 
-!$OMP END PARALLEL DO
 
 !       print *, "done computing bjm,bbm"
 
@@ -2376,11 +2373,11 @@
       nd = 3
       allocate(charges0(nd,ns),sigmaover(nd,ns),abc0(npts,nd))
       allocate(abc1(1,npts))
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i)
+
       do i=1,npts
         abc0(i,1:3) = bbm(1:3,i)/dzk - grads0qm(1:3,i)/dzk - bbp(1:3,i) 
       enddo
-!$OMP END PARALLEL DO
+
 
       call lpcomp_divs0tan_addsub(npatches,norders,ixyzs, &
         iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, &
@@ -2396,7 +2393,7 @@
 !   
 !  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
 !
-!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(i,w1,w2,w3)
+
       do i=1,npts
         call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
         call dot_prod3d(bbp(1,i),srcvals(10,i),w2)
@@ -2409,7 +2406,7 @@
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = -2*w1 - 0.7d0*rrmint 
       enddo
-!$OMP END PARALLEL DO
+
 
 !     sigma is subtracted here 
       do igen=1,2
@@ -2430,10 +2427,10 @@
       hvecs_a = 0
       hvecs_b = 0
       do i=1,npts
-        do igen=1,2
-          hvec_bbp_use(1:3,i) = hvec_bbp_use(1:3,i) + &
-            sigma(6*npts + igen)*bbphvecs(1:3,i,igen,1)
-        enddo
+!        do igen=1,2
+!          hvec_bbp_use(1:3,i) = hvec_bbp_use(1:3,i) + &
+!            sigma(6*npts + igen)*bbphvecs(1:3,i,igen,1)
+!        enddo
         hvec_bbp_use(1:3,i) = bbp(1:3,i)
       enddo
 
@@ -2466,7 +2463,7 @@
 !
 !
       call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
-         iptype(npatches1+1),npts2,bbm(1,npts1+1),na2,apatches(nba+1),&
+         iptype(npatches1+1),npts2,bbm(1,npts1+1),na2,apatches(na1+1),&
          auv(1,na1+1),bbm_a(1,na1+1))
       call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
          iptype(npatches1+1),npts2,bbp(1,npts1+1),na2,apatches(na1+1),&
@@ -7756,8 +7753,8 @@
       integer ipars(2)
       real *8 dpars(1),timeinfo(10),t1,t2,omp_get_wtime
       real *8 rqmint,rsurf
-      real *8 rqmint1,rsurf1
-      real *8 rqmint1,rsurf1
+      real *8 rqmint1,rsurf1,rqmint2,rsurf2
+
 
       real *8, allocatable :: radsrc(:)
       real *8, allocatable :: srctmp2(:,:)
