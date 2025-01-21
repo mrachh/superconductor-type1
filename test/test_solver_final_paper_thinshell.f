@@ -156,8 +156,8 @@ c
 c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
-      iref = 2
-C      iref = 0
+C      iref = 2
+      iref = 0
 
 
       ipars(1) = 4*2**(iref)
@@ -180,8 +180,8 @@ C      iref = 0
       xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
       xyz_out_src(3) = rr*sin(uu)
 
-      norder = 8
-C      norder = 4
+C      norder = 8
+      norder = 4
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -1061,27 +1061,29 @@ C
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
 
-!
-!
-!  Yuguan: Make sure calling sequence is consistent
-!
-!
+c
+c
+c  Yuguan: Make sure calling sequence is consistent
+c
+c
 
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
 
-      call statj_gendeb_solver_thinshell_guru(npatches, norders, ixyzs,
-     1  iptype, npts, srccoefs, srcvals, eps, dpars, 
-     2  hvecs, bbphvecs, na, iaxyzs, apatches, auv, avals, awts, 
-     3  nb, ibxyzs, bpatches, buv, bvals, bwts, nnz, row_ptr, 
-     4  col_ind, iquad, nquad, wnear, nnz1, npts1, row_ptr1, col_ind1, 
-     5  iquad1, nquad1, wnear1, nnz2, npts2, row_ptr2, col_ind2, 
-     6  iquad2, nquad2, wnear2, rfac0, numit, rhs, eps_gmres, niter, 
-     7  errs, rres, soln)
+      call statj_gendeb_solver_thinshell_guru(npatches,npatches1,
+     1 norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,hvecs,
+     2 hvecs1,hvecs2,bbphvecs,bbphvecs1,bbphvecs2,na,na1,iaxyzs,
+     3 apatches,auv,avals,awts, nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,
+     4 nnz,row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
+     5 col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2, 
+     6 iquad2,nquad2,wnear2,rfac0,numit,rhs,eps_gmres,niter, 
+     7 errs,rres,soln,cms,rads)
       call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
       
       call prin2('solve time=*',t2-t1,1)
+
+      stop 
       
       
       call prin2('projs=*',soln(6*npts+1),4)
@@ -1175,11 +1177,11 @@ c
 
       allocate(laps02rhom(npts),laps02rhop(npts),laps02mum(npts))
       allocate(blm0(3,npts),bmm0(3,npts),bmm(3,npts),blm(3,npts))
-!
-!  Yuguna: Mimic whatever is done in the addsub layer potential evaluator
-!  routine to make sure blm = \ell^{-} is correct
-!
-!
+c
+c  Yuguna: Mimic whatever is done in the addsub layer potential evaluator
+c  routine to make sure blm = \ell^{-} is correct
+c
+c
       
       call statj_gendebproc_rhomrhopmum(npatches,norders,ixyzs, 
      1  iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad, 
