@@ -5904,7 +5904,7 @@
        iquad, nquad, wnear, nnz1, npts1, row_ptr1, col_ind1, iquad1, &
        nquad1, wnear1, nnz2, npts2, row_ptr2, col_ind2, iquad2, &
        nquad2, wnear2, rfac0, numit, rhs, eps_gmres, niter, errs, &
-       rres, soln)
+       rres, soln, cms, rads)
 
 !
 !  This subroutine solves a tranmission like maxwell problem
@@ -6142,7 +6142,8 @@
       real *8, allocatable :: srcover(:,:),wover(:),wts(:)
       integer, allocatable :: ixyzso(:),novers(:)
 
-      real *8, allocatable :: cms(:,:),rads(:),rad_near(:)
+      real *8, allocatable :: rad_near(:)
+      real *8 cms(3,npatches),rads(npatches)
       real *8, allocatable :: abc0(:),rhsuse(:),rhstmp(:,:)
       real *8, allocatable :: rnrnrhstmp(:,:)
       real *8, allocatable :: surfdivtanrhstmp(:)
@@ -6390,19 +6391,21 @@
 !        evaluation routine  
 !
 !
-        call lpcomp_statj_gendeb_thinshell_addsub(npatches,norders, &
-          ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr, &
-          col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1, &
-          iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2, &
-          nquad2,wnear2,hvecs,bbphvecs,na,iaxyzs,apatches, &
-          auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts, &
-          vmat(1,it),novers,npts_over,ixyzso,srcover,wover,wtmp)
-        rinttmp(1:6) = 0
-        do j=1,6
-          do i=1,npts
-            rinttmp(j) = rinttmp(j) + wtmp(i+(j-1)*npts)*wts(i)
-          enddo
+      print *, 'ready to call lpcomp_statj_gendeb_thinshell_addsub'
+      call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,norders, &
+        ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr, &
+        col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1, &
+        iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2, &
+        nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,bbphvecs2,na,na1,iaxyzs,apatches, &
+        auv,avals,awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,&
+        vmat(1,it),novers,npts_over,ixyzso,srcover,wover,wtmp)
+
+      rinttmp(1:6) = 0
+      do j=1,6
+        do i=1,npts
+          rinttmp(j) = rinttmp(j) + wtmp(i+(j-1)*npts)*wts(i)
         enddo
+      enddo
 
 
         do k=1,it
