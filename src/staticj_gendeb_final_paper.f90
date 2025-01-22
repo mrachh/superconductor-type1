@@ -2033,6 +2033,7 @@
 !     novers2
 !     nptso2,ixyzso2,srcover2,whtsover2
 
+      npatches2 = npatches-npatches1
 
       allocate(ixyzs2(npatches2+1))
       do i=1,npatches2+1
@@ -2049,9 +2050,8 @@
       allocate(ixyzso2(npatches2+1))
       do i=1,npatches2+1
         ixyzso2(i)=ixyzso(npatches1+i) - nptso1
-      enddo 
+      enddo
 
-      npatches2 = npatches-npatches1
       print *, 'ready to call statj_gendebproc_rhomrhopmum 2'
       call statj_gendebproc_rhomrhopmum(npatches2,norders(npatches1+1),&
        ixyzs2,iptype(npatches1+1),npts2,srccoefs(1,npts1+1), &
@@ -2431,6 +2431,9 @@
       hvec_bbp_use = 0
       hvecs_a = 0
       hvecs_b = 0
+
+      na2 = na - na1
+      nb2 = nb - nb1
       do i=1,npts
 !        do igen=1,2
 !          hvec_bbp_use(1:3,i) = hvec_bbp_use(1:3,i) + &
@@ -5907,7 +5910,7 @@
        hvecs2,bbphvecs1,bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,&
        awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,nnz,row_ptr,col_ind,&
        iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1,iquad1,nquad1,&
-       wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,rfac0,&
+       wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,rfac,&
        numit,rhs,eps_gmres,niter,errs,rres,soln,cms,rads)
        
 
@@ -6132,7 +6135,7 @@
       integer iquad(nnz+1), iquad1(nnz1+1), iquad2(nnz2+1)
       integer nquad1, nquad2
       real *8 wnear(10*nquad), wnear1(10*nquad1), wnear2(10*nquad2)
-      real *8 rfac0
+      real *8 rfac
 
       real *8, allocatable :: targs(:,:)
       integer, allocatable :: ipatch_id(:)
@@ -6165,7 +6168,6 @@
 
 
       real *8 ttot,done,pi
-      real *8 rfac
       real *8 w1,w2,vtmp1(3),rinttmp(6)
       integer iptype_avg,norder_avg
       integer ikerorder, iquadtype,npts_over
@@ -6234,9 +6236,11 @@
 
       zpars(1) = dpars(1)*ima
 
+
       call get_far_order(eps,npatches,norders,ixyzs,iptype,cms,&
        rads,npts,srccoefs,ndtarg,npts,targs,ikerorder,zpars(1),&
        nnz,row_ptr,col_ind,rfac,novers,ixyzso)
+
 
       npts_over = ixyzso(npatches+1)-1
       print *, "npts_over=",npts_over

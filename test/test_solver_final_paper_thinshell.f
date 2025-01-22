@@ -160,8 +160,8 @@ C      iref = 2
       iref = 0
 
 
-      ipars(1) = 4*2**(iref)
-      ipars(2) = 2*2**(iref)
+      ipars(1) = 2*2**(iref)
+      ipars(2) = 1*2**(iref)
       npatches = 4*ipars(1)*ipars(2)
 
       dirname = '/Users/mrachh/git/' // 
@@ -1075,7 +1075,7 @@ C$       t1 = omp_get_wtime()
      2 hvecs2,bbphvecs1,bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,
      3 awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,nnz,row_ptr,col_ind,
      4 iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1,iquad1,nquad1,
-     5 wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,rfac0,
+     5 wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,rfac,
      6 numit,rhs,eps_gmres,niter,errs,rres,soln,cms,rads)
       call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
