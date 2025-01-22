@@ -1981,10 +1981,12 @@
 !
 !   
 !
+      print *, 'ready to call statj_gendebproc_qpqm_thinshell'
       call statj_gendebproc_qpqm_thinshell(npatches,norders,ixyzs, &
        iptype,npts,npts1,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, & 
        iquad,nquad,wnear,sigma,novers,nptso,ixyzso,srcover,whtsover,&
        curv,spqp,grads0qm,s0laps0qp,s0laps0qm)
+      print *, 'finish call statj_gendebproc_qpqm_thinshell'
 
 !  Yuguan: write version of gendebproc_rhomrhopmum_thinshell
 !   where in the computation of all of the quantities below
@@ -2009,12 +2011,13 @@
         enddo
       enddo
       
-
+      print *, 'ready to call statj_gendebproc_rhomrhopmum'
       call statj_gendebproc_rhomrhopmum(npatches1,norders, &
        ixyzs,iptype,npts1,srccoefs,srcvals,eps,nnz1,row_ptr1,col_ind1, &
        iquad1,nquad1,wnear1,sigma1,novers,nptso,ixyzso,srcover,whtsover,&
        curv,wtmp1,wtmp2,wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,&
        laps02rhop,laps02mum,blm,bmm)
+      print *, 'finish call statj_gendebproc_rhomrhopmum'
 
 
       allocate(sigma2(6*npts2))
@@ -2049,6 +2052,7 @@
       enddo 
 
       npatches2 = npatches-npatches1
+      print *, 'ready to call statj_gendebproc_rhomrhopmum 2'
       call statj_gendebproc_rhomrhopmum(npatches2,norders(npatches1+1),&
        ixyzs2,iptype(npatches1+1),npts2,srccoefs(1,npts1+1), &
        srcvals(1,npts1+1),eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,&
@@ -2058,6 +2062,7 @@
        wtmp4(1,npts1+1),dzk,rbeta,rgamma,laps02rhom(npts1+1),&
        laps02rhop(npts1+1),laps02mum(npts1+1),blm(1,npts1+1),&
        bmm(1,npts1+1))
+      print *, 'finish call statj_gendebproc_rhomrhopmum 2'
 
 
 ! !
@@ -2588,7 +2593,7 @@
 
       
 
-      
+      print *, 'finish lpcomp_statj_gendeb_thinshell_addsub'
       return
       end subroutine lpcomp_statj_gendeb_thinshell_addsub
 !
@@ -5897,14 +5902,14 @@
 !
 !
 !
-      subroutine statj_gendeb_solver_thinshell_guru(npatches,norders, &
-       ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars, hvecs, &
-       bbphvecs, na, iaxyzs, apatches, auv, avals, awts, nb, ibxyzs, &
-       bpatches, buv, bvals, bwts, nnz, row_ptr, col_ind, &
-       iquad, nquad, wnear, nnz1, npts1, row_ptr1, col_ind1, iquad1, &
-       nquad1, wnear1, nnz2, npts2, row_ptr2, col_ind2, iquad2, &
-       nquad2, wnear2, rfac0, numit, rhs, eps_gmres, niter, errs, &
-       rres, soln, cms, rads)
+      subroutine statj_gendeb_solver_thinshell_guru(npatches,npatches1,&
+       norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,hvecs1,&
+       hvecs2,bbphvecs1,bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,&
+       awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,nnz,row_ptr,col_ind,&
+       iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1,iquad1,nquad1,&
+       wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,rfac0,&
+       numit,rhs,eps_gmres,niter,errs,rres,soln,cms,rads)
+       
 
 !
 !  This subroutine solves a tranmission like maxwell problem
@@ -6101,7 +6106,7 @@
 !
 
       implicit none
-      integer npatches,norder,npols,npts
+      integer npatches,npatches1,norder,npols,npts
       integer ifinout
       integer norders(npatches),ixyzs(npatches+1)
       integer iptype(npatches)
@@ -6110,13 +6115,15 @@
       real *8 rhs(6*npts + 8)
       real *8 soln(6*npts + 8)
 
-      integer na,nb
+      integer na,na1,nb,nb1
       integer iaxyzs(3),ibxyzs(3)
       integer apatches(na),bpatches(nb)
       real *8 auv(2,na),buv(2,nb)
       real *8 avals(9,na),bvals(9,nb)
       real *8 awts(na),bwts(nb)
-      real *8 hvecs(3,npts,2,2),bbphvecs(3,npts,2,2)
+!      real *8 hvecs(3,npts,2,2),bbphvecs(3,npts,2,2)
+      real *8 hvecs1(3,npts1,2),bbphvecs1(3,npts1,2)
+      real *8 hvecs2(3,npts2,2),bbphvecs2(3,npts2,2)
 
       integer nnz1, nnz2
       integer npts1, npts2
@@ -6498,13 +6505,23 @@
 !        replace this routine by appropriate layer potential
 !        evaluation routine  
 !
-        call lpcomp_statj_gendeb_thinshell_addsub(npatches,norders, &
-          ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr, &
-          col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1, &
-          iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2, &
-          nquad2,wnear2,hvecs,bbphvecs,na,iaxyzs,apatches, &
-          auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts, &
-          soln,novers,npts_over,ixyzso,srcover,wover,wtmp)
+! !
+!         call lpcomp_statj_gendeb_thinshell_addsub(npatches,norders, &
+!           ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr, &
+!           col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1, &
+!           iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2, &
+!           nquad2,wnear2,hvecs,bbphvecs,na,iaxyzs,apatches, &
+!           auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts, &
+!           soln,novers,npts_over,ixyzso,srcover,wover,wtmp)
+
+          call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,norders, &
+           ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr, &
+           col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1, &
+           iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2, &
+           nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,bbphvecs2,na,na1,iaxyzs,apatches, &
+           auv,avals,awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,&
+           vmat(1,it),novers,npts_over,ixyzso,srcover,wover,wtmp)
+
             
           do i=1,n_var
             rres = rres + abs(did*soln(i) + wtmp(i)-rhsuse(i))**2
