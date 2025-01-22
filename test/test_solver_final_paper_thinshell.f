@@ -1071,13 +1071,12 @@ c
 C$       t1 = omp_get_wtime()      
 
       call statj_gendeb_solver_thinshell_guru(npatches,npatches1,
-     1 norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,hvecs,
-     2 hvecs1,hvecs2,bbphvecs,bbphvecs1,bbphvecs2,na,na1,iaxyzs,
-     3 apatches,auv,avals,awts, nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,
-     4 nnz,row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
-     5 col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2, 
-     6 iquad2,nquad2,wnear2,rfac0,numit,rhs,eps_gmres,niter, 
-     7 errs,rres,soln,cms,rads)
+     1 norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,hvecs1,
+     2 hvecs2,bbphvecs1,bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,
+     3 awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,nnz,row_ptr,col_ind,
+     4 iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1,iquad1,nquad1,
+     5 wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,rfac0,
+     6 numit,rhs,eps_gmres,niter,errs,rres,soln,cms,rads)
       call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
       
