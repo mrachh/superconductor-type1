@@ -610,8 +610,7 @@ C
       call get_centroid_rads(npatches,norders,ixyzs,iptype,npts, 
      1     srccoefs,cms,rads)
       call prin2('cms=*',cms,24)
-      call prin2('rads=*',rads,12)
-
+      call prin2('rads=*',rads,6)
       
       
       
@@ -652,7 +651,7 @@ C$OMP PARALLEL DO DEFAULT(SHARED)
         enddo
 C$OMP END PARALLEL DO     
 
-        call prin2('rad_near=*',rad_near,12)
+        call prin2('rad_near=*',rad_near,4)
 c
 c    find near quadrature correction interactions
 c 
@@ -746,7 +745,7 @@ CCC     for surface 1
         do i=1,npatches1
           rad_near1(i) = rads1(i)*rfac1
         enddo
-        call prin2('rad_near1=*',rad_near1,12)
+        call prin2('rad_near1=*',rad_near1,4)
 c
 c    find near quadrature correction interactions
         allocate(sources1(3,npts1))
@@ -831,14 +830,14 @@ CCC     for surface 2
      1       rad_near2(npatches2))
         call get_centroid_rads(npatches2,norders2,ixyzs2,iptype2,npts2, 
      1     srccoefs2,cms2,rads2)
-        call prin2('cms2=*',cms2,24)
-        call prin2('rads2=*',rads2,12)
+        call prin2('cms2=*',cms2,12)
+        call prin2('rads2=*',rads2,4)
 
 
         do i=1,npatches2
           rad_near2(i) = rads2(i)*rfac2
         enddo
-        call prin2('rad_near2=*',rad_near2,12)
+        call prin2('rad_near2=*',rad_near2,4)
 c
 c    find near quadrature correction interactions
         allocate(sources2(3,npts2))

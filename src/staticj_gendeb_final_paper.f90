@@ -1808,7 +1808,7 @@
       real *8, allocatable :: laps02mum(:)
       complex *16, allocatable :: zctmp0(:,:),zdtmp0(:,:,:)
       real *8 thresh,ra,erra
-      real *8 rr,rmin,rqmint,rrmint,rqpint
+      real *8 rr,rmin
       real *8 rqmint1,rqmint2,rqpint1,rqpint2,rrmint1,rrmint2
       real *8 rsurf1,rsurf2
       real *8 over4pi
@@ -2011,12 +2011,14 @@
         enddo
       enddo
       
+!
       print *, 'ready to call statj_gendebproc_rhomrhopmum'
-      call statj_gendebproc_rhomrhopmum(npatches1,norders, &
-       ixyzs,iptype,npts1,srccoefs,srcvals,eps,nnz1,row_ptr1,col_ind1, &
-       iquad1,nquad1,wnear1,sigma1,novers,nptso,ixyzso,srcover,whtsover,&
-       curv,wtmp1,wtmp2,wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,&
-       laps02rhop,laps02mum,blm,bmm)
+      nptso1 = ixyzso(npatches1+1) - 1
+      call statj_gendebproc_rhomrhopmum(npatches1, norders, &
+       ixyzs, iptype, npts1, srccoefs, srcvals, eps, nnz1, row_ptr1, &
+       col_ind1, iquad1, nquad1, wnear1, sigma1, novers, nptso1, &
+       ixyzso, srcover, whtsover, curv, wtmp1, wtmp2, wtmp3, wtmp4, &
+       dzk, rbeta, rgamma, laps02rhom, laps02rhop, laps02mum, blm, bmm)
       print *, 'finish call statj_gendebproc_rhomrhopmum'
 
 
@@ -2038,12 +2040,12 @@
       allocate(ixyzs2(npatches2+1))
       do i=1,npatches2+1
         ixyzs2(i)=ixyzs(npatches1+i) - npts1
-      enddo 
+      enddo
+
 
 !     do similar thing 
 !     ixyzso2(i)=ixyzso(npatches1+i) - nptso1
 
-      nptso1 = ixyzso(npatches1+1)-1
       nptso2 = nptso-nptso1
 
 
@@ -2104,7 +2106,8 @@
                    (sigma(4*npts+i+npts1) - rqpint2))
         pot(i+2*npts+npts1) = -4*(laps02mum(i+npts1) &
                   -(sigma(5*npts+i+npts1)- rrmint2))
-      enddo 
+      enddo
+
 
 
 !
@@ -2398,7 +2401,8 @@
 !   
 !  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
 !
-
+!  Todo: add in rank 6 stuff corresponding to rqmint1/2 rrmint1/2
+!
       do i=1,npts
         call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
         call dot_prod3d(bbp(1,i),srcvals(10,i),w2)
@@ -2406,11 +2410,12 @@
         w3 = w1/dzk - spqp(i) - w2
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
-        pot(3*npts+i) = (w3+2*w2)*dzk - 0.7d0*rqmint 
-        pot(4*npts+i) = (w3-2*w2) + 1.3d0*rqmint 
+        pot(3*npts+i) = (w3+2*w2)*dzk 
+        pot(4*npts+i) = (w3-2*w2) 
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
-        pot(5*npts+i) = -2*w1 - 0.7d0*rrmint 
+        pot(5*npts+i) = -2*w1 
       enddo
+
 
 
 !     sigma is subtracted here 
@@ -6403,6 +6408,7 @@
 !
 !
       print *, 'ready to call lpcomp_statj_gendeb_thinshell_addsub'
+      wtmp = 0
       call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,norders, &
         ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr, &
         col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,col_ind1, &
@@ -6427,6 +6433,7 @@
                 vmat(j+(l-1)*npts,k)*wts(j)
             enddo
           enddo
+
 
           do l=1,8
             hmat(k,it) = hmat(k,it) + wtmp(6*npts+l)*vmat(6*npts+l,k)
