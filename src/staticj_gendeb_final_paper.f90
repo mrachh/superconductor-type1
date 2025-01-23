@@ -6524,7 +6524,7 @@
            iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,col_ind2,iquad2, &
            nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,bbphvecs2,na,na1,iaxyzs,apatches, &
            auv,avals,awts,nb,nb1,ibxyzs,bpatches,buv,bvals,bwts,&
-           vmat(1,it),novers,npts_over,ixyzso,srcover,wover,wtmp)
+           soln,novers,npts_over,ixyzso,srcover,wover,wtmp)
 
             
           do i=1,n_var
