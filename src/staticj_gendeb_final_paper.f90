@@ -1884,10 +1884,10 @@
       rqmint1 = rqmint1/rsurf1
       rqpint1 = rqpint1/rsurf1
       rrmint1 = rrmint1/rsurf1
-c      call prin2('rsurf1=*',rsurf1,1)
-c      call prin2('rqmint1=*',rqmint1,1)
-c      call prin2('rqpint1=*',rqmint1,1)
-c      call prin2('rrmint1=*',rrmint1,1)
+!      call prin2('rsurf1=*',rsurf1,1)
+!      call prin2('rqmint1=*',rqmint1,1)
+!      call prin2('rqpint1=*',rqmint1,1)
+!      call prin2('rrmint1=*',rrmint1,1)
 
 
 !     surface 2 
