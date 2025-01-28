@@ -1139,7 +1139,14 @@ C$       t2 = omp_get_wtime()
         call prin2('rsurfintl2 =*',rsurfintl2,1)
       endif
 
-      stop 
+      rsurfintl2 = 0 
+      do i=1,npts 
+        do j=0,5 
+          rsurfintl2 = rsurfintl2 + soln(j*npts + i)**2*wts(i)
+        enddo 
+      enddo 
+      rsurfintl2 = sqrt(rsurfintl2)
+
 
 c
 c  test solution at interior and exterior points  
@@ -1385,11 +1392,19 @@ c
       errvol_abs = sqrt(erra)
       errvol = sqrt(erra)/rsurfintl2
 
+
+      call prin2('bjmex=*',bjmex,3)
+      call prin2('bbmex=*',bbmex,3)
+      call prin2('bbpex=*',bbpex,3)
+
       call prin2('l2 rel error at interior + exterior targets=*',
      1  errvol,1)
       call prin2('l2 abs error at interior + exterior targets=*',
      1  errvol_abs,1)
-      stop
+
+
+      stop 
+
 
       open(unit=81,file='res_mar17_2022.txt',access='append')
 c
@@ -1646,6 +1661,9 @@ c
       call prin2('errtargin avg=*',errtargin_avg,1)
       errtargout_rel = sqrt(errtargout)/rsurfintl2
       call prin2('errtargout rel=*',errtargout_rel,1)
+
+
+      stop 
 
 
      
