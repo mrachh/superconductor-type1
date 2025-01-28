@@ -1884,10 +1884,10 @@
       rqmint1 = rqmint1/rsurf1
       rqpint1 = rqpint1/rsurf1
       rrmint1 = rrmint1/rsurf1
-      call prin2('rsurf1=*',rsurf1,1)
-      call prin2('rqmint1=*',rqmint1,1)
-      call prin2('rqpint1=*',rqmint1,1)
-      call prin2('rrmint1=*',rrmint1,1)
+c      call prin2('rsurf1=*',rsurf1,1)
+c      call prin2('rqmint1=*',rqmint1,1)
+c      call prin2('rqpint1=*',rqmint1,1)
+c      call prin2('rrmint1=*',rrmint1,1)
 
 
 !     surface 2 
@@ -1907,10 +1907,10 @@
       rqmint2 = rqmint2/rsurf2
       rqpint2 = rqpint2/rsurf2
       rrmint2 = rrmint2/rsurf2
-      call prin2('rsurf2=*',rsurf2,1)
-      call prin2('rqmint2=*',rqmint2,1)
-      call prin2('rqpint2=*',rqmint2,1)
-      call prin2('rrmint2=*',rrmint2,1)
+!      call prin2('rsurf2=*',rsurf2,1)
+!      call prin2('rqmint2=*',rqmint2,1)
+!      call prin2('rqpint2=*',rqmint2,1)
+!      call prin2('rrmint2=*',rrmint2,1)
 
 
 
@@ -1981,12 +1981,12 @@
 !
 !   
 !
-      print *, 'ready to call statj_gendebproc_qpqm_thinshell'
+!      print *, 'ready to call statj_gendebproc_qpqm_thinshell'
       call statj_gendebproc_qpqm_thinshell(npatches,norders,ixyzs, &
        iptype,npts,npts1,srccoefs,srcvals,eps,nnz,row_ptr,col_ind, & 
        iquad,nquad,wnear,sigma,novers,nptso,ixyzso,srcover,whtsover,&
        curv,spqp,grads0qm,s0laps0qp,s0laps0qm)
-      print *, 'finish call statj_gendebproc_qpqm_thinshell'
+!      print *, 'finish call statj_gendebproc_qpqm_thinshell'
 
 !  Yuguan: write version of gendebproc_rhomrhopmum_thinshell
 !   where in the computation of all of the quantities below
@@ -2012,14 +2012,14 @@
       enddo
       
 !
-      print *, 'ready to call statj_gendebproc_rhomrhopmum'
+!      print *, 'ready to call statj_gendebproc_rhomrhopmum'
       nptso1 = ixyzso(npatches1+1) - 1
       call statj_gendebproc_rhomrhopmum(npatches1, norders, &
        ixyzs, iptype, npts1, srccoefs, srcvals, eps, nnz1, row_ptr1, &
        col_ind1, iquad1, nquad1, wnear1, sigma1, novers, nptso1, &
        ixyzso, srcover, whtsover, curv, wtmp1, wtmp2, wtmp3, wtmp4, &
        dzk, rbeta, rgamma, laps02rhom, laps02rhop, laps02mum, blm, bmm)
-      print *, 'finish call statj_gendebproc_rhomrhopmum'
+!      print *, 'finish call statj_gendebproc_rhomrhopmum'
 
 
       allocate(sigma2(6*npts2))
@@ -2054,7 +2054,7 @@
         ixyzso2(i)=ixyzso(npatches1+i) - nptso1
       enddo
 
-      print *, 'ready to call statj_gendebproc_rhomrhopmum 2'
+!      print *, 'ready to call statj_gendebproc_rhomrhopmum 2'
       call statj_gendebproc_rhomrhopmum(npatches2,norders(npatches1+1),&
        ixyzs2,iptype(npatches1+1),npts2,srccoefs(1,npts1+1), &
        srcvals(1,npts1+1),eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,&
@@ -2064,7 +2064,7 @@
        wtmp4(1,npts1+1),dzk,rbeta,rgamma,laps02rhom(npts1+1),&
        laps02rhop(npts1+1),laps02mum(npts1+1),blm(1,npts1+1),&
        bmm(1,npts1+1))
-      print *, 'finish call statj_gendebproc_rhomrhopmum 2'
+!      print *, 'finish call statj_gendebproc_rhomrhopmum 2'
 
 
 ! !
@@ -2148,6 +2148,10 @@
 !     v_{2}^{-} = hvecs2(:,:,2)
 
 !     blm = \ell^- , here we do (A.9)
+
+!
+!   need to change left sigma when this is not a 2-torus 
+!
 
       do i=1,npts1 
         do igen = 1,2 
