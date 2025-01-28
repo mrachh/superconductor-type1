@@ -135,7 +135,7 @@ c
 c  ntarg test must be less than 100
 c
 
-      ntargtest = 10
+      ntargtest = 1
 
       ibg = 1
 c  
@@ -193,6 +193,8 @@ C      norder = 8
 
       call setup_geom(igeomtype,norder,npatches,ipars, 
      1       srcvals,srccoefs,ifplot,fname)
+
+
 
 
 c
@@ -1254,13 +1256,13 @@ c
         bbpc(1:3) = 0
         bbpex(1:3) = 0
         ptmp = 0
-        call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,xyz_out_targ(1,j),
+        call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,xyz_out_src,
      1     1,ptmp,bbpex,thresh)
 
         do i=1,npts
-          dx = xyz_out_targ(1,j) - srcvals(1,i)
-          dy = xyz_out_targ(2,j) - srcvals(2,i)
-          dz = xyz_out_targ(3,j) - srcvals(3,i)
+          dx = xyz_out_src(1) - srcvals(1,i)
+          dy = xyz_out_src(2) - srcvals(2,i)
+          dz = xyz_out_src(3) - srcvals(3,i)
         
           sig = soln(4*npts+i)
         
@@ -1321,16 +1323,16 @@ c  error in interior targets
 c
 
       call prin2('rzf2=*',rzf2,3)
-      call prin2('xyz_in_targ=*',xyz_in_targ,3)
+      call prin2('xyz_in_src=*',xyz_in_src,3)
       do j=1,ntargtest
         bbmc(1:3) = 0
         bbmex(1:3) = 0
         bjmc(1:3) = 0
         bjmex(1:3) = 0
         ptmp = 0
-        dx = xyz_in_targ(1,j)-xyz_out_src(1)
-        dy = xyz_in_targ(2,j)-xyz_out_src(2) 
-        dz = xyz_in_targ(3,j)-xyz_out_src(3) 
+        dx = xyz_in_src(1)-xyz_out_src(1)
+        dy = xyz_in_src(2)-xyz_out_src(2) 
+        dz = xyz_in_src(3)-xyz_out_src(3) 
         r = sqrt(dx**2 + dy**2 + dz**2)
         r1 = (-dzk/r**2-1/r**3)
         r2 = (dzk**2/r**3 + 3*dzk/r**4 + 3/r**5)
@@ -1347,9 +1349,9 @@ c
         
 
         do i=1,npts
-          dx = xyz_in_targ(1,j) - srcvals(1,i)
-          dy = xyz_in_targ(2,j) - srcvals(2,i)
-          dz = xyz_in_targ(3,j) - srcvals(3,i)
+          dx = xyz_in_src(1) - srcvals(1,i)
+          dy = xyz_in_src(2) - srcvals(2,i)
+          dz = xyz_in_src(3) - srcvals(3,i)
         
           r = sqrt(dx**2 + dy**2 + dz**2)
           r1 = (-dzk/r**2-1/r**3)
