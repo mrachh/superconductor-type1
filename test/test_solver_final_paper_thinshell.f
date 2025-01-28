@@ -22,7 +22,7 @@ CCC   for thin shell only
       real *8, allocatable :: bbm(:,:),bbp(:,:),bjm(:,:)
       real *8, allocatable :: bbp_a(:,:),bbp_b(:,:)
       real *8, allocatable :: bbm_a(:,:),bbm_b(:,:)
-      real *8, allocatable :: rhs(:),soln(:)
+      real *8, allocatable :: rhs(:),soln(:),soln1(:),soln2(:)
       real *8, allocatable :: errs(:)
       real *8, allocatable :: bbpcomp(:,:),bjmcomp(:,:),bbmcomp(:,:)
       real *8, allocatable :: bjmcomp_targ(:,:),bbmcomp_targ(:,:)
@@ -100,7 +100,7 @@ CCC     for thin shell only
       integer, allocatable :: iquad1(:),row_ptr1(:),col_ind1(:)
       integer, allocatable :: iquad2(:),row_ptr2(:),col_ind2(:)
       integer, allocatable :: novers1(:),ixyzso1(:)
-      integer, allocatable :: novers2(:),ixyzso2(:)
+      integer, allocatable :: novers2(:),ixyzso2(:),ixyzso_2(:)
       real *8, allocatable :: srcover1(:,:),wover1(:)
       real *8, allocatable :: srcover2(:,:),wover2(:)
       
@@ -1079,10 +1079,7 @@ C$       t1 = omp_get_wtime()
       call cpu_time(t2)
 C$       t2 = omp_get_wtime()      
       
-      call prin2('solve time=*',t2-t1,1)
-
-      stop 
-      
+      call prin2('solve time=*',t2-t1,1)      
       
       call prin2('projs=*',soln(6*npts+1),4)
 
@@ -1128,6 +1125,7 @@ C$       t2 = omp_get_wtime()
           enddo
         enddo
         rsurfintl2 = sqrt(rsurfintl2)
+
         errbdry = sqrt((errj + errbm + errbp))/rsurfintl2
 
 
@@ -1141,6 +1139,7 @@ C$       t2 = omp_get_wtime()
         call prin2('rsurfintl2 =*',rsurfintl2,1)
       endif
 
+      stop 
 
 c
 c  test solution at interior and exterior points  
@@ -1180,19 +1179,62 @@ c  Yuguna: Mimic whatever is done in the addsub layer potential evaluator
 c  routine to make sure blm = \ell^{-} is correct
 c
 c
+
+
+
+
+      allocate(soln1(6*npts1))
+      do i=1,npts1
+        do j=0,5 
+          soln1(j*npts1+i) = soln(j*npts+i)
+        enddo
+      enddo
+
+
+
+c
+c
+c     ask manas should we use ixyzs1,ixyzs2,ixyzso1,ixyzso2,... 
+c
+c
+
       
-      call statj_gendebproc_rhomrhopmum(npatches,norders,ixyzs, 
-     1  iptype,npts,srccoefs,srcvals,eps,nnz,row_ptr,col_ind,iquad, 
-     2  nquad,wnear,soln,novers,npts_over,ixyzso,srcover,wover,curv, 
-     3  wtmp1,wtmp2,wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,laps02rhop, 
-     4  laps02mum,blm,bmm)
+      call statj_gendebproc_rhomrhopmum(npatches1,norders1,ixyzs1,
+     1 iptype,npts1,srccoefs1,srcvals1,eps,nnz1,row_ptr1,col_ind1, 
+     2 iquad1,nquad1,wnear1,soln1,novers1,npts_over1,ixyzso1,srcover1,
+     3 wover1,curv,wtmp1,wtmp2,wtmp3,wtmp4,dzk,rbeta,rgamma,laps02rhom,
+     4 laps02rhop,laps02mum,blm,bmm)
+
+
+      allocate(soln2(6*npts2))
+      do i=1,npts2
+        do j=0,5 
+          soln2(j*npts2+i) = soln(j*npts+npts1+i)
+        enddo
+      enddo
+
+
+      call statj_gendebproc_rhomrhopmum(npatches2,norders2,ixyzs2,
+     1 iptype,npts2,srccoefs2,srcvals2,eps,nnz2,row_ptr2,col_ind2,
+     2 iquad2,nquad2,wnear2,soln2,novers2,npts_over2,ixyzso2,srcover2,
+     3 wover2,curv(npts1+1), wtmp1(1,npts1+1),wtmp2(1,npts1+1),
+     4 wtmp3(1,npts1+1),wtmp4(1,npts1+1),dzk,rbeta,rgamma,
+     5 laps02rhom(npts1+1),laps02rhop(npts1+1),laps02mum(npts1+1),
+     6 blm(1,npts1+1),bmm(1,npts1+1))
+     
 
 c
 c  add in contribution of harmonic vector fields
 c
       do i=1,npts
         do igen=1,2*ngenus
-          blm(1:3,i) = blm(1:3,i) + soln(6*npts+igen)*hvecs(1:3,i,igen)
+          if (i.le.npst1) then 
+            blm(1:3,i) = blm(1:3,i) + 
+     1       soln(6*npts+igen)*hvecs1(1:3,i,igen)
+          else 
+            blm(1:3,i) = blm(1:3,i) + 
+     1       soln(6*npts+igen+2)*hvecs2(1:3,i-npts1,igen)
+          endif 
         enddo
       enddo
 
@@ -1224,15 +1266,34 @@ c
 c  yuguan: todo fix the c+- contributions correctly
 c
 c
-          do igen=1,2*ngenus
+          if (i.le.npts1) then 
+            do igen=1,2*ngenus
         
-            bbpc(1) = bbpc(1) +1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
-     1        (dy*hvecs(3,i,igen)-dz*hvecs(2,i,igen))
-            bbpc(2) = bbpc(2) +1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
-     1        (dz*hvecs(1,i,igen)-dx*hvecs(3,i,igen))
-            bbpc(3) = bbpc(3) +1.0d0/r**3*wts(i)*soln(6*npts+2+igen)*
-     1        (dx*hvecs(2,i,igen)-dy*hvecs(1,i,igen))
+              bbpc(1) = bbpc(1)+1.0d0/r**3*wts(i)*soln(6*npts+2+igen)
+     1      *(dy*hvecs1(3,i,igen)-dz*hvecs1(2,i,igen))
+              bbpc(2) = bbpc(2)+1.0d0/r**3*wts(i)*soln(6*npts+2+igen)
+     1      *(dz*hvecs1(1,i,igen)-dx*hvecs1(3,i,igen))
+              bbpc(3) = bbpc(3)+1.0d0/r**3*wts(i)*soln(6*npts+2+igen)
+     1      *(dx*hvecs1(2,i,igen)-dy*hvecs1(1,i,igen))
+            enddo
+
+          else 
+
+            do igen=1,2*ngenus
+        
+              bbpc(1) = bbpc(1) + 1.0d0/r**3*wts(i)*
+     1                    soln(6*npts+2+igen+2)*
+     2      (dy*hvecs2(3,i-npts1,igen)-dz*hvecs2(2,i-npts1,igen))
+              bbpc(2) = bbpc(2) + 1.0d0/r**3*wts(i)*
+     1                      soln(6*npts+2+igen+2)*
+     2      (dz*hvecs2(1,i-npts1,igen)-dx*hvecs2(3,i-npts1,igen))
+              bbpc(3) = bbpc(3) + 1.0d0/r**3*wts(i)*
+     1                     soln(6*npts+2+igen+2)*
+     2      (dx*hvecs2(2,i-npts1,igen)-dy*hvecs2(1,i-npts1,igen))
           enddo
+
+          endif 
+
         enddo
         bbpc(1:3) = bbpc(1:3)/4/pi
 
@@ -1240,6 +1301,7 @@ c
      1   (bbpc(3)-bbpex(3))**2
         ra = ra + abs(bbpex(1))**2 + abs(bbpex(2))**2 + abs(bbpex(3))**2
       enddo
+
 
 
       errextsq = erra
@@ -1322,6 +1384,7 @@ c
       call prin2('ra=*',ra,1)
       errvol_abs = sqrt(erra)
       errvol = sqrt(erra)/rsurfintl2
+
       call prin2('l2 rel error at interior + exterior targets=*',
      1  errvol,1)
       call prin2('l2 abs error at interior + exterior targets=*',
