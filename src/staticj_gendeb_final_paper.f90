@@ -2054,16 +2054,31 @@
         ixyzso2(i)=ixyzso(npatches1+i) - nptso1
       enddo
 
+!      call prinf('ixyzs2=*',ixyzs2,npatches2+1)
+!      call prinf('ixyzso2=*',ixyzso2,npatches2+1)
+!      call prinf('npts2=*',npts2,1)
+!      call prinf('nptso2=*',nptso2,1)
+!      call prinf('nnz2=*',nnz2,1)
+!      call prinf('row_ptr2=*',row_ptr2,10)
+!      call prinf('col_ind2=*',col_ind2,10)
+!      call prinf('iquad2=*',iquad2,10)
+!      call prinf('nquad1=*',nquad1,1)
+!      call prinf('nquad2=*',nquad2,1)
+!      call prinf('nquad=*',nquad,1)
+
+
+      
+
 !      print *, 'ready to call statj_gendebproc_rhomrhopmum 2'
-      call statj_gendebproc_rhomrhopmum(npatches2,norders(npatches1+1),&
-       ixyzs2,iptype(npatches1+1),npts2,srccoefs(1,npts1+1), &
-       srcvals(1,npts1+1),eps,nnz2,row_ptr2,col_ind2,iquad2,nquad2,&
-       wnear2,sigma2,novers(npatches1+1),nptso2,ixyzso2,&
-       srcover(1,nptso1+1),whtsover(nptso1+1),curv(npts1+1),& 
-       wtmp1(1,npts1+1),wtmp2(1,npts1+1),wtmp3(1,npts1+1),&
-       wtmp4(1,npts1+1),dzk,rbeta,rgamma,laps02rhom(npts1+1),&
-       laps02rhop(npts1+1),laps02mum(npts1+1),blm(1,npts1+1),&
-       bmm(1,npts1+1))
+      call statj_gendebproc_rhomrhopmum(npatches2, &
+       norders(npatches1+1), ixyzs2, iptype(npatches1+1), npts2, &
+       srccoefs(1,npts1+1), srcvals(1,npts1+1), eps, nnz2, row_ptr2, &
+       col_ind2, iquad2, nquad2, wnear2, sigma2, novers(npatches1+1), &
+       nptso2, ixyzso2, srcover(1,nptso1+1), whtsover(nptso1+1), &
+       curv(npts1+1), wtmp1(1,npts1+1), wtmp2(1,npts1+1), &
+       wtmp3(1,npts1+1), wtmp4(1,npts1+1), dzk, rbeta, rgamma, &
+       laps02rhom(npts1+1), laps02rhop(npts1+1), laps02mum(npts1+1), &
+       blm(1,npts1+1), bmm(1,npts1+1))
 !      print *, 'finish call statj_gendebproc_rhomrhopmum 2'
 
 
@@ -2092,7 +2107,7 @@
 !        pot(i+2*npts) = -4*(laps02mum(i) -(sigma(5*npts+i)- rrmint))
 !      enddo
    
-
+ 
       do i=1,npts1 
         pot(i) = -4*(laps02rhom(i) - (sigma(3*npts+i) - rqmint1))
         pot(i+npts) = -4*(laps02rhop(i)-(sigma(4*npts+i) - rqpint1))
@@ -2267,8 +2282,8 @@
  
       
       print *, "after helmholtz near correction"
-      print *, "nmax=",nmax
-      print *, "nd=",nd
+!      print *, "nmax=",nmax
+!      print *, "nd=",nd
       call get_fmm_thresh(12,ns,srcover,12,npts,srcvals,thresh)
 
 
@@ -2441,6 +2456,14 @@
       hvecs_a = 0
       hvecs_b = 0
 
+      call prinf('iaxyzs=*',iaxyzs,3)
+      call prinf('ibxyzs=*',ibxyzs,3)
+!      print *, "na=",na
+!      print *, "na1=",na1
+
+!      print *, "nb=",nb
+!      print *, "nb1=",nb1
+
       na2 = na - na1
       nb2 = nb - nb1
       do i=1,npts
@@ -2461,37 +2484,36 @@
 !         hvec_bbp_use,nb,bpatches,buv,hvecs_b)
 !
 !
-!     surface 1 
 !
 !
-      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
-         bbm,na1,apatches,auv,bbm_a)
-      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
-         bbp,na1,apatches,auv,hvecs_a)
+      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         bbm,na,apatches,auv,bbm_a)
+      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         bbp,na,apatches,auv,hvecs_a)
 
-      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
-         bbm,nb1,bpatches,buv,bbm_b)
-      call fun_surf_interp(3,npatches1,norders,ixyzs,iptype,npts1, &
-         bbp,nb1,bpatches,buv,hvecs_b)
+      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         bbm,nb,bpatches,buv,bbm_b)
+      call fun_surf_interp(3,npatches,norders,ixyzs,iptype,npts, &
+         bbp,nb,bpatches,buv,hvecs_b)
 
 !
 !
 !     surface 2 
 !
 !
-      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
-         iptype(npatches1+1),npts2,bbm(1,npts1+1),na2,apatches(na1+1),&
-         auv(1,na1+1),bbm_a(1,na1+1))
-      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
-         iptype(npatches1+1),npts2,bbp(1,npts1+1),na2,apatches(na1+1),&
-         auv(1,na1+1),hvecs_a(1,na1+1))
-
-      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2,&
-         iptype(npatches1+1),npts2, bbm(1,npts1+1),nb1,&
-         bpatches(nb1+1),buv(1,nb1+1),bbm_b(1,nb1+1))
-      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
-         iptype(npatches1+1),npts2,bbp(1,npts1+1),nb2,bpatches(nb1+1),&
-         buv(1,nb1+1),hvecs_b(1,nb1+1))
+!      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
+!         iptype(npatches1+1),npts2,bbm(1,npts1+1),na2,apatches(na1+1),&
+!         auv(1,na1+1),bbm_a(1,na1+1))
+!      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
+!         iptype(npatches1+1),npts2,bbp(1,npts1+1),na2,apatches(na1+1),&
+!         auv(1,na1+1),hvecs_a(1,na1+1))
+!
+!      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2,&
+!         iptype(npatches1+1),npts2, bbm(1,npts1+1),nb1,&
+!         bpatches(nb1+1),buv(1,nb1+1),bbm_b(1,nb1+1))
+!      call fun_surf_interp(3,npatches2,norders(npatches1+1),ixyzs2, &
+!         iptype(npatches1+1),npts2,bbp(1,npts1+1),nb2,bpatches(nb1+1),&
+!         buv(1,nb1+1),hvecs_b(1,nb1+1))
 
 !  7. \int_{A^+} B^{-} \cdot d \ell - cm_{1}, a cycle for surface 1 
 !  8. \int_{A^-} B^{-} \cdot d \ell - cm_{2}, a cycle for surface 2, and so on 
@@ -7853,7 +7875,8 @@
         rqmint2 = rqmint2 + sigma(3*npts+i+npts1)*wts(i+npts1)
       enddo
       rqmint2 = rqmint2/rsurf2
-      call prin2('rsurf2=*',rsurf2,1)
+!      call prin2('rsurf2=*',rsurf2,1)
+!      print *, "rsurfdiff=",rsurf - rsurf1 - rsurf2
 
 !
 !  estimate max number of sources in the near field of any target

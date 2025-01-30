@@ -24,6 +24,8 @@ CCC   for thin shell only
       real *8, allocatable :: bbm_a(:,:),bbm_b(:,:)
       real *8, allocatable :: rhs(:),soln(:),soln1(:),soln2(:)
       real *8, allocatable :: errs(:)
+      real *8, allocatable :: errp(:),errp1(:),errp2(:)
+      real *8  errm,errm1,errm2
       real *8, allocatable :: bbpcomp(:,:),bjmcomp(:,:),bbmcomp(:,:)
       real *8, allocatable :: bjmcomp_targ(:,:),bbmcomp_targ(:,:)
       real *8, allocatable :: bbpcomp_targ(:,:)
@@ -148,6 +150,7 @@ c
       dzk = 10**(idzk)
       if(idzk.eq.3) dzk = 30.0d0
       if(idzk.ge.4) dzk = 2**(idzk-4)
+      dzk = 0.1d0
       zk = ima*dzk
 
 c
@@ -157,7 +160,7 @@ c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
 C      iref = 2
-      iref = 0
+      iref = 4
 
 
       ipars(1) = 2*2**(iref)
@@ -169,19 +172,19 @@ C      iref = 2
       fname = 'thin-torus.vtk'
       ngenus = 1
 
-      xyz_in_src(1) = 2.001d0
+      xyz_in_src(1) = 2.751d0
       xyz_in_src(2) = 0.002d0
-      xyz_in_src(3) = 0.001d0
+      xyz_in_src(3) = 0.001d0 
 
       uu = 0.75d0*2*pi
       vv = 0.22d0*2*pi
       rr = 1.37d0 
       xyz_out_src(1) = (rr*cos(uu) + 2)*cos(vv)
       xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
-      xyz_out_src(3) = rr*sin(uu)
+      xyz_out_src(3) = rr*sin(uu) + 10.0d0
 
 C      norder = 8
-      norder = 4
+      norder = 6
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -286,6 +289,8 @@ c
      1            apatches1(na1))
       allocate(bvals1(9,nb1),bwts1(nb1),buv1(2,nb1),
      1             bpatches1(nb1))
+      print *, "npatches1=",npatches1
+      call prinf('nb1=*',nb1,1)
 
       call get_ab_cycles_torusparam(npatches1,norders1,
      1         ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
@@ -320,7 +325,10 @@ c
       avals(1:9,(na1+1):na) = avals2
       awts((na1+1):na) = awts2
       auv(1:2,(na1+1):na) = auv2 
-      apatches((na1+1):na) = apatches2
+      do i=na1+1,na
+        apatches(i) = apatches2(i-na1) + npatches1
+      enddo
+      
 
       bvals(1:9,1:nb1) = bvals1
       bwts(1:nb1) = bwts1
@@ -328,8 +336,10 @@ c
       bpatches(1:nb1) = bpatches1
       bvals(1:9,(nb1+1):nb) = bvals2
       bwts((nb1+1):nb) = bwts2
-      buv(1:2,(nb1+1):nb) = buv2 
-      bpatches((nb1+1):nb) = bpatches2
+      buv(1:2,(nb1+1):nb) = buv2
+      do i=nb1+1,nb
+        bpatches(i) = bpatches2(i-nb1) + npatches1
+      enddo
 
 
 c
@@ -440,6 +450,7 @@ CCC         surface 2     CCCC
       errest = sqrt(errest)
       call prin2('errest2=*',errest,1)
 
+
         
       allocate(rhstmp(npts*3),outtmp(npts*3))
       
@@ -469,7 +480,7 @@ c
       rzf2(1:3) = real(zf2(1:3))
 
 
-      thresh = 1.0d-16
+      thresh = 1.0d-14
       allocate(bbp(3,npts),ptmp(npts))
       allocate(bjm(3,npts),bbm(3,npts))
       allocate(zjm(3,npts),zbbm(3,npts))
@@ -494,15 +505,26 @@ C$OMP END PARALLEL DO
       call prin2('cf2=*',cf2,1)
       call prin2('vf2=*',vf2,3)
 
+      print *, "npts=",npts
+      
       call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,sources,npts,
      1     ptmp,bbp,thresh)
+      bbp = 0
       call prin2('bbp=*',bbp,24)
+      call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,iptype1,npts1,
+     1  srccoefs1,srcvals1,bbp,'bbp1.vtk','a')
+      call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,iptype2,npts2,
+     1  srccoefs2,srcvals2,bbp(1,npts1+1),'bbp2.vtk','a')
+      allocate(errp(npatches))
       
       init = 0
 
       call fieldsED(zk,xyz_out_src,srcvals,npts,zjm,zbbm,zf2,init)
       bjm = real(zjm)
       bbm = real(zbbm)
+      errm = 0
+      call surf_fun_error(3,npatches,norders,ixyzs,iptype,npts,bbm,
+     1  wts,errp,errm)
       call prin2('bjm=*',bjm,24)
       call prin2('bbm=*',bbm,24)
       call prin2('ptmp=*',ptmp,24)
@@ -518,6 +540,13 @@ C$OMP END PARALLEL DO
         rhs(i+4*npts) = bjm(2,i)
         rhs(i+5*npts) = bjm(3,i)
       enddo
+c      bbp(1,:) = srcvals(2,:)
+c      bbp(2,:) = 0
+c      bbp(3,:) = srcvals(1,:)
+
+      print *, maxval(bbp(1,:))
+      print *, maxval(bbp(2,:))
+      print *, maxval(bbp(3,:))
 
 c
 c
@@ -534,7 +563,8 @@ c
 C
 CCC     for surface 1 
 C
-
+      print *, "npatches1=",npatches1
+      print *, "npatches2=",npatches2
       call fun_surf_interp(3,npatches1,norders1,ixyzs1,iptype1,
      1     npts1,bbp,na1,apatches1,auv1,bbp1_a)
       call fun_surf_interp(3,npatches1,norders1,ixyzs1,iptype1,
@@ -559,6 +589,12 @@ C
       call fun_surf_interp(3,npatches2,norders2,ixyzs2,iptype2,
      1     npts2,bbm(1,npts1+1),nb2,bpatches2,buv2,bbm2_b)
 
+      print *,"na=",na
+      print *, "na1=",na1
+      print *, "na2=",na2
+      print *, "nb=",nb
+      print *, "nb1=",nb1
+      print *, "nb2=",nb2
 C
       rra = 0 
       do i=1,na1
@@ -569,15 +605,19 @@ C
         rra = rra + 
      1  sqrt(avals1(4,i)**2+avals1(5,i)**2+avals1(6,i)**2)*awts1(i)
       enddo
+      print *, "rra1 = ",rra
+      
 
+      rra = 0
       do i=1,na2
-        rhs(6*npts+2) = rhs(6*npts+2) + (bbm1_a(1,i)*avals2(4,i) + 
+        rhs(6*npts+2) = rhs(6*npts+2) + (bbm2_a(1,i)*avals2(4,i) + 
      1  bbm2_a(2,i)*avals2(5,i) + bbm2_a(3,i)*avals2(6,i))*awts2(i)
-        rhs(6*npts+6) = rhs(6*npts+6) + (bbp2_a(1,i)*avals1(4,i) + 
+        rhs(6*npts+6) = rhs(6*npts+6) + (bbp2_a(1,i)*avals2(4,i) + 
      1  bbp2_a(2,i)*avals2(5,i) + bbp2_a(3,i)*avals2(6,i))*awts2(i)
         rra = rra + 
      1  sqrt(avals2(4,i)**2 + avals2(5,i)**2 + avals2(6,i)**2)*awts2(i)
       enddo
+      print *, "rra2=",rra
 
       rrb = 0
       do i=1,nb1
@@ -587,8 +627,10 @@ C
      1  bbp1_b(2,i)*bvals1(5,i) + bbp1_b(3,i)*bvals1(6,i))*bwts1(i)
         rrb = rrb + 
      1  sqrt(bvals1(4,i)**2 + bvals1(5,i)**2 + bvals1(6,i)**2)*bwts1(i)
-      enddo 
+      enddo
+      print *, "rrb1=",rrb
 
+      rrb = 0 
       do i=1,nb2
         rhs(6*npts+4) = rhs(6*npts+4)+(bbm2_b(1,i)*bvals2(4,i)+ 
      1  bbm2_b(2,i)*bvals2(5,i) + bbm2_b(3,i)*bvals2(6,i))*bwts2(i)
@@ -597,6 +639,12 @@ C
         rrb = rrb + 
      1  sqrt(bvals2(4,i)**2 + bvals2(5,i)**2 + bvals2(6,i)**2)*bwts2(i)
       enddo
+      print *, "rrb2=",rrb
+
+      call prin2('rhs_projs=*',rhs(6*npts+1),8)
+      print *, "estimated error in resolving bbm=",errm
+      print *, "rra = ",rra
+      print *, "rrb = ", rrb
 
       
 
@@ -605,14 +653,14 @@ C
       allocate(ipatch_id(npts),uvs_src(2,npts))
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
      1  ipatch_id,uvs_src)
-      call prinf('ipatch_id=*',ipatch_id,20)
-      call prin2('uvs_src=*',uvs_src,48)
+c      call prinf('ipatch_id=*',ipatch_id,20)
+c      call prin2('uvs_src=*',uvs_src,48)
 
       allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
       call get_centroid_rads(npatches,norders,ixyzs,iptype,npts, 
      1     srccoefs,cms,rads)
-      call prin2('cms=*',cms,24)
-      call prin2('rads=*',rads,6)
+c      call prin2('cms=*',cms,24)
+c      call prin2('rads=*',rads,6)
       
       
       
@@ -644,8 +692,8 @@ c
         norder_avg = floor(sum(norders)/(npatches+0.0d0))
 
         call get_rfacs(norder_avg,iptype_avg,rfac,rfac0)
-        call prin2('rfac=*',rfac,1)
-        call prin2('rfac0=*',rfac0,1)
+c        call prin2('rfac=*',rfac,1)
+c        call prin2('rfac0=*',rfac0,1)
 
 C$OMP PARALLEL DO DEFAULT(SHARED) 
         do i=1,npatches
@@ -724,7 +772,6 @@ C$OMP END PARALLEL DO
         wnear = 0
 
 
-        if (igeomtype.eq.6) then 
 CCC     thin shell 
 
 CCC     for surface 1 
@@ -732,22 +779,22 @@ CCC     for surface 1
         norder_avg1 = floor(sum(norders1)/(npatches1+0.0d0))
 
         call get_rfacs(norder_avg1,iptype_avg1,rfac1,rfac01)
-        call prin2('rfac1=*',rfac1,1)
-        call prin2('rfac01=*',rfac01,1)
+c        call prin2('rfac1=*',rfac1,1)
+c        call prin2('rfac01=*',rfac01,1)
 
 
         allocate(cms1(3,npatches1),rads1(npatches1),
      1       rad_near1(npatches1))
         call get_centroid_rads(npatches1,norders1,ixyzs1,iptype1,npts1, 
      1     srccoefs1,cms1,rads1)
-        call prin2('cms1=*',cms1,24)
-        call prin2('rads1=*',rads1,12)
+c        call prin2('cms1=*',cms1,24)
+c        call prin2('rads1=*',rads1,12)
 
 
         do i=1,npatches1
           rad_near1(i) = rads1(i)*rfac1
         enddo
-        call prin2('rad_near1=*',rad_near1,4)
+c        call prin2('rad_near1=*',rad_near1,4)
 c
 c    find near quadrature correction interactions
         allocate(sources1(3,npts1))
@@ -759,7 +806,7 @@ c    find near quadrature correction interactions
 c 
         call findnearmem(cms1,npatches1,rad_near1,3,
      1             sources1,npts1,nnz1)
-        call prinf('nnz1=*',nnz1,1)
+c        call prinf('nnz1=*',nnz1,1)
 
         allocate(row_ptr1(npts1+1),col_ind1(nnz1))
 
@@ -775,7 +822,7 @@ c
         ntarg1 = npts1
         call get_iquad_rsc(npatches1,ixyzs1,ntarg1,nnz1,
      1         row_ptr1,col_ind1,iquad1)
-        call prinf('iquad1=*',iquad1,24)
+c        call prinf('iquad1=*',iquad1,24)
 
 c
 c    estimate oversampling for far-field, and oversample geometry
@@ -791,7 +838,7 @@ c
      2    nnz1,row_ptr1,col_ind1,rfac1,novers1,ixyzso1)
 
         npts_over1 = ixyzso1(npatches1+1)-1
-        call prinf('npts_over1=*',npts_over1,1)
+c        call prinf('npts_over1=*',npts_over1,1)
 
         allocate(srcover1(12,npts_over1),wover1(npts_over1))
 
@@ -799,11 +846,11 @@ c
      1   iptype1,npts1,srccoefs1,srcvals1,novers1,ixyzso1,
      2   npts_over1,srcover1)
 
-        call prin2('srcover1=*',srcover1,24)
+c        call prin2('srcover1=*',srcover1,24)
 
         call get_qwts(npatches1,novers1,ixyzso1,iptype1,
      1        npts_over1,srcover1,wover1)
-        call prin2('wover1=*',wover1,24)
+c        call prin2('wover1=*',wover1,24)
 
 c
 c   compute near quadrature correction
@@ -816,7 +863,7 @@ c
 
        call prinf('finished generating near field info*',i,0)
        call prinf('finished generating far field orders*',i,0)
-       call prinf('npts_over1=*',npts_over1,1)
+c       call prinf('npts_over1=*',npts_over1,1)
        call prin2('eps=*',eps,1)
 
 CCC     for surface 2 
@@ -824,22 +871,22 @@ CCC     for surface 2
         norder_avg2 = floor(sum(norders2)/(npatches2+0.0d0))
 
         call get_rfacs(norder_avg2,iptype_avg2,rfac2,rfac02)
-        call prin2('rfac2=*',rfac2,1)
-        call prin2('rfac02=*',rfac02,1)
+c        call prin2('rfac2=*',rfac2,1)
+c        call prin2('rfac02=*',rfac02,1)
 
 
         allocate(cms2(3,npatches2),rads2(npatches2),
      1       rad_near2(npatches2))
         call get_centroid_rads(npatches2,norders2,ixyzs2,iptype2,npts2, 
      1     srccoefs2,cms2,rads2)
-        call prin2('cms2=*',cms2,12)
-        call prin2('rads2=*',rads2,4)
+c        call prin2('cms2=*',cms2,12)
+c        call prin2('rads2=*',rads2,4)
 
 
         do i=1,npatches2
           rad_near2(i) = rads2(i)*rfac2
         enddo
-        call prin2('rad_near2=*',rad_near2,4)
+c        call prin2('rad_near2=*',rad_near2,4)
 c
 c    find near quadrature correction interactions
         allocate(sources2(3,npts2))
@@ -851,7 +898,7 @@ c    find near quadrature correction interactions
 c 
         call findnearmem(cms2,npatches2,rad_near2,3,
      1             sources2,npts2,nnz2)
-        call prinf('nnz2=*',nnz2,1)
+c        call prinf('nnz2=*',nnz2,1)
 
         allocate(row_ptr2(npts2+1),col_ind2(nnz2))
 
@@ -867,7 +914,7 @@ c
         ntarg2 = npts2
         call get_iquad_rsc(npatches2,ixyzs2,ntarg2,nnz2,
      1         row_ptr2,col_ind2,iquad2)
-        call prinf('iquad2=*',iquad2,24)
+c        call prinf('iquad2=*',iquad2,24)
 
 c
 c    estimate oversampling for far-field, and oversample geometry
@@ -883,7 +930,7 @@ c
      2    nnz2,row_ptr2,col_ind2,rfac2,novers2,ixyzso2)
 
         npts_over2 = ixyzso2(npatches2+1)-1
-        call prinf('npts_over2=*',npts_over2,1)
+c        call prinf('npts_over2=*',npts_over2,1)
 
         allocate(srcover2(12,npts_over2),wover2(npts_over2))
 
@@ -891,11 +938,14 @@ c
      1   iptype2,npts2,srccoefs2,srcvals2,novers2,ixyzso2,
      2   npts_over2,srcover2)
 
-        call prin2('srcover2=*',srcover2,24)
+c        call prin2('srcover2=*',srcover2,24)
 
         call get_qwts(npatches2,novers2,ixyzso2,iptype2,
      1        npts_over2,srcover2,wover2)
-        call prin2('wover2=*',wover2,24)
+c        call prin2('wover2=*',wover2,24)
+c        print *, "npts_over=",npts_over
+c        print *, "npts_over1=",npts_over1
+c        print *, "npts_over2=",npts_over2
 
 c
 c   compute near quadrature correction
@@ -905,7 +955,6 @@ c
         do i=1,10*nquad2
             wnear2(i) = 0
         enddo
-       endif 
 
 
 
@@ -929,7 +978,7 @@ C$      t2 = omp_get_wtime()
       call prinf('entering layer potential eval*',i,0)
       call prinf('npts=*',npts,1)
 
-      call prin2('wnear=*',wnear,24)
+c      call prin2('wnear=*',wnear,24)
 
 
 C
@@ -940,7 +989,7 @@ C
      2      epsquad,dzk,iquadtype,nnz1,row_ptr1,col_ind1,
      3      iquad1,rfac01,nquad1,wnear1)
 
-      call prin2('wnear1=*',wnear1,24)
+c      call prin2('wnear1=*',wnear1,24)
 
 C
 C     surface 2 
@@ -949,8 +998,15 @@ C
      1      ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
      2      epsquad,dzk,iquadtype,nnz2,row_ptr2,col_ind2,
      3      iquad2,rfac02,nquad2,wnear2)
+c
+c      print *, maxval(wnear)
+c      print *, maxval(wnear1)
+c      print *, maxval(wnear2)
+c      print *, "nquad=", nquad
+c      print *, "nquad1=",nquad1
+c      print *, "nquad2=",nquad2
+c      call prinf('ixyzs2=*',ixyzs2,npatches2+1)
 
-      call prin2('wnear2=*',wnear2,24)
 
 c
 c
@@ -973,7 +1029,7 @@ C
       hvecs1_div = 0 
       hvecs2_div = 0 
       do igen=1,2*ngenus
-        call prin2('hvecs1=*',hvecs1(1,1,igen),24)
+c        call prin2('hvecs1=*',hvecs1(1,1,igen),24)
         do i=1,npts1 
           rhstmp1(i) = hvecs1(1,i,igen) 
           rhstmp1(i+npts1) = hvecs1(2,i,igen) 
@@ -1007,15 +1063,15 @@ C
         enddo
 
 
-        call prin2('outtmp1=*',outtmp1,24)
-        call prin2('rhstmp1=*',rhstmp1,24)
+c        call prin2('outtmp1=*',outtmp1,24)
+c        call prin2('rhstmp1=*',rhstmp1,24)
 
       enddo 
 
 
-      call prin2('bbphvecs1=*',bbphvecs1(1,1,1),24)
-      call prin2('bbphvecs1=*',bbphvecs1(1,1,2),24)
-
+c      call prin2('bbphvecs1=*',bbphvecs1(1,1,1),24)
+c      call prin2('bbphvecs1=*',bbphvecs1(1,1,2),24)
+c
 
 C
 CCCC       surface 2 
@@ -1047,8 +1103,8 @@ C
      1                - vtmp1(1:3)/2
         enddo
 
-        call prin2('outtmp2=*',outtmp2,24)
-        call prin2('rhstmp2=*',rhstmp2,24)
+c        call prin2('outtmp2=*',outtmp2,24)
+c        call prin2('rhstmp2=*',rhstmp2,24)
       enddo 
 
 
@@ -1258,6 +1314,7 @@ c
         ptmp = 0
         call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,xyz_out_src,
      1     1,ptmp,bbpex,thresh)
+        bbpex = 0
 
         do i=1,npts
           dx = xyz_out_src(1) - srcvals(1,i)
@@ -1396,8 +1453,11 @@ c
 
 
       call prin2('bjmex=*',bjmex,3)
+      call prin2('bjm=*',bjmc,3)
       call prin2('bbmex=*',bbmex,3)
+      call prin2('bbm=*',bbmc,3)
       call prin2('bbpex=*',bbpex,3)
+      call prin2('bbp=*',bbpc,3)
 
       call prin2('l2 rel error at interior + exterior targets=*',
      1  errvol,1)
