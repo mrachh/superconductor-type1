@@ -160,7 +160,7 @@ c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
 C      iref = 2
-      iref = 4
+      iref = 3
 
 
       ipars(1) = 2*2**(iref)
@@ -183,8 +183,7 @@ C      iref = 2
       xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
       xyz_out_src(3) = rr*sin(uu) + 10.0d0
 
-C      norder = 8
-      norder = 6
+      norder = 8
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -1139,7 +1138,7 @@ C$       t2 = omp_get_wtime()
       
       call prin2('solve time=*',t2-t1,1)      
       
-      call prin2('projs=*',soln(6*npts+1),4)
+      call prin2('projs=*',soln(6*npts+1),8)
 
 
       if(1.eq.0) then
@@ -1211,14 +1210,25 @@ c  test solution at interior and exterior points
 c
       rinttmp = 0
       rsurf = 0
-      do i=1,npts
+      do i=1,npts1
         rsurf = rsurf + wts(i)
         do j=1,6
           rinttmp(j) = rinttmp(j) + soln(i+(j-1)*npts)*wts(i)
         enddo
       enddo
       rinttmp(1:6) = rinttmp(1:6)/rsurf
-      call prin2('average integral of densities=*',rinttmp,6)
+      call prin2('average integral of densities on surf1=*',rinttmp,6)
+      
+      rinttmp = 0
+      rsurf = 0
+      do i=npts1+1,npts
+        rsurf = rsurf + wts(i)
+        do j=1,6
+          rinttmp(j) = rinttmp(j) + soln(i+(j-1)*npts)*wts(i)
+        enddo
+      enddo
+      rinttmp(1:6) = rinttmp(1:6)/rsurf
+      call prin2('average integral of densities on surf2=*',rinttmp,6)
       
       allocate(curv(npts),ffforminv(2,2,npts))
       call get_mean_curvature(npatches,norders,ixyzs,iptype,npts, 
@@ -1293,12 +1303,12 @@ c  add in contribution of harmonic vector fields
 c
       do i=1,npts
         do igen=1,2*ngenus
-          if (i.le.npst1) then 
+          if (i.le.npts1) then 
             blm(1:3,i) = blm(1:3,i) + 
-     1       soln(6*npts+igen)*hvecs1(1:3,i,igen)
+     1       soln(6*npts+igen+4)*hvecs1(1:3,i,igen)
           else 
             blm(1:3,i) = blm(1:3,i) + 
-     1       soln(6*npts+igen+2)*hvecs2(1:3,i-npts1,igen)
+     1       soln(6*npts+igen+2+4)*hvecs2(1:3,i-npts1,igen)
           endif 
         enddo
       enddo
@@ -1335,28 +1345,28 @@ c
           if (i.le.npts1) then 
             do igen=1,2*ngenus
         
-              bbpc(1) = bbpc(1)+1.0d0/r**3*wts(i)*soln(6*npts+2+igen)
+              bbpc(1) = bbpc(1)+1.0d0/r**3*wts(i)*soln(6*npts+igen)
      1      *(dy*hvecs1(3,i,igen)-dz*hvecs1(2,i,igen))
-              bbpc(2) = bbpc(2)+1.0d0/r**3*wts(i)*soln(6*npts+2+igen)
+              bbpc(2) = bbpc(2)+1.0d0/r**3*wts(i)*soln(6*npts+igen)
      1      *(dz*hvecs1(1,i,igen)-dx*hvecs1(3,i,igen))
-              bbpc(3) = bbpc(3)+1.0d0/r**3*wts(i)*soln(6*npts+2+igen)
+              bbpc(3) = bbpc(3)+1.0d0/r**3*wts(i)*soln(6*npts+igen)
      1      *(dx*hvecs1(2,i,igen)-dy*hvecs1(1,i,igen))
             enddo
 
           else 
 
-            do igen=1,2*ngenus
-        
-              bbpc(1) = bbpc(1) + 1.0d0/r**3*wts(i)*
-     1                    soln(6*npts+2+igen+2)*
-     2      (dy*hvecs2(3,i-npts1,igen)-dz*hvecs2(2,i-npts1,igen))
-              bbpc(2) = bbpc(2) + 1.0d0/r**3*wts(i)*
-     1                      soln(6*npts+2+igen+2)*
-     2      (dz*hvecs2(1,i-npts1,igen)-dx*hvecs2(3,i-npts1,igen))
-              bbpc(3) = bbpc(3) + 1.0d0/r**3*wts(i)*
-     1                     soln(6*npts+2+igen+2)*
-     2      (dx*hvecs2(2,i-npts1,igen)-dy*hvecs2(1,i-npts1,igen))
-          enddo
+c            do igen=1,2*ngenus
+c        
+c              bbpc(1) = bbpc(1) + 1.0d0/r**3*wts(i)*
+c     1                    soln(6*npts+igen+2)*
+c     2      (dy*hvecs2(3,i-npts1,igen)-dz*hvecs2(2,i-npts1,igen))
+c              bbpc(2) = bbpc(2) + 1.0d0/r**3*wts(i)*
+c     1                      soln(6*npts+igen+2)*
+c     2      (dz*hvecs2(1,i-npts1,igen)-dx*hvecs2(3,i-npts1,igen))
+c              bbpc(3) = bbpc(3) + 1.0d0/r**3*wts(i)*
+c     1                     soln(6*npts+igen+2)*
+c     2      (dx*hvecs2(2,i-npts1,igen)-dy*hvecs2(1,i-npts1,igen))
+c          enddo
 
           endif 
 

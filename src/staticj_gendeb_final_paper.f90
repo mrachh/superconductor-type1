@@ -2418,7 +2418,7 @@
         enddo
       enddo
 !   
-!  abc1 now holds \nabla \cot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
+!  abc1 now holds \nabla \cdot S_{0} = S_{0} \nabla_{\Gamma}\cdot \bbm{-}
 !
 !  Todo: add in rank 6 stuff corresponding to rqmint1/2 rrmint1/2
 !
