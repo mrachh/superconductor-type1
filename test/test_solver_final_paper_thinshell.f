@@ -1267,11 +1267,6 @@ c
 
 
 
-c
-c
-c     ask manas should we use ixyzs1,ixyzs2,ixyzso1,ixyzso2,... 
-c
-c
 
       
       call statj_gendebproc_rhomrhopmum(npatches1,norders1,ixyzs1,
@@ -1339,8 +1334,10 @@ c
           bbpc(2) = bbpc(2) - dy/r**3*sig*wts(i)
           bbpc(3) = bbpc(3) - dz/r**3*sig*wts(i)
 c
-c  yuguan: todo fix the c+- contributions correctly
-c
+c  Note: For targets outside the outer torus, we add contributions
+c  of c_{+} and for targets inside of inner torus, we need
+c  to add contributions only from the c_{-} part
+c 
 c
           if (i.le.npts1) then 
             do igen=1,2*ngenus
