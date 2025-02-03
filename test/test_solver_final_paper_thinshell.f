@@ -146,7 +146,7 @@ c  but for idzk =3, penetration depth is 1/30
 c
 c  idzk = 4:10, 2^(4-idzk)
 c
-      idzk = 4
+      idzk = 7
       dzk = 10**(idzk)
       if(idzk.eq.3) dzk = 30.0d0
       if(idzk.ge.4) dzk = 2**(idzk-4)
@@ -159,8 +159,8 @@ c
 c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
-C      iref = 2
-      iref = 3
+c      iref = 1
+      iref = 2
 
 
       ipars(1) = 2*2**(iref)
@@ -509,7 +509,12 @@ C$OMP END PARALLEL DO
       call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,sources,npts,
      1     ptmp,bbp,thresh)
       bbp = 0
-      call prin2('bbp=*',bbp,24)
+      do i=npts1+1,npts 
+        bbp(1,i) = srcvals(1,i)**2+srcvals(2,i)**2-2*srcvals(3,i)**2
+        bbp(2,i) = srcvals(1,i)
+        bbp(3,i) = srcvals(3,i)**3-3*srcvals(1,i)**2*srcvals(3,i)
+      enddo 
+      call prin2('bbp=*',bbp(1,npts1+1),24)
       call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,iptype1,npts1,
      1  srccoefs1,srcvals1,bbp,'bbp1.vtk','a')
       call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,iptype2,npts2,
@@ -1113,7 +1118,7 @@ c        call prin2('rhstmp2=*',rhstmp2,24)
       numit = 300
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
-      eps_gmres = 1.0d-8
+      eps_gmres = 1.0d-6
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
 
@@ -1125,7 +1130,6 @@ c
 
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
-
       call statj_gendeb_solver_thinshell_guru(npatches,npatches1,
      1 norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,hvecs1,
      2 hvecs2,bbphvecs1,bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,
@@ -1141,7 +1145,7 @@ C$       t2 = omp_get_wtime()
       call prin2('projs=*',soln(6*npts+1),8)
 
 
-      if(1.eq.0) then
+      if(1.eq.1) then
         allocate(bbpcomp(3,npts),bjmcomp(3,npts),bbmcomp(3,npts))
 
         print *, "here"
@@ -1150,11 +1154,25 @@ C$       t2 = omp_get_wtime()
         call prinf('ngenus=*',ngenus,1)
         call prin2('dpars=*',dpars,3)
 
+c
+c
+c       new homework 
+c
 
-        call lpcomp_statj_gendeb_postproc(npatches,norders,ixyzs,
-     1    iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
-     2    iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
-     3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
+c        call lpcomp_statj_gendeb_postproc(npatches,norders,ixyzs,
+c     1    iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
+c     2    iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
+c     3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
+
+
+        call lpcomp_statj_gendeb_postproc_thinshell(npatches,
+     1   npatches1,norders,ixyzs,iptype,npts,srccoefs,
+     1   srcvals,eps,dpars,nnz,row_ptr,col_ind,iquad,nquad,wnear,
+     1   npts1,nnz1,row_ptr1,col_ind1,iquad1,nquad1,wnear1,npts2,
+     1   nnz2,row_ptr2,col_ind2,iquad2,nquad2,wnear2,ngenus,hvecs1,
+     1   hvecs2,bbphvecs1,bbphvecs2,soln,novers,npts_over,ixyzso,
+     1   srcover,wover,bjmcomp,bbmcomp,bbpcomp)
+
         call prin2('bjmcomp=*',bjmcomp,24)
         call prin2('bbmcomp=*',bbmcomp,24)
         call prin2('bbpcomp=*',bbpcomp,24)
@@ -1195,6 +1213,12 @@ C$       t2 = omp_get_wtime()
         call prin2('error in exterior magnetic field=*',errbp,1)
         call prin2('rsurfintl2 =*',rsurfintl2,1)
       endif
+
+c     
+c     can stop here, expect to get digits 
+c 
+
+      stop 
 
       rsurfintl2 = 0 
       do i=1,npts 
