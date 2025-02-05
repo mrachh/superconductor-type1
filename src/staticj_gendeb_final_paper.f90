@@ -1886,7 +1886,7 @@
       rrmint1 = rrmint1/rsurf1
 !      call prin2('rsurf1=*',rsurf1,1)
 !      call prin2('rqmint1=*',rqmint1,1)
-!      call prin2('rqpint1=*',rqmint1,1)
+!      call prin2('rqpint1=*',rqpint1,1)
 !      call prin2('rrmint1=*',rrmint1,1)
 
 
@@ -2228,6 +2228,7 @@
 
 
 
+
       call oversample_fun_surf(nd,npatches,norders,ixyzs,iptype,& 
           npts,abc0,novers,ixyzso,ns,sigmaover)
         
@@ -2438,15 +2439,15 @@
       enddo
 
 
-      do i=1,npts1
-        pot(3*npts+i) = pot(3*npts+i) + 0.7d0*rqmint1
-        pot(5*npts+i) = pot(5*npts+i) - 1.3d0*rrmint1
-      enddo
-
-      do i=npts1+1,npts
-        pot(3*npts+i) = pot(3*npts+i) + 0.7d0*rqmint2
-        pot(5*npts+i) = pot(5*npts+i) - 1.3d0*rrmint2
-      enddo
+!      do i=1,npts1
+!        pot(3*npts+i) = pot(3*npts+i) + 0*rqmint1
+!        pot(5*npts+i) = pot(5*npts+i) - 0*rrmint1
+!      enddo
+!
+!      do i=npts1+1,npts
+!        pot(3*npts+i) = pot(3*npts+i) + 0*rqmint2
+!        pot(5*npts+i) = pot(5*npts+i) - 0*rrmint2
+!      enddo
 
 
 
@@ -2461,8 +2462,8 @@
 !  try and fix null space coming from \ell_{H}^{+} for
 !  torus of revolution
 !
-      pot(6*npts + 5) = pot(6*npts+5) + &
-         0.3d0*(sigma(6*npts+1) - sigma(6*npts+2))
+!      pot(6*npts + 5) = pot(6*npts+5) + &
+!         0.3d0*(sigma(6*npts+1) - sigma(6*npts+2))
 !      pot(6*npts + 7) = pot(6*npts+7) + &
 !         0.5d0*(sigma(6*npts+3) + sigma(6*npts+4))
 !

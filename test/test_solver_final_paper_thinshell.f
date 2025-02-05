@@ -160,7 +160,7 @@ c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
 c      iref = 1
-      iref = 3
+      iref = 2
 
 
       ipars(1) = 2*2**(iref)
@@ -390,7 +390,7 @@ c
       hvecs1_div2 = 0 
       hvecs2_div2 = 0 
 
-
+      thet = 0
 CCC         surface 1     CCCC 
       do i=1,npts1
         rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
@@ -398,8 +398,10 @@ CCC         surface 1     CCCC
         vtmp1(2) = srcvals1(1,i)/rr1
         vtmp1(3) = 0 
         call cross_prod3d(srcvals1(10,i),vtmp1,vtmp2)
-        hvecs1(1:3,i,1) = vtmp1(1:3) + vtmp2(1:3)
-        hvecs1(1:3,i,2) = vtmp1(1:3) - vtmp2(1:3)
+        hvecs1(1:3,i,1) = cos(thet)*vtmp1(1:3) + 
+     1     sin(thet)*vtmp2(1:3)
+        hvecs1(1:3,i,2) = -sin(thet)*vtmp1(1:3) + 
+     1     cos(thet)*vtmp2(1:3)
       enddo 
 
       call prin2('srcvals1=*',srcvals1(1,1),24)
@@ -431,8 +433,10 @@ CCC         surface 2     CCCC
         vtmp1(2) = srcvals2(1,i)/rr1
         vtmp1(3) = 0 
         call cross_prod3d(srcvals2(10,i),vtmp1,vtmp2)
-        hvecs2(1:3,i,1) = vtmp1(1:3) + vtmp2(1:3)
-        hvecs2(1:3,i,2) = vtmp1(1:3) - vtmp2(1:3)
+        hvecs2(1:3,i,1) = cos(thet)*vtmp1(1:3) + 
+     1     sin(thet)*vtmp2(1:3)
+        hvecs2(1:3,i,2) = -sin(thet)*vtmp1(1:3) + 
+     1     cos(thet)*vtmp2(1:3)
       enddo 
 
 
@@ -970,41 +974,62 @@ c
 
 c      goto 1111
       epsquad = 0.51d-7
-      call cpu_time(t1)
-C$      t1 = omp_get_wtime()      
-      call getnearquad_statj_gendeb(npatches,norders,
+
+      ifquadread = 1
+      if(ifquadread.eq.1) then
+        open(unit=99,file='quad_iref2.bin',form='unformatted')
+        read(99) wnear
+        read(99) wnear1
+        read(99) wnear2
+        close(99)
+      else
+
+
+        call cpu_time(t1)
+C$        t1 = omp_get_wtime()      
+        call getnearquad_statj_gendeb(npatches,norders,
      1      ixyzs,iptype,npts,srccoefs,srcvals,
      1      epsquad,dzk,iquadtype,nnz,row_ptr,col_ind,
      1      iquad,rfac0,nquad,wnear)
  1111 continue     
-      call prinf('finished generating near quadrature correction*',i,0)
-      call cpu_time(t2)
+        call prinf('finished generating near quadrature correction*',
+     1     i,0)
+        call cpu_time(t2)
 C$      t2 = omp_get_wtime()      
-      call prin2('time taken to generate near quadrature=*',t2-t1,1)
-
-      call prinf('entering layer potential eval*',i,0)
-      call prinf('npts=*',npts,1)
-
-c      call prin2('wnear=*',wnear,24)
+        call prin2('time taken to generate near quadrature=*',t2-t1,1)
 
 
 C
 C     surface 1 
 C
-      call getnearquad_statj_gendeb(npatches1,norders1,
+        call getnearquad_statj_gendeb(npatches1,norders1,
      1      ixyzs1,iptype1,npts1,srccoefs1,srcvals1,
      2      epsquad,dzk,iquadtype,nnz1,row_ptr1,col_ind1,
      3      iquad1,rfac01,nquad1,wnear1)
 
-c      call prin2('wnear1=*',wnear1,24)
 
 C
 C     surface 2 
 C
-      call getnearquad_statj_gendeb(npatches2,norders2,
+        call getnearquad_statj_gendeb(npatches2,norders2,
      1      ixyzs2,iptype2,npts2,srccoefs2,srcvals2,
      2      epsquad,dzk,iquadtype,nnz2,row_ptr2,col_ind2,
      3      iquad2,rfac02,nquad2,wnear2)
+      endif
+      
+      ifquadwrite = 0
+      if(ifquadwrite.eq.1) then
+        open(unit=99,file='quad_iref2.bin',form='unformatted')
+        write(99) wnear
+        write(99) wnear1
+        write(99) wnear2
+        close(99)
+      endif
+
+      call prin2('wnear=*',wnear,24)
+      call prin2('wnear1=*',wnear1,24)
+      call prin2('wnear2=*',wnear2,24)
+
 c
 c      print *, maxval(wnear)
 c      print *, maxval(wnear1)
@@ -1069,6 +1094,9 @@ c        call prin2('hvecs1=*',hvecs1(1,1,igen),24)
      1                - vtmp1(1:3)/2
         enddo
 
+        call prinf('igen=*',igen,1)
+        call prin2('bbphvecs1=*',bbphvecs1(1,1,igen),24)
+
 
 c        call prin2('outtmp1=*',outtmp1,24)
 c        call prin2('rhstmp1=*',rhstmp1,24)
@@ -1127,28 +1155,56 @@ c        call prin2('rhstmp2=*',rhstmp2,24)
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
 
-c      rhs = 0
-c      rhs(6*npts+3) = 1
-c      rhs(6*npts+4) = 1
-c
-c      soln = 0
-c      call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,
-c     1   norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,
-c     2   row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
-c     3   col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,
-c     4   col_ind2,iquad2,nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,
-c     5   bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,awts,nb,
-c     6   nb1,ibxyzs,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
-c     7   ixyzso,srcover,wover,soln)
-c      soln = soln + rhs
-c      call prin2('soln1=*',soln,24)
-c      call prin2('soln2=*',soln(npts+1),24)
-c      call prin2('soln3=*',soln(2*npts+1),24)
-c      call prin2('soln4=*',soln(3*npts+1),24)
-c      call prin2('soln5=*',soln(4*npts+1),24)
-c      call prin2('soln6=*',soln(5*npts+1),24)
-c      call prin2('soln proj=*',soln(6*npts+1),8)
-c      stop
+      rhs = 0
+      rhs(6*npts+8) = 0
+
+      rsurint1 = 0
+      do i=1,npts1
+        rsurfint1 = rsurfint1 + wts1(i)
+      enddo
+
+      rsurint2 = 0
+      do i=1,npts2
+        rsurfint2 = rsurfint2 + wts2(i)
+      enddo
+
+      do i=1,npts2
+        rhs(5*npts+npts1+i) = 1.0d0/rsurfint2
+      enddo
+      
+
+      soln = 0
+      call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,
+     1   norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,
+     2   row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
+     3   col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,
+     4   col_ind2,iquad2,nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,
+     5   bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,awts,nb,
+     6   nb1,ibxyzs,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
+     7   ixyzso,srcover,wover,soln)
+      soln = soln + rhs
+      call prin2('soln1=*',soln,24)
+      call prin2('soln2=*',soln(npts+1),24)
+      call prin2('soln3=*',soln(2*npts+1),24)
+      call prin2('soln4=*',soln(3*npts+1),24)
+      call prin2('soln5=*',soln(4*npts+1),24)
+      call prin2('soln6=*',soln(5*npts+1),24)
+      call prin2('soln proj=*',soln(6*npts+1),8)
+
+      ra = 0
+      do i=1,npts
+        do j=0,5
+          ra = ra + soln(j*npts+i)**2*wts(i)
+        enddo
+      enddo
+
+      do i=1,8
+        ra = ra + soln(6*npts+i)**2
+      enddo
+      ra = sqrt(ra)
+      call prin2('norm of vector=*',ra,1)
+
+      stop
 
 
 c
