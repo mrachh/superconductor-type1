@@ -23,6 +23,7 @@ CCC   for thin shell only
       real *8, allocatable :: bbp_a(:,:),bbp_b(:,:)
       real *8, allocatable :: bbm_a(:,:),bbm_b(:,:)
       real *8, allocatable :: rhs(:),soln(:),soln1(:),soln2(:)
+      real *8, allocatable :: rhs_test(:), soln_test(:)
       real *8, allocatable :: errs(:)
       real *8, allocatable :: errp(:),errp1(:),errp2(:)
       real *8  errm,errm1,errm2
@@ -160,7 +161,7 @@ c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
 c      iref = 1
-      iref = 2
+      iref = 3
 
 
       ipars(1) = 2*2**(iref)
@@ -975,7 +976,7 @@ c
 c      goto 1111
       epsquad = 0.51d-7
 
-      ifquadread = 1
+      ifquadread = 0
       if(ifquadread.eq.1) then
         open(unit=99,file='quad_iref2.bin',form='unformatted')
         read(99) wnear
@@ -1155,56 +1156,63 @@ c        call prin2('rhstmp2=*',rhstmp2,24)
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
 
-      rhs = 0
-      rhs(6*npts+8) = 0
 
-      rsurint1 = 0
-      do i=1,npts1
-        rsurfint1 = rsurfint1 + wts1(i)
-      enddo
+      iftestrhs = 0
 
-      rsurint2 = 0
-      do i=1,npts2
-        rsurfint2 = rsurfint2 + wts2(i)
-      enddo
+      if(iftestrhs.eq.1) then
 
-      do i=1,npts2
-        rhs(5*npts+npts1+i) = 1.0d0/rsurfint2
-      enddo
+        allocate(rhs_test(6*npts+8), soln_test(6*npts+8))
+
+        rhs_test = 0
+        rhs_test(6*npts+8) = 0
+
+        rsurint1 = 0
+        do i=1,npts1
+          rsurfint1 = rsurfint1 + wts1(i)
+        enddo
+
+        rsurint2 = 0
+        do i=1,npts2
+          rsurfint2 = rsurfint2 + wts2(i)
+        enddo
+
+        do i=1,npts2
+          rhs_test(5*npts+npts1+i) = 1.0d0/rsurfint2
+        enddo
       
 
-      soln = 0
-      call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,
-     1   norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,
-     2   row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
-     3   col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,
-     4   col_ind2,iquad2,nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,
-     5   bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,awts,nb,
-     6   nb1,ibxyzs,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
-     7   ixyzso,srcover,wover,soln)
-      soln = soln + rhs
-      call prin2('soln1=*',soln,24)
-      call prin2('soln2=*',soln(npts+1),24)
-      call prin2('soln3=*',soln(2*npts+1),24)
-      call prin2('soln4=*',soln(3*npts+1),24)
-      call prin2('soln5=*',soln(4*npts+1),24)
-      call prin2('soln6=*',soln(5*npts+1),24)
-      call prin2('soln proj=*',soln(6*npts+1),8)
+        soln = 0
+        call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,
+     1     norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,
+     2     row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
+     3     col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,
+     4     col_ind2,iquad2,nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,
+     5     bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,awts,nb,
+     6     nb1,ibxyzs,bpatches,buv,bvals,bwts,rhs_test,novers,npts_over,
+     7     ixyzso,srcover,wover,soln_test)
+        soln_test = soln_test + rhs_test
+        call prin2('soln1=*',soln_test,24)
+        call prin2('soln2=*',soln_test(npts+1),24)
+        call prin2('soln3=*',soln_test(2*npts+1),24)
+        call prin2('soln4=*',soln_test(3*npts+1),24)
+        call prin2('soln5=*',soln_test(4*npts+1),24)
+        call prin2('soln6=*',soln_test(5*npts+1),24)
+        call prin2('soln proj=*',soln_test(6*npts+1),8)
 
-      ra = 0
-      do i=1,npts
-        do j=0,5
-          ra = ra + soln(j*npts+i)**2*wts(i)
+        ra = 0
+        do i=1,npts
+          do j=0,5
+            ra = ra + soln_test(j*npts+i)**2*wts(i)
+          enddo
         enddo
-      enddo
 
-      do i=1,8
-        ra = ra + soln(6*npts+i)**2
-      enddo
-      ra = sqrt(ra)
-      call prin2('norm of vector=*',ra,1)
+        do i=1,8
+          ra = ra + soln_test(6*npts+i)**2
+        enddo
+        ra = sqrt(ra)
+        call prin2('norm of vector=*',ra,1)
+      endif
 
-      stop
 
 
 c

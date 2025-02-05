@@ -2433,7 +2433,7 @@
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
         pot(3*npts+i) = (w3+2*w2)*dzk 
-        pot(4*npts+i) = (w3-2*w2) + 0*rqpint2 
+        pot(4*npts+i) = (w3-2*w2) + 0*(rqpint2 + rqpint1) 
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = -2*w1 
       enddo
@@ -2461,9 +2461,11 @@
 !
 !  try and fix null space coming from \ell_{H}^{+} for
 !  torus of revolution
-!
-!      pot(6*npts + 5) = pot(6*npts+5) + &
-!         0.3d0*(sigma(6*npts+1) - sigma(6*npts+2))
+!    
+      do i=1,8    
+        pot(6*npts + i) = pot(6*npts+i) + &
+           0.3d0*sigma(6*npts+2)
+      enddo
 !      pot(6*npts + 7) = pot(6*npts+7) + &
 !         0.5d0*(sigma(6*npts+3) + sigma(6*npts+4))
 !
