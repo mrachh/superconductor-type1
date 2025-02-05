@@ -1825,7 +1825,7 @@
       real *8, allocatable :: sigma1(:), sigma2(:)
       integer, allocatable :: ixyzs2(:), ixyzso2(:)
 
-      real *8 ttot,done,pi
+      real *8 ttot,done,pi,rint1
       data ima/(0.0d0,1.0d0)/
       data over4pi/0.07957747154594767d0/
 
@@ -2425,6 +2425,15 @@
 !
 !  Todo: add in rank 6 stuff corresponding to rqmint1/2 rrmint1/2
 !
+      rint1 = 0
+      rsurf = 0
+      do i=1,npts
+        rint1 = rint1 + sigma(4*npts+i)*srcvals(2,i)*wts(i)
+        rsurf = rsurf + wts(i)
+      enddo
+      rint1 = rint1/rsurf
+
+
       do i=1,npts
         call dot_prod3d(bbm(1,i),srcvals(10,i),w1)
         call dot_prod3d(bbp(1,i),srcvals(10,i),w2)
@@ -2433,10 +2442,11 @@
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
         pot(3*npts+i) = (w3+2*w2)*dzk 
-        pot(4*npts+i) = (w3-2*w2) + 0*(rqpint2 + rqpint1) 
+        pot(4*npts+i) = (w3-2*w2) + rint1 
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = -2*w1 
       enddo
+
 
 
 !      do i=1,npts1
