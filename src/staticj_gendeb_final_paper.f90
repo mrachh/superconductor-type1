@@ -2379,7 +2379,9 @@
           bbp(1:3,i+npts1) = bbp(1:3,i+npts1) + bbphvecs2(1:3,i,igen)*&
             sigma(6*npts+igen+2)
         enddo 
-      enddo 
+      enddo
+      call prin2('bbp1=*',bbp,24)
+      call prin2('bbp2=*',bbp(1:3,1+npts1),24)
 
 
 
@@ -2430,9 +2432,20 @@
         w2 = abc1(1,i) -s0laps0qm(i)/dzk + s0laps0qp(i)
         
         pot(3*npts+i) = (w3+2*w2)*dzk 
-        pot(4*npts+i) = (w3-2*w2) 
+        pot(4*npts+i) = (w3-2*w2) + 0*rqpint2 
         call dot_prod3d(bjm(1,i),srcvals(10,i),w1)
         pot(5*npts+i) = -2*w1 
+      enddo
+
+
+      do i=1,npts1
+        pot(3*npts+i) = pot(3*npts+i) + 0.7d0*rqmint1
+        pot(5*npts+i) = pot(5*npts+i) - 1.3d0*rrmint1
+      enddo
+
+      do i=npts1+1,npts
+        pot(3*npts+i) = pot(3*npts+i) + 0.7d0*rqmint2
+        pot(5*npts+i) = pot(5*npts+i) - 1.3d0*rrmint2
       enddo
 
 
@@ -2443,6 +2456,15 @@
           pot(6*npts + (igen-1)*4 + j)= -sigma(6*npts + (igen-1)*4 + j)
         enddo
       enddo
+
+!
+!  try and fix null space coming from \ell_{H}^{+} for
+!  torus of revolution
+!
+      pot(6*npts + 5) = pot(6*npts+5) + &
+         0.3d0*(sigma(6*npts+1) - sigma(6*npts+2))
+!      pot(6*npts + 7) = pot(6*npts+7) + &
+!         0.5d0*(sigma(6*npts+3) + sigma(6*npts+4))
 !
 !
 !  Todo: figure out how to fix these constraints 
@@ -2595,7 +2617,7 @@
         pot(6*npts+8) =  pot(6*npts+8) + &
             (vtmp1(1)*bvals(4,j) + vtmp1(2)*bvals(5,j) + &
             vtmp1(3)*bvals(6,j))*bwts(j)
-      enddo 
+      enddo
 
 
 
@@ -4142,21 +4164,14 @@
         
         do igen=1,2
           if (i.le.npts1) then  
-            call cross_prod3d(srcvals(10,i),hvecs1(1:3,i,igen),hvecs1_tmp)
-            bbp(1:3,i) = bbp(1:3,i) + (bbphvecs1(1:3,i,igen)-0.5d0*hvecs1_tmp)* &
-              sigma(6*npts+igen)
+            bbp(1:3,i) = bbp(1:3,i) + &
+                bbphvecs1(1:3,i,igen)*sigma(6*npts+igen)
           else 
-            call cross_prod3d(srcvals(10,i),hvecs2(1:3,i-npts1,igen),hvecs2_tmp)
-            bbp(1:3,i) = bbp(1:3,i) + (bbphvecs2(1:3,i-npts1,igen)-0.5d0*hvecs2_tmp)* &
-              sigma(6*npts+igen+2)
+            bbp(1:3,i) = bbp(1:3,i) + &
+              bbphvecs2(1:3,i-npts1,igen)*sigma(6*npts+igen+2)
           endif 
         enddo
       enddo
-
-!     4099,4102 replace by Bbphvecs -> bbphvecs - 0.5*hvec
-!
-!
-
 !$OMP END PARALLEL DO
 
       call prin2('after computing first set of fields=*',i,0)

@@ -12,7 +12,7 @@ CCC   for thin shell only
       
       real *8 xyz_in_targ(3,100),xyz_out_targ(3,100)
       real *8 xyz_out_src(3),xyz_in_src(3)
-      real *8 vtmp1(3),bbpc(3),bbpex(3)
+      real *8 vtmp1(3),bbpc(3),bbpex(3), vtmp2(3)
       real *8 bbmc(3),bbmex(3),bjmc(3),bjmex(3)
       real *8, allocatable :: ffform(:,:,:),ffformex(:,:,:)
       real *8, allocatable :: ffforminv(:,:,:),ffformexinv(:,:,:)
@@ -160,7 +160,7 @@ c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
 c      iref = 1
-      iref = 2
+      iref = 3
 
 
       ipars(1) = 2*2**(iref)
@@ -394,11 +394,12 @@ c
 CCC         surface 1     CCCC 
       do i=1,npts1
         rr1 = srcvals1(1,i)**2 + srcvals1(2,i)**2
-        hvecs1(1,i,1) = -srcvals1(2,i)/rr1
-        hvecs1(2,i,1) = srcvals1(1,i)/rr1
-        hvecs1(3,i,1) = 0 
-        call cross_prod3d(srcvals1(10,i),hvecs1(1:3,i,1),
-     1       hvecs1(1:3,i,2))
+        vtmp1(1) = -srcvals1(2,i)/rr1
+        vtmp1(2) = srcvals1(1,i)/rr1
+        vtmp1(3) = 0 
+        call cross_prod3d(srcvals1(10,i),vtmp1,vtmp2)
+        hvecs1(1:3,i,1) = vtmp1(1:3) + vtmp2(1:3)
+        hvecs1(1:3,i,2) = vtmp1(1:3) - vtmp2(1:3)
       enddo 
 
       call prin2('srcvals1=*',srcvals1(1,1),24)
@@ -426,11 +427,12 @@ CCC         surface 2     CCCC
 
       do i=1,npts2
         rr1 = srcvals2(1,i)**2 + srcvals2(2,i)**2
-        hvecs2(1,i,1) = -srcvals2(2,i)/rr1
-        hvecs2(2,i,1) = srcvals2(1,i)/rr1
-        hvecs2(3,i,1) = 0 
-        call cross_prod3d(srcvals2(10,i),hvecs2(1:3,i,1),
-     1     hvecs2(1:3,i,2))
+        vtmp1(1) = -srcvals2(2,i)/rr1
+        vtmp1(2) = srcvals2(1,i)/rr1
+        vtmp1(3) = 0 
+        call cross_prod3d(srcvals2(10,i),vtmp1,vtmp2)
+        hvecs2(1:3,i,1) = vtmp1(1:3) + vtmp2(1:3)
+        hvecs2(1:3,i,2) = vtmp1(1:3) - vtmp2(1:3)
       enddo 
 
 
@@ -487,7 +489,6 @@ c
       bbp = 0
       bjm = 0
       bbm = 0
-      call prin2('bbp=*',bbp,24)
 
       ntarg = npts
       allocate(sources(3,npts))
@@ -506,14 +507,16 @@ C$OMP END PARALLEL DO
 
       print *, "npts=",npts
       
-      call l3ddirectcdg(1,xyz_in_src,cf2,vf2,1,sources,npts,
+      call l3ddirectcdg(1,xyz_out_src,cf2,vf2,1,sources,npts,
      1     ptmp,bbp,thresh)
-      bbp = 0
-      do i=npts1+1,npts 
-        bbp(1,i) = srcvals(1,i)**2+srcvals(2,i)**2-2*srcvals(3,i)**2
-        bbp(2,i) = srcvals(1,i)
-        bbp(3,i) = srcvals(3,i)**3-3*srcvals(1,i)**2*srcvals(3,i)
-      enddo 
+      do i=1,npts1
+        bbp(1:3,i) = 0
+      enddo
+c      do i=npts1+1,npts 
+c        bbp(1,i) = srcvals(1,i)**2+srcvals(2,i)**2-2*srcvals(3,i)**2
+c        bbp(2,i) = srcvals(1,i)
+c        bbp(3,i) = srcvals(3,i)**3-3*srcvals(1,i)**2*srcvals(3,i)
+c      enddo 
       call prin2('bbp=*',bbp(1,npts1+1),24)
       call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,iptype1,npts1,
      1  srccoefs1,srcvals1,bbp,'bbp1.vtk','a')
@@ -652,7 +655,7 @@ C
 
       
 
-      eps = 0.51d-8
+      eps = 0.51d-6
 
       allocate(ipatch_id(npts),uvs_src(2,npts))
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
@@ -1106,10 +1109,12 @@ C
           bbphvecs2(1:3,j,igen) = bbphvecs2(1:3,j,igen) 
      1                - vtmp1(1:3)/2
         enddo
+        call prinf('igen=*',igen,1)
+        call prin2('bbphvecs2=*',bbphvecs2(1,1,igen),24)
 
 c        call prin2('outtmp2=*',outtmp2,24)
 c        call prin2('rhstmp2=*',rhstmp2,24)
-      enddo 
+      enddo
 
 
 
@@ -1121,6 +1126,30 @@ c        call prin2('rhstmp2=*',rhstmp2,24)
       eps_gmres = 1.0d-6
       if(ngenus.ge.1)  call prin2('rhs_projs=*',rhs(6*npts+1),8)
       print *, "here"
+
+c      rhs = 0
+c      rhs(6*npts+3) = 1
+c      rhs(6*npts+4) = 1
+c
+c      soln = 0
+c      call lpcomp_statj_gendeb_thinshell_addsub(npatches,npatches1,
+c     1   norders,ixyzs,iptype,npts,srccoefs,srcvals,eps,dpars,nnz,
+c     2   row_ptr,col_ind,iquad,nquad,wnear,nnz1,npts1,row_ptr1,
+c     3   col_ind1,iquad1,nquad1,wnear1,nnz2,npts2,row_ptr2,
+c     4   col_ind2,iquad2,nquad2,wnear2,hvecs1,bbphvecs1,hvecs2,
+c     5   bbphvecs2,na,na1,iaxyzs,apatches,auv,avals,awts,nb,
+c     6   nb1,ibxyzs,bpatches,buv,bvals,bwts,rhs,novers,npts_over,
+c     7   ixyzso,srcover,wover,soln)
+c      soln = soln + rhs
+c      call prin2('soln1=*',soln,24)
+c      call prin2('soln2=*',soln(npts+1),24)
+c      call prin2('soln3=*',soln(2*npts+1),24)
+c      call prin2('soln4=*',soln(3*npts+1),24)
+c      call prin2('soln5=*',soln(4*npts+1),24)
+c      call prin2('soln6=*',soln(5*npts+1),24)
+c      call prin2('soln proj=*',soln(6*npts+1),8)
+c      stop
+
 
 c
 c
@@ -1153,6 +1182,19 @@ C$       t2 = omp_get_wtime()
         call prin2('soln=*',soln,24)
         call prinf('ngenus=*',ngenus,1)
         call prin2('dpars=*',dpars,3)
+
+        call prin2('sol comp1 surface 1=*', soln,24)
+        call prin2('sol comp1 surface 2=*', soln(npts1+1),24)
+        call prin2('sol comp2 surface 1=*', soln(npts+1), 24)
+        call prin2('sol comp2 surface 2=*', soln(npts+npts1+1), 24)
+        call prin2('sol comp3 surface 1=*', soln(2*npts+1), 24)
+        call prin2('sol comp3 surface 2=*', soln(2*npts+npts1+1), 24)
+        call prin2('sol comp4 surface 1=*', soln(3*npts+1), 24)
+        call prin2('sol comp4 surface 2=*', soln(3*npts+npts1+1), 24)
+        call prin2('sol comp5 surface 1=*', soln(4*npts+1), 24)
+        call prin2('sol comp5 surface 2=*', soln(4*npts+npts1+1), 24)
+        call prin2('sol comp6 surface 1=*', soln(5*npts+1), 24)
+        call prin2('sol comp6 surface 2=*', soln(5*npts+npts1+1), 24)
 
 c
 c
@@ -1202,7 +1244,9 @@ c     3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
         rsurfintl2 = sqrt(rsurfintl2)
 
         errbdry = sqrt((errj + errbm + errbp))/rsurfintl2
-
+        call prin2('absolute errj=*', sqrt(errj), 1)
+        call prin2('absolute errbm=*', sqrt(errbm), 1)
+        call prin2('absolute errbp=*', sqrt(errbp), 1)
 
 
         errj = sqrt(errj)/rsurfintl2
@@ -1213,12 +1257,66 @@ c     3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
         call prin2('error in exterior magnetic field=*',errbp,1)
         call prin2('rsurfintl2 =*',rsurfintl2,1)
       endif
+      call surf_vtk_plot_scalar(npatches1,norders1,ixyzs1,iptype1,npts1,
+     1  srccoefs1,srcvals1,soln(3*npts+1),'qm1_iref3_1s.vtk','a')
+      call surf_vtk_plot_scalar(npatches2,norders2,ixyzs2,iptype2,npts2,
+     1  srccoefs2,srcvals2,soln(3*npts+npts1+1),'qm2_iref3_1s.vtk','a')
+
+      call surf_vtk_plot_scalar(npatches1,norders1,ixyzs1,iptype1,npts1,
+     1  srccoefs1,srcvals1,soln(4*npts+1),'qp1_iref3_1s.vtk','a')
+      call surf_vtk_plot_scalar(npatches2,norders2,ixyzs2,iptype2,npts2,
+     1  srccoefs2,srcvals2,soln(4*npts+npts1+1),'qp2_iref3_1s.vtk','a')
+
+
+      call surf_vtk_plot_scalar(npatches1,norders1,ixyzs1,iptype1,npts1,
+     1  srccoefs1,srcvals1,soln(5*npts+1),'rm1_iref3_1s.vtk','a')
+      call surf_vtk_plot_scalar(npatches2,norders2,ixyzs2,iptype2,npts2,
+     1  srccoefs2,srcvals2,soln(5*npts+npts1+1),'rm2_iref3_1s.vtk','a')
+
+
+      rqm1 = 0
+      rqp1 = 0
+      rrm1 = 0
+
+      rqm2 = 0
+      rqp2 = 0
+      rrm2 = 0
+      do i=1,npts1
+        rqm1 = rqm1 + soln(3*npts+i)**2*wts1(i)
+        rqp1 = rqp1 + soln(4*npts+i)**2*wts1(i)
+        rrm1 = rrm1 + soln(5*npts+i)**2*wts1(i)
+      enddo
+
+      do i=1,npts2
+        rqm2 = rqm2 + soln(3*npts+npts1+i)**2*wts2(i)
+        rqp2 = rqp2 + soln(4*npts+npts1+i)**2*wts2(i)
+        rrm2 = rrm2 + soln(5*npts+npts1+i)**2*wts2(i)
+      enddo
+
+      rqm1 = sqrt(rqm1)
+      rqp1 = sqrt(rqp1)
+      rrm1 = sqrt(rrm1)
+      
+      rqm2 = sqrt(rqm2)
+      rqp2 = sqrt(rqp2)
+      rrm2 = sqrt(rrm2)
+
+      call prin2('rqm1 = *', rqm1, 1)
+      call prin2('rqp1 = *', rqp1, 1)
+      call prin2('rrm1 = *', rrm1, 1)
+
+      call prin2('rqm2 = *', rqm2, 1)
+      call prin2('rqp2 = *', rqp2, 1)
+      call prin2('rrm2 = *', rrm2, 1)
+
+      
+
+      
 
 c     
 c     can stop here, expect to get digits 
 c 
 
-      stop 
 
       rsurfintl2 = 0 
       do i=1,npts 
