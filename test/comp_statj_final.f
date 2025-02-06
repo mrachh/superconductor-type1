@@ -602,7 +602,16 @@ c
      1    iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
      2    iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
      3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
-
+c
+c  for Yuguan for thinshell:
+c  todo: store norder, ipars, and rhs vectors
+c
+c  in file name where you store, you might want to add
+c  ap_1_bm_0 or ap_0_bm_1 depending on whether you have 
+c  computed the a^{+} static current or b^{-} static
+c  current
+c
+c
         open(unit=80,file=fname,form='unformatted')
         write(80) niter
         write(80) rres
