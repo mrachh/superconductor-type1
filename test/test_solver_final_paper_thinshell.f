@@ -121,6 +121,8 @@ CCC     for thin shell only
       real *8, allocatable :: hvecs1_div(:,:),hvecs2_div(:,:)
       real *8, allocatable :: hvecs1_div2(:),hvecs2_div2(:)
 CCC 
+      real *8 v1(3),v2(3),p(3),rp(3)
+      real *8, allocatable :: xcircle(:,:),dxcircle(:,:)
 
       logical isout0,isout1
 
@@ -161,7 +163,7 @@ c  igeomtype = 6 => thin shell tori
 c
       igeomtype = 6
 c      iref = 1
-      iref = 3
+      iref = 2
 
 
       ipars(1) = 2*2**(iref)
@@ -517,16 +519,69 @@ C$OMP END PARALLEL DO
       do i=1,npts1
         bbp(1:3,i) = 0
       enddo
+
+c
+cc    prepare a curve 
+c
+      ncircle = 500 
+      v1 = 0 
+      v1(1) = 1 
+      v2 = 0 
+      v2(3) = 1 
+      p = 0 
+      r = 1.75d0 
+      p(1) = r 
+      allocate(xcircle(3,ncircle),dxcircle(3,ncircle))
+      do i=1,ncircle 
+        t = 2*pi*(i-1)/ncircle 
+        do idim=1,3 
+          xcircle(idim,i) = p(idim)+r*cos(t)*v1(idim)+r*sin(t)*v2(idim)
+          dxcircle(idim,i) = -r*sin(t)*v1(idim)+r*cos(t)*v2(idim)
+        enddo 
+      enddo 
+
+
+c
+c   Biot–Savart law
+c
+
+      curr_str = 1
+      w = 2*pi/ncircle
+
+      do i=npts1+1,npts 
+        do j=1,ncircle 
+
+          rp = 0 
+          rp_norm = 0 
+
+          do idim=1,3 
+            rp(idim) = srcvals(idim,i)-xcircle(idim,j)
+            rp_norm = rp_norm+rp(idim)**2 
+          enddo
+          rp_norm = sqrt(rp_norm)
+
+          vtmp1 = 0 
+          call cross_prod3d(dxcircle(1,j),rp,vtmp1)
+
+          do idim=1,3 
+            bbp(idim,i) = bbp(idim,i)+curr_str*w*vtmp1(idim)/rp_norm**3
+          enddo 
+        enddo 
+      enddo 
 c      do i=npts1+1,npts 
 c        bbp(1,i) = srcvals(1,i)**2+srcvals(2,i)**2-2*srcvals(3,i)**2
 c        bbp(2,i) = srcvals(1,i)
 c        bbp(3,i) = srcvals(3,i)**3-3*srcvals(1,i)**2*srcvals(3,i)
 c      enddo 
       call prin2('bbp=*',bbp(1,npts1+1),24)
+      
+
       call surf_vtk_plot_vec(npatches1,norders1,ixyzs1,iptype1,npts1,
      1  srccoefs1,srcvals1,bbp,'bbp1.vtk','a')
       call surf_vtk_plot_vec(npatches2,norders2,ixyzs2,iptype2,npts2,
      1  srccoefs2,srcvals2,bbp(1,npts1+1),'bbp2.vtk','a')
+
+
       allocate(errp(npatches))
       
       init = 0
@@ -1372,14 +1427,6 @@ c     3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
       call prin2('rqm2 = *', rqm2, 1)
       call prin2('rqp2 = *', rqp2, 1)
       call prin2('rrm2 = *', rrm2, 1)
-
-      
-
-      
-
-c     
-c     can stop here, expect to get digits 
-c 
 
 
       rsurfintl2 = 0 
