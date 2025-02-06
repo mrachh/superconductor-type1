@@ -2475,7 +2475,11 @@
       do i=1,8    
         pot(6*npts + i) = pot(6*npts+i) + &
            0.3d0*sigma(6*npts+2)
+        pot(6*npts + i) = pot(6*npts+i) + &
+           (-1)**i*(sigma(6*npts+3) - 0.5d0*sigma(6*npts+4))   
       enddo
+
+
 !      pot(6*npts + 7) = pot(6*npts+7) + &
 !         0.5d0*(sigma(6*npts+3) + sigma(6*npts+4))
 !
