@@ -1,4 +1,15 @@
       implicit real *8 (a-h,o-z) 
+      
+      do idzk = 6,10
+        call run_stell_final(idzk)
+      enddo
+
+      return
+      end
+
+
+      subroutine run_stell_final(idzk)
+      implicit real *8 (a-h,o-z) 
       real *8, allocatable :: srcvals(:,:),srccoefs(:,:)
       real *8, allocatable :: wts(:),rsigma(:),rpot(:)
       integer ipars(2)
@@ -75,7 +86,6 @@
 
 
       ibg = 0
-      idzk = 9
       igeomtype = 2 
       if(igeomtype.eq.4) then
         ipars(1) = 4*4
@@ -193,7 +203,7 @@ c
       write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
      1     'hvecs_',ipars(1),
      1     '_',ipars(2),'_',norder,'_2.dat'
-      print *, fname 
+      print *, trim(fname) 
       open(unit=79,file=trim(fname),form='unformatted')
 
 c
@@ -260,7 +270,7 @@ c
         ifread = 1
         ifwrite = 0
         if(ifread.eq.0) then
-          eps = 0.51d-7
+          eps = 0.51d-6
           call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
      1      npts,srccoefs,srcvals,wts,eps,hvecs(1,1,1),errest)
           call prin2('errest=*',errest,1)
@@ -272,6 +282,7 @@ c
           read(79) hvecs(1:3,1:npts,2)
           close(78)
           close(79)
+          call prin2('hvecs=*',hvecs,24)
           ra1 = 0
           ra2 = 0
           do i=1,npts
@@ -374,7 +385,7 @@ cc     1   srccoefs,srcvals,rhs(2*npts+1),'rhs3-torus.vtk','a')
       if(igeomtype.eq.4) then
 
         allocate(bbp_a(3,na),bbp_b(3,nb))
-        rhs(6*npts+1) = 1 
+        rhs(6*npts+1) = dzk 
         rhs(6*npts+3) = 1
       endif
 c
@@ -383,13 +394,13 @@ c  flipped
 c
       if(igeomtype.eq.2.or.igeomtype.eq.5) then
         allocate(bbp_a(3,na),bbp_b(3,nb))
-        rhs(6*npts+2) = 1
+        rhs(6*npts+2) = dzk
         rhs(6*npts+4) = 1
       endif
 
 
 
-      eps = 0.51d-8
+      eps = 0.51d-6
 
       allocate(ipatch_id(npts),uvs_src(2,npts))
       call get_patch_id_uvs(npatches,norders,ixyzs,iptype,npts,
@@ -506,7 +517,7 @@ C$OMP END PARALLEL DO
       dpars(3) = rgamma
       wnear = 0
 
-      ifreadsol = 1
+      ifreadsol = 0
 
 c      if(ifreadsol.eq.1) goto 1111
       call getnearquad_statj_gendeb(npatches,norders,
@@ -557,40 +568,48 @@ c
       numit = 330
       allocate(errs(numit+1))
       call prinf('ngenus=*',ngenus,1)
-      eps_gmres = 1.0d-8
+      eps_gmres = 1.0d-7
  1233 format(3(2x,e22.16))
 
-      write(fname,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i1.1,a)') 
+      write(fname,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
      1    trim(dirname),'statj_soln_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'.dat'
+     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'_corrdata.dat'
 
       write(fname1,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
      1    trim(dirname),'statj_bjm_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'.vtk'
+     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'_corrdata.vtk'
 
       write(fname2,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
      1    trim(dirname),'statj_bbm_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'.vtk'
+     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'_corrdata.vtk'
 
       write(fname3,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
      1    trim(dirname),'statj_bbp_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'.vtk'
+     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'_corrdata.vtk'
 
       write(fname4,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
      1    trim(dirname),'statj_bjm_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'_plane2.vtk'
+     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,
+     3    '_plane2_corrdata.vtk'
 
       write(fname5,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a,i2.2,a)') 
      1    trim(dirname),'statj_bbm_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,'_plane2.vtk'
+     2    '_norder',norder,'_ibg',ibg,'_idzk',idzk,
+     3    '_plane2_corrdata.vtk'
 
 
       allocate(bbpcomp(3,npts),bjmcomp(3,npts),bbmcomp(3,npts))
       if(ifreadsol.eq.0) then
+      call cpu_time(t1)
+C$      t1 = omp_get_wtime()      
         call statj_gendeb_solver(npatches,norders,ixyzs,iptype,npts,
      1    srccoefs,srcvals,eps,dpars,ngenus,hvecs,bbphvecs,na,iaxyzs,
      2    apatches,auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts,
      3    numit,rhs,eps_gmres,niter,errs,rres,soln)
+      call cpu_time(t2)
+C$      t2 = omp_get_wtime()      
+      tsolve = t2-t1
+      call prin2('solve time=*',tsolve,1)
       
         print *, "here"
         call prin2('eps=*',eps,1)
@@ -602,16 +621,12 @@ c
      1    iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind,
      2    iquad,nquad,wnear,ngenus,hvecs,bbphvecs,soln,novers,npts_over,
      3    ixyzso,srcover,wover,bjmcomp,bbmcomp,bbpcomp)
-c
-c  for Yuguan for thinshell:
-c  todo: store norder, ipars, and rhs vectors
-c
-c  in file name where you store, you might want to add
-c  ap_1_bm_0 or ap_0_bm_1 depending on whether you have 
-c  computed the a^{+} static current or b^{-} static
-c  current
-c
-c
+        do i=1,npts
+          bbmcomp(1:3,i) = bbmcomp(1:3,i)/dzk
+        enddo
+        call prin2('bbmcomp=*',bbmcomp,24)
+        call prin2('bbpcomp=*',bbpcomp,24)
+
         open(unit=80,file=fname,form='unformatted')
         write(80) niter
         write(80) rres
@@ -620,6 +635,7 @@ c
         write(80) bbmcomp
         write(80) bbpcomp
         write(80) errs(1:niter)
+        write(80) tsolve
 
         close(80)
       else
@@ -636,6 +652,7 @@ c
       endif
       call prin2('errs=*',errs,niter)
       call prinf('niter=*',niter,1)
+      return
       
      
       call surf_vtk_plot_vec(npatches,norders,ixyzs,iptype,npts,

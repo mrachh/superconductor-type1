@@ -7,3 +7,5 @@ int2*
 *.go3
 *.txt
 *DS_Store
+*.pdf
+*nohup*

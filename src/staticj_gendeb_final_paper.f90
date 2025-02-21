@@ -2685,7 +2685,7 @@
         iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,iaxyzs, &
         apatches,auv,avals, awts,nb,ibxyzs, &
         bpatches,buv,bvals,bwts,sigma,novers,nptso,ixyzso, &
-        srcover,whtsover,pot)
+        srcover,whtsover,ifones,pot)
 
 !
 !  This subroutine evaluates the sets of potentials to the following
@@ -2819,6 +2819,9 @@
 !        oversampled set of source information
 !    - whtsover: real *8 (nptso)
 !        smooth quadrature weights at oversampled nodes
+!    - ifones: integer
+!        ifones = 1, then one's matrix will be added 
+!        as it is an interior problem
 !
 !  Output arguments:
 !    - pot: real *8 (npts+2*ngenus)
@@ -2838,6 +2841,7 @@
       integer iquad(nnz+1)
       real *8 sigma(npts+2*ngenus)
       real *8 wnear(nquad)
+      integer ifones
 
       integer na,nb
       integer iaxyzs(ngenus+1),ibxyzs(ngenus+1)
@@ -2865,6 +2869,7 @@
       real *8 dpottmp,dgradtmp(3)
       real *8 vtmp1(3),vtmp2(3),vtmp3(3),rncj,errncj
       real *8 rinttmp(6),rsurf
+      real *8 rint, rsurfint
 
 
       integer ns,nt
@@ -3080,6 +3085,21 @@
             vtmp1(3)*bvals(6,j))*bwts(j)
         enddo
       enddo
+
+      if(ifones.eq.1) then
+        rint = 0
+        rsurfint = 0
+        do i=1,npts
+          rsurfint = rsurfint + wts(i)
+          rint = rint + sigma(i)*wts(i)
+        enddo
+
+        rint = rint/rsurfint
+
+        do i=1,npts
+          pot(i) = pot(i) + rint
+        enddo
+      endif
 
       
 
@@ -7204,7 +7224,8 @@
       subroutine statj_gendeb_lambdainf_solver(npatches,norders,ixyzs,&
        iptype,npts,srccoefs,srcvals,eps,dpars,ngenus,hvecs,bbphvecs, &
        na,iaxyzs,apatches,auv,avals,awts,nb,ibxyzs, &
-       bpatches,buv,bvals,bwts,numit,rhs,eps_gmres,niter,errs,rres,soln)
+       bpatches,buv,bvals,bwts,numit,rhs,ifones,eps_gmres,niter, &
+       errs,rres,soln)
 
 !
 !  This subroutine solves a magnetostatics problem in the exterior
@@ -7300,6 +7321,9 @@
 !    - rhs: real *8 (npts+ngenus)
 !        Boundary data, the first component is
 !        B \cdot n
+!    - ifones: integer
+!        ifones = 1, include one's matrix as it is an interior
+!        problem
 !    - eps_gmres: real *8
 !        gmres tolerance requested
 !    - numit: integer
@@ -7327,6 +7351,7 @@
       real *8 dpars(1)
       real *8 rhs(npts+2*ngenus)
       real *8 soln(npts+2*ngenus)
+      integer ifones
 
       integer na,nb
       integer iaxyzs(ngenus+1),ibxyzs(ngenus+1)
@@ -7575,7 +7600,7 @@
           iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
           iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,iaxyzs,apatches, &
           auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts, &
-          vmat(1,it),novers,npts_over,ixyzso,srcover,wover,wtmp)
+          vmat(1,it),novers,npts_over,ixyzso,srcover,wover,ifones,wtmp)
 
 
         do k=1,it
@@ -7667,7 +7692,7 @@
             iptype,npts,srccoefs,srcvals,eps,dpars,nnz,row_ptr,col_ind, &
             iquad,nquad,wnear,ngenus,hvecs,bbphvecs,na,iaxyzs,apatches, &
             auv,avals,awts,nb,ibxyzs,bpatches,buv,bvals,bwts,soln, &
-            novers,npts_over,ixyzso,srcover,wover,wtmp)
+            novers,npts_over,ixyzso,srcover,wover,ifones,wtmp)
             
           do i=1,n_var
             rres = rres + abs(did*soln(i) + wtmp(i)-rhs(i))**2

@@ -38,7 +38,7 @@
       complex * 16 zpars(3)
       integer numit,niter,ndims(3)
       character *100 title,dirname
-      character *1000 fname,fname1
+      character *1000 fname,fname1,fnamevtk,fname_wts
 
       integer, allocatable :: ipatch_id(:),ipatch_id_targ(:)
       real *8, allocatable :: uvs_targ(:,:),uvs_src(:,:)
@@ -66,104 +66,41 @@
 
       done = 1
       pi = atan(done)*4
-c
-c
-c  ntarg test must be less than 100
-c
-
-      ntargtest = 10
 
 c
-c  Note for this code, igeomtype can only be 1,2,3,4 
+c  solve the limiting problem for the thinshell
+c  geometry. Note that the problem decouples
+c  so one only needs to solve the problem 
+c  in the interior of the inner torus
+c  or the exterior of the outer torus
 c
-c  igeomtype = 1 => sphere
-c  igeomtype = 2 => stellartor
-c  igeomtype = 3 => wiggly torus
-c  igeomtype = 4 => torus
+c  ifb = 1, then compute the solution in the
+c  interior of the inner torus else 
+c  compute the solution in the exterior
+c  of the outer torus
+c  
 c
-      ifones = 0
-      igeomtype = 2
-      iref = 2
-      if(igeomtype.eq.1) then
-        ipars(1) = iref
-        npatches = 12*(4**(ipars(1)))
-        fname = 'sphere.vtk'
-        dirname = '/mnt/home/mrachh/ceph/' // 
-     1     'superconductor-type1-data/sphere-data/'
-        ngenus = 0
-        xyz_in_src(1) = 0.201d0
-        xyz_in_src(2) = 0.102d0
-        xyz_in_src(3) = 0.011d0
+c  igeomtype = 61, outer torus
+c  igeomtype = 62, inner torus
+c
+     
+      ifb = 0
+      ifones = ifb
 
-        xyz_out_src(1) = -1.2d0
-        xyz_out_src(2) = 1.1d0
-        xyz_out_src(3) = 1.7d0
-      endif
+      if (ifb.eq.0) igeomtype = 61
+      if (ifb.eq.1) igeomtype = 62
 
-      if(igeomtype.eq.2) then
-        ipars(1) = 5*2**(iref)
-        ipars(2) = 15*2**(iref)
-        dirname = '/mnt/home/mrachh/ceph/' // 
-     1     'superconductor-type1-data/stell-data/'
-c        ipars(1) = 30
-c        ipars(2) = 90
-        npatches = 2*ipars(1)*ipars(2)
+      iref = 3
 
-        xyz_in_src(1) = -4.503d0
-        xyz_in_src(2) = -0.01d0
-        xyz_in_src(3) = 0.001d0
+      ipars(1) = 2*2**(iref)
+      ipars(2) = 1*2**(iref)
+      npatches = 2*ipars(1)*ipars(2)
+      dirname = '/mnt/home/mrachh/ceph/' // 
+     1     'superconductor-type1-data/thinshell-data/'
+      if(igeomtype.eq.61) fname = 'outer-torus.vtk'
+      if(igeomtype.eq.62) fname = 'inner-torus.vtk'
+      ngenus = 1
 
-        xyz_out_src(1) = -3.5d0
-        xyz_out_src(2) = 7.7d0
-        xyz_out_src(3) = 5.7d0
-
-
-        fname = 'stell.vtk'
-        ngenus = 1
-      endif
-
-      if(igeomtype.eq.3) then
-        ipars(1) = 8*2**(iref)
-        ipars(2) = 4*2**(iref)
-        npatches = 2*ipars(1)*ipars(2)
-        ngenus = 1
-        
-        fname = 'wtorus.vtk'
-        dirname = '/mnt/home/mrachh/ceph/' // 
-     1     'superconductor-type1-data/wtorus-data/'
-        xyz_in_src(1) = -2.001d0
-        xyz_in_src(2) = 0.002d0
-        xyz_in_src(3) = 0.001d0
-
-        uu = 0.91d0*pi
-        vv = 0.17d0*2*pi
-        rr = 1.33d0 
-        xyz_out_src(1) = (rr*cos(uu) + 2+0.25d0*cos(3*vv))*cos(vv)
-        xyz_out_src(2) = (rr*cos(uu) + 2+0.25d0*cos(3*vv))*sin(vv)
-        xyz_out_src(3) = rr*sin(uu)
-
-      endif
-
-      if(igeomtype.eq.4) then
-        ipars(1) = 4*2**(iref)
-        ipars(2) = 2*2**(iref)
-        npatches = 2*ipars(1)*ipars(2)
-        dirname = '/mnt/home/mrachh/ceph/' // 
-     1     'superconductor-type1-data/torus-data/'
-        fname = 'torus.vtk'
-        ngenus = 1
-
-        xyz_in_src(1) = 2.001d0
-        xyz_in_src(2) = 0.002d0
-        xyz_in_src(3) = 0.001d0
-
-        uu = 0.75d0*2*pi
-        vv = 0.22d0*2*pi
-        rr = 1.37d0 
-        xyz_out_src(1) = (rr*cos(uu) + 2)*cos(vv)
-        xyz_out_src(2) = (rr*cos(uu) + 2)*sin(vv)
-        xyz_out_src(3) = rr*sin(uu)
-      endif
 
       norder = 8
       npols = (norder+1)*(norder+2)/2
@@ -179,7 +116,6 @@ c        ipars(2) = 90
 
       allocate(norders(npatches),ixyzs(npatches+1),iptype(npatches))
 
-      if(igeomtype.eq.2) call write_triaskelpts(norder,npatches,ipars)
 
       do i=1,npatches
         norders(i) = norder
@@ -192,6 +128,22 @@ c        ipars(2) = 90
 
       call get_qwts(npatches,norders,ixyzs,iptype,npts,srcvals,wts)
 
+      if(igeomtype.eq.61) then
+        write(fname_wts,'(a,i1,a)') 'outer-torus-wts_iref',iref,'.dat'
+      else
+        write(fname_wts,'(a,i1,a)') 'inner-torus-wts_iref',iref,'.dat'
+      endif
+
+      open(unit=98, file=trim(fname_wts), form='unformatted')
+      write(98) wts
+      close(98)
+
+      stop
+
+
+      
+
+
 
       allocate(cms(3,npatches),rads(npatches),rad_near(npatches))
 
@@ -200,98 +152,22 @@ c        ipars(2) = 90
       call prin2('cms=*',cms,24)
       call prin2('rads=*',rads,12)
 
-      if(igeomtype.eq.1) then
-        call get_sphere_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
-      endif
-
-      if(igeomtype.eq.2) then
-       htest = 0.5d0*2**(iref) 
-       call get_stell_testtarg(ntargtest,xyz_in_targ,xyz_out_targ,
-     1    npatches,npts,cms,rads,srcvals,wts,htest)
-      endif
-
-      if(igeomtype.eq.3) then
-        call get_wtorus_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
-      endif
-
-      if(igeomtype.eq.4) then
-        call get_torus_testtarg(ntargtest,xyz_in_targ,xyz_out_targ)
-      endif
-
-      call prin2('xyz_in_targ=*',xyz_in_targ,3*ntargtest)
-      call prin2('xyz_out_targ=*',xyz_out_targ,3*ntargtest)
-
-
-      print *, " "
-      print *, " "
-      print *, "Testing interior targets"
-      do i=1,ntargtest
-        isout0 = .false.
-        call test_exterior_pt(npts,srcvals,wts,xyz_in_targ(1,i),isout0)
-          print *, i,isout0
-      enddo
-      print *, "=============="
-      print *, " "
-      print *, " "
-      print *, "Testing exterior targets"
-
-      do i=1,ntargtest
-        isout0 = .false.
-        call test_exterior_pt(npts,srcvals,wts,xyz_out_targ(1,i),isout0)
-          print *, i,isout0
-      enddo
-      print *, "=============="
-c
-c  set file names for reading or writing harmonic vector fields
-c
-c
-      if(igeomtype.ge.2) then
-        write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
-     1       'hvecs_',ipars(1),
-     1      '_',ipars(2),'_',norder,'_1.dat'
-          open(unit=78,file=trim(fname),form='unformatted')
-        write(fname,'(a,a,i3.3,a,i3.3,a,i1,a)') trim(dirname),
-     1       'hvecs_',ipars(1),
-     1       '_',ipars(2),'_',norder,'_2.dat'
-        print *, fname 
-        open(unit=79,file=trim(fname),form='unformatted')
-      endif
-
 
 c
 c   set a and b cycle params
 c
 
-      if(igeomtype.ge.2) then
-        m = 40
-        na = ipars(2)*m
-        nb = ipars(1)*m
-        allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
-        allocate(bvals(9,nb),bwts(nb),buv(2,nb),bpatches(nb))
-        allocate(bbphvecs_a(3,na,2),bbphvecs_b(3,nb,2))
-        allocate(hvecs_a(3,na,2),hvecs_b(3,nb,2))
-        call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
-     1     npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,
-     2     nb,bvals,bwts,bpatches,buv)
-      endif
+      m = 40
+      na = ipars(2)*m
+      nb = ipars(1)*m
+      allocate(avals(9,na),awts(na),auv(2,na),apatches(na))
+      allocate(bvals(9,nb),bwts(nb),buv(2,nb),bpatches(nb))
+      allocate(bbphvecs_a(3,na,2),bbphvecs_b(3,nb,2))
+      allocate(hvecs_a(3,na,2),hvecs_b(3,nb,2))
+      call get_ab_cycles_torusparam(npatches,norders,ixyzs,iptype,
+     1   npts,srccoefs,srcvals,ipars,m,na,avals,awts,apatches,auv,
+     2   nb,bvals,bwts,bpatches,buv)
 
-      if(igeomtype.eq.1) then
-        na = 0
-        nb = 0
-        ntmp = 10
-        allocate(avals(9,ntmp),awts(ntmp),auv(2,ntmp),apatches(ntmp))
-        allocate(bvals(9,ntmp),bwts(ntmp),buv(2,ntmp),bpatches(ntmp))
-        allocate(bbphvecs_a(3,ntmp,2),bbphvecs_b(3,ntmp,2))
-        allocate(hvecs_a(3,ntmp,2),hvecs_b(3,ntmp,2))
-        avals = 0
-        awts = 0
-        auv = 0
-        apatches = 0
-        bvals = 0
-        bwts = 0
-        buv = 0
-        bpatches = 0
-      endif
 c
 c
 c   compute harmonic vector fields
@@ -305,95 +181,22 @@ c
       allocate(rhstmp(npts*3),outtmp(npts*3))
       bbphvecs = 0
 
-      if(igeomtype.eq.4.or.igeomtype.eq.5) then
-        do i=1,npts
-          rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
-          hvecs(1,i,1) = -srcvals(2,i)/rr1
-          hvecs(2,i,1) = srcvals(1,i)/rr1
-          hvecs(3,i,1) = 0 
-          call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
-     1       hvecs(1:3,i,2))
-        enddo
-        call surf_div(npatches,norders,ixyzs,iptype,npts, 
-     1   srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
-        errest = 0
-        do i=1,npts
-          errest = errest + hvecs_div2(i)**2*wts(i)
-        enddo
-        errest = sqrt(errest)
-        call prin2('errest=*',errest,1)
-      endif
-
-      if(igeomtype.eq.2.or.igeomtype.eq.3) then
-
-        ifread = 1
-        ifwrite = 0 
-        if(ifread.eq.0) then
-          eps = 0.51d-7
-          call cpu_time(tt1)
-C$         tt1 = omp_get_wtime()         
-          print *, "Here1"
-          call get_harm_vec_field(npatches,norders,ixyzs,iptype, 
-     1      npts,srccoefs,srcvals,wts,eps,hvecs(1,1,1),errest)
-          call cpu_time(tt2)
-C$         tt2 = omp_get_wtime()          
-          call prin2('errest=*',errest,1)
-          print *, "here2"
-          print *, "time taken = ",tt2-tt1
-          do i=1,npts
-            call cross_prod3d(srcvals(10,i),hvecs(1,i,1),hvecs(1,i,2))
-          enddo
-        else
-          print *, "here1"
-          read(78) hvecs(1:3,1:npts,1)
-          read(79) hvecs(1:3,1:npts,2)
-
-          ra1 = 0
-          ra2 = 0
-          do i=1,npts
-            ra1 = ra1 + (hvecs(1,i,1)**2 + hvecs(2,i,1)**2 + 
-     1         hvecs(3,i,1)**2)*wts(i)
-            ra2 = ra2 + (hvecs(1,i,2)**2 + hvecs(2,i,2)**2 + 
-     1         hvecs(3,i,2)**2)*wts(i)
-          enddo
-          ra1 = sqrt(ra1)
-          ra2 = sqrt(ra2)
-          do i=1,npts
-            hvecs(1:3,i,1) = hvecs(1:3,i,1)/ra1
-            hvecs(1:3,i,2) = hvecs(1:3,i,2)/ra2
-          enddo
-          ra1 = 0
-          ra2 = 0
-          do i=1,npts
-            ra1 = ra1 + (hvecs(1,i,1)**2 + hvecs(2,i,1)**2 + 
-     1         hvecs(3,i,1)**2)*wts(i)
-            ra2 = ra2 + (hvecs(1,i,2)**2 + hvecs(2,i,2)**2 + 
-     1         hvecs(3,i,2)**2)*wts(i)
-          enddo
-          ra1 = sqrt(ra1)
-          ra2 = sqrt(ra2)
-          call prin2('ra1=*',ra1,1)
-          call prin2('ra2=*',ra2,1)
-          
-          close(78)
-          close(79)
-          call surf_div(npatches,norders,ixyzs,iptype,npts, 
-     1     srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
-          errest = 0
-          do i=1,npts
-            errest = errest + hvecs_div2(i)**2*wts(i)
-          enddo
-          errest = sqrt(errest)
-          call prin2('errest=*',errest,1)
-        endif
-        if(ifwrite.eq.1) then
-          write(78) hvecs(1:3,1:npts,1)
-          write(79) hvecs(1:3,1:npts,2)
-          close(78)
-          close(79)
-        endif
-      endif
-
+      do i=1,npts
+        rr1 = srcvals(1,i)**2 + srcvals(2,i)**2
+        hvecs(1,i,1) = -srcvals(2,i)/rr1
+        hvecs(2,i,1) = srcvals(1,i)/rr1
+        hvecs(3,i,1) = 0 
+        call cross_prod3d(srcvals(10,i),hvecs(1:3,i,1),
+     1     hvecs(1:3,i,2))
+      enddo
+      call surf_div(npatches,norders,ixyzs,iptype,npts, 
+     1 srccoefs,srcvals,hvecs(1,1,1),hvecs_div2)
+      errest = 0
+      do i=1,npts
+        errest = errest + hvecs_div2(i)**2*wts(i)
+      enddo
+      errest = sqrt(errest)
+      call prin2('errest=*',errest,1)
 
       iaxyzs(1) = 1
       iaxyzs(2) = na+1
@@ -401,18 +204,7 @@ C$         tt2 = omp_get_wtime()
       ibxyzs(1) = 1
       ibxyzs(2) = nb+1
 
-c
-c
-      vf2(1:3,1) = 1.0d0 
-      cf2(1) = 1*1.0d0
-
-
       thresh = 1.0d-16
-      allocate(bbp(3,npts),ptmp(npts))
-      ptmp = 0
-      bbp = 0
-      bjm = 0
-      bbm = 0
 
       ntarg = npts
       allocate(sources(3,npts))
@@ -428,12 +220,13 @@ C$OMP END PARALLEL DO
       rhs = 0
       soln = 0
       allocate(bbp_a(3,na),bbp_b(3,nb))
-      if(igeomtype.eq.2.or.igeomtype.eq.5) then
-        rhs(npts+2) = 1
+
+      if(igeomtype.eq.61) then
+        rhs(npts+1) = 1
       endif
 
-      if(igeomtype.eq.4) then
-        rhs(npts+1) = 1
+      if(igeomtype.eq.62) then
+        rhs(npts+2) = 1
       endif
 
 
@@ -509,9 +302,6 @@ c
       wnear = 0
       dpars = 0
 
-      
-
-
       t1 = 0
       t2 = 0
 cc      goto 1111
@@ -579,6 +369,7 @@ C$       t1 = omp_get_wtime()
 C$       t2 = omp_get_wtime()      
       
       call prin2('solve time=*',t2-t1,1)
+      tsolve = t2-t1
       
       if(ngenus.ge.1) call prin2('projs=*',soln(npts+1),2)
 
@@ -599,14 +390,27 @@ C$       t2 = omp_get_wtime()
       call prin2('bbpcomp=*',bbpcomp,24)
 
        
-      write(fname,'(a,a,i2.2,a,i2.2,a,i1,a)') 
+      write(fname,'(a,a,i2.2,a,i2.2,a,i1,a,i1,a)') 
      1    trim(dirname),'statj_soln_lambdainf_',ipars(1),'_',ipars(2),
-     2    '_norder',norder,'.dat'
+     2    '_norder',norder,'_ifb',ifb,'.dat'
+
+      if(igeomtype.eq.61) then
+        write(fnamevtk, '(a,i1,a)')  'outer_torus_iref',iref,'.vtk'
+      elseif (igeomtype.eq.62) then
+        write(fnamevtk, '(a,i1,a)')  'inner_torus_iref',iref,'.vtk'
+      endif
+      
+      call surf_vtk_plot_vec(npatches, norders, ixyzs, iptype, npts, 
+     1  srccoefs, srcvals, bbpcomp, trim(fnamevtk), 'a')
 
 
  1233 format(3(2x,e22.16))
       open(unit=80,file=trim(fname),form='unformatted')
-
+ 
+      write(80) ipars
+      write(80) iref
+      write(80) ifb
+      write(80) tsolve
       write(80) niter
       write(80) rres
       write(80) soln
@@ -654,213 +458,60 @@ C$       t2 = omp_get_wtime()
 
       call vioreanu_simplex_quad(norder,npols,uvs,umatr,vmatr,wts)
 
-      if(igeomtype.eq.1) then
-        itype = 2
-        allocate(triaskel(3,3,npatches))
-        allocate(isides(npatches))
-        npmax = npatches
-        ntri = 0
-        call xtri_platonic(itype, ipars(1), npmax, ntri, 
-     1      triaskel, isides)
-
-        xtri_geometry => xtri_sphere_eval
-        ptr1 => triaskel(1,1,1)
-        ptr2 => p2(1)
-        ptr3 => p3(1)
-        ptr4 => p4(1)
-
-
-        if(ifplot.eq.1) then
-           call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
-     1         ptr3,ptr4, norder,'Triangulated surface of the sphere')
-        endif
-
-
-        call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
-     1     npols,uvs,umatr,srcvals,srccoefs)
+      if(igeomtype.ne.61.and.igeomtype.ne.62) then
+        print *, "invalid type of geometry"
+        print *, "exiting"
+        stop
       endif
 
-      if(igeomtype.eq.2) then
-        done = 1
-        pi = atan(done)*4
-        umin = 0
-        umax = 2*pi
-        vmin = 2*pi
-        vmax = 0
-        allocate(triaskel(3,3,npatches))
-        nover = 0
-        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
-     1     nover,npatches,npatches,triaskel)
-
-        mmax = 2
-        nmax = 1
-        xtri_geometry => xtri_stell_eval
-
-        allocate(deltas(-1:mmax,-1:nmax))
-        deltas(-1,-1) = 0.17d0
-        deltas(0,-1) = 0
-        deltas(1,-1) = 0
-        deltas(2,-1) = 0
-
-        deltas(-1,0) = 0.11d0
-        deltas(0,0) = 1
-        deltas(1,0) = 4.5d0
-        deltas(2,0) = -0.25d0
-
-        deltas(-1,1) = 0
-        deltas(0,1) = 0.07d0
-        deltas(1,1) = 0
-        deltas(2,1) = -0.45d0
-
-        ptr1 => triaskel(1,1,1)
-        ptr2 => deltas(-1,-1)
-        iptr3 => mmax
-        iptr4 => nmax
-
-        if(ifplot.eq.1) then
-           call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
-     1         iptr3,iptr4, norder,
-     2         'Triangulated surface of the stellarator')
-        endif
-
-        call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,iptr3,iptr4,
-     1     npols,uvs,umatr,srcvals,srccoefs)
-      endif
-
-      if(igeomtype.eq.3) then
-        done = 1
-        pi = atan(done)*4
-        umin = 0
-        umax = 2*pi
+      
+      done = 1
+      pi = atan(done)*4
+      umin = 0
+      umax = 2*pi
+      if(igeomtype.eq.61) then
         vmin = 0
         vmax = 2*pi
-        allocate(triaskel(3,3,npatches))
-        nover = 0
-        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
-     1     nover,npatches,npatches,triaskel)
-        call prinf('npatches=*',npatches,1)
-         
-        p1(1) = 1
-        p1(2) = 2
-        p1(3) = 0.25d0
-
-        p2(1) = 1.0d0
-        p2(2) = 1.0d0
-        p2(3) = 1.0d0
-
-c
-c         numberof oscillations
-c
-        p4(1) = 3.0d0
-
-
-        ptr1 => triaskel(1,1,1)
-        ptr2 => p1(1)
-        ptr3 => p2(1)
-        ptr4 => p4(1)
-        xtri_geometry => xtri_wtorus_eval
-        if(ifplot.eq.1) then
-           call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
-     1         ptr3,ptr4, norder,
-     2         'Triangulated surface of the wtorus')
-        endif
-
-
-        call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
-     1     npols,uvs,umatr,srcvals,srccoefs)
-      endif
-      
-      if(igeomtype.eq.4) then
-        done = 1
-        pi = atan(done)*4
-        umin = 0
-        umax = 2*pi
-        vmin = 0
-        vmax = 2*pi
-        allocate(triaskel(3,3,npatches))
-        nover = 0
-        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
-     1     nover,npatches,npatches,triaskel)
-        call prinf('npatches=*',npatches,1)
-         
-        p1(1) = 1.0d0
-        p1(2) = 1.75d0
-        p1(3) = 0.25d0
-
-        p2(1) = 1.0d0
-        p2(2) = 1.0d0
-        p2(3) = 1.0d0
-
-c
-c         number of oscillations
-c
-        p4(1) = 0.0d0
-
-
-        ptr1 => triaskel(1,1,1)
-        ptr2 => p1(1)
-        ptr3 => p2(1)
-        ptr4 => p4(1)
-        xtri_geometry => xtri_wtorus_eval
-        if(ifplot.eq.1) then
-           call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
-     1         ptr3,ptr4, norder,
-     2         'Triangulated surface of the torus')
-        endif
-
-
-        call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
-     1     npols,uvs,umatr,srcvals,srccoefs)
-      endif
-
-      if(igeomtype.eq.5) then
-        done = 1
-        pi = atan(done)*4
-        umin = 0
-        umax = 2*pi
+      elseif (igeomtype.eq.62) then
         vmin = 2*pi
         vmax = 0
-        allocate(triaskel(3,3,npatches))
-        nover = 0
-        call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
-     1     nover,npatches,npatches,triaskel)
-
-        mmax = 2
-        nmax = 1
-        xtri_geometry => xtri_stell_eval
-
-        allocate(deltas(-1:mmax,-1:nmax))
-        deltas(-1,-1) = 0.17d0*0
-        deltas(0,-1) = 0
-        deltas(1,-1) = 0
-        deltas(2,-1) = 0
-
-        deltas(-1,0) = 0.11d0*0
-        deltas(0,0) = 1*0
-        deltas(1,0) = 2.0d0
-        deltas(2,0) = -0.25d0*0
-
-        deltas(-1,1) = 0
-        deltas(0,1) = 1.0d0
-        deltas(1,1) = 0
-        deltas(2,1) = -0.45d0*0
-
-
-        ptr1 => triaskel(1,1,1)
-        ptr2 => deltas(-1,-1)
-        iptr3 => mmax
-        iptr4 => nmax
-
-        if(ifplot.eq.1) then
-           call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
-     1         iptr3,iptr4, norder,
-     2         'Triangulated surface of the stellarator')
-        endif
-
-        call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,iptr3,iptr4,
-     1     npols,uvs,umatr,srcvals,srccoefs)
       endif
-      
+
+      allocate(triaskel(3,3,npatches))
+      nover = 0
+      call xtri_rectmesh_ani(umin,umax,vmin,vmax,ipars(1),ipars(2),
+     1   nover,npatches,npatches,triaskel)
+      call prinf('npatches=*',npatches,1)
+         
+      if(igeomtype.eq.61) p1(1) = 1.0d0
+      if(igeomtype.eq.62) p1(1) = 0.5d0
+      p1(2) = 1.75d0
+      p1(3) = 0.25d0
+
+      p2(1) = 1.0d0
+      p2(2) = 1.0d0
+      p2(3) = 1.0d0
+
+c
+c       number of oscillations
+c
+      p4(1) = 0.0d0
+
+
+      ptr1 => triaskel(1,1,1)
+      ptr2 => p1(1)
+      ptr3 => p2(1)
+      ptr4 => p4(1)
+      xtri_geometry => xtri_wtorus_eval
+      if(ifplot.eq.1) then
+         call xtri_vtk_surf(fname,npatches,xtri_geometry, ptr1,ptr2, 
+     1       ptr3,ptr4, norder,
+     2       'Triangulated surface of the torus')
+      endif
+
+
+      call getgeominfo(npatches,xtri_geometry,ptr1,ptr2,ptr3,ptr4,
+     1   npols,uvs,umatr,srcvals,srccoefs)
       
       return  
       end

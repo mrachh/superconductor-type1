@@ -207,7 +207,7 @@ c        ipars(2) = 90
         xyz_out_src(3) = rr*sin(uu)
       endif
 
-      norder = 8
+      norder = 6
       npols = (norder+1)*(norder+2)/2
 
       npts = npatches*npols
@@ -740,7 +740,6 @@ c
      1      bbphvecs(2,i,2), bbphvecs(3,i,2)
       enddo
 
-      stop 
 
       call cpu_time(t1)
 C$       t1 = omp_get_wtime()      
@@ -989,6 +988,7 @@ c
      1  errvol,1)
       call prin2('l2 abs error at interior + exterior targets=*',
      1  errvol_abs,1)
+      stop
 
       open(unit=81,file='res_mar17_2022.txt',access='append')
 c
